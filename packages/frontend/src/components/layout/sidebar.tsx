@@ -1,18 +1,17 @@
-import * as React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Users,
-  Shield,
-  Settings,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-  LucideIcon,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/usePermissions';
+import { cn } from '@/lib/utils';
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  LayoutDashboard,
+  type LucideIcon,
+  Settings,
+  Shield,
+  Users,
+} from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
 
 interface NavItem {
   title: string;
@@ -84,9 +83,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
             A
           </div>
-          {!isCollapsed && (
-            <span className="font-semibold text-lg">Admin</span>
-          )}
+          {!isCollapsed && <span className="font-semibold text-lg">Admin</span>}
         </div>
       </div>
 

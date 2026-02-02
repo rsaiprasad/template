@@ -1,17 +1,12 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { AppEnv } from '../types/context';
+import { logAuditAction } from '../middleware/audit';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
-import { logAuditAction } from '../middleware/audit';
-import { SettingsService } from '../services/settings.service';
 import { GroupService } from '../services/group.service';
-import {
-  successResponse,
-  badRequest,
-  notFound,
-  internalError,
-} from '../utils/response';
+import { SettingsService } from '../services/settings.service';
+import type { AppEnv } from '../types/context';
+import { badRequest, internalError, notFound, successResponse } from '../utils/response';
 
 const settingsRoutes = new Hono<AppEnv>();
 
@@ -22,10 +17,12 @@ settingsRoutes.use('*', authMiddleware);
 const updateSettingsSchema = z.object({
   appName: z.string().min(1).max(100).optional(),
   defaultGroupId: z.string().min(1).optional(),
-  features: z.object({
-    auditLogging: z.boolean().optional(),
-    userRegistration: z.boolean().optional(),
-  }).optional(),
+  features: z
+    .object({
+      auditLogging: z.boolean().optional(),
+      userRegistration: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 /**
@@ -83,44 +80,48 @@ settingsRoutes.put('/', requirePermission('settings:update'), async (c) => {
     const existingSettings = await settingsService.getSettings();
 
     // Update settings
-    const updatedSettings = await settingsService.updateSettings(
-      result.data,
-      currentUser.uid
-    );
+    const updatedSettings = await settingsService.updateSettings(result.data, currentUser.uid);
 
     // Log audit for each changed field
     const changes: Record<string, unknown> = {};
     const before: Record<string, unknown> = {};
 
     if (result.data.appName !== undefined && result.data.appName !== existingSettings.appName) {
-      before['appName'] = existingSettings.appName;
-      changes['appName'] = result.data.appName;
+      before.appName = existingSettings.appName;
+      changes.appName = result.data.appName;
     }
 
-    if (result.data.defaultGroupId !== undefined && result.data.defaultGroupId !== existingSettings.defaultGroupId) {
-      before['defaultGroupId'] = existingSettings.defaultGroupId;
-      changes['defaultGroupId'] = result.data.defaultGroupId;
+    if (
+      result.data.defaultGroupId !== undefined &&
+      result.data.defaultGroupId !== existingSettings.defaultGroupId
+    ) {
+      before.defaultGroupId = existingSettings.defaultGroupId;
+      changes.defaultGroupId = result.data.defaultGroupId;
     }
 
     if (result.data.features !== undefined) {
       const featureChanges: Record<string, boolean> = {};
       const featureBefore: Record<string, boolean> = {};
 
-      if (result.data.features.auditLogging !== undefined &&
-          result.data.features.auditLogging !== existingSettings.features.auditLogging) {
-        featureBefore['auditLogging'] = existingSettings.features.auditLogging;
-        featureChanges['auditLogging'] = result.data.features.auditLogging;
+      if (
+        result.data.features.auditLogging !== undefined &&
+        result.data.features.auditLogging !== existingSettings.features.auditLogging
+      ) {
+        featureBefore.auditLogging = existingSettings.features.auditLogging;
+        featureChanges.auditLogging = result.data.features.auditLogging;
       }
 
-      if (result.data.features.userRegistration !== undefined &&
-          result.data.features.userRegistration !== existingSettings.features.userRegistration) {
-        featureBefore['userRegistration'] = existingSettings.features.userRegistration;
-        featureChanges['userRegistration'] = result.data.features.userRegistration;
+      if (
+        result.data.features.userRegistration !== undefined &&
+        result.data.features.userRegistration !== existingSettings.features.userRegistration
+      ) {
+        featureBefore.userRegistration = existingSettings.features.userRegistration;
+        featureChanges.userRegistration = result.data.features.userRegistration;
       }
 
       if (Object.keys(featureChanges).length > 0) {
-        before['features'] = featureBefore;
-        changes['features'] = featureChanges;
+        before.features = featureBefore;
+        changes.features = featureChanges;
       }
     }
 
@@ -131,7 +132,7 @@ settingsRoutes.put('/', requirePermission('settings:update'), async (c) => {
         'GROUP_UPDATED', // Using existing audit action type that fits
         'settings',
         'app',
-        `Updated application settings`,
+        'Updated application settings',
         { before, after: changes }
       );
     }

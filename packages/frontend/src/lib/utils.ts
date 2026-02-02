@@ -82,7 +82,7 @@ export function capitalize(str: string): string {
  */
 export function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) return str;
-  return str.slice(0, maxLength - 3) + '...';
+  return `${str.slice(0, maxLength - 3)}...`;
 }
 
 /**
@@ -101,7 +101,7 @@ export function getInitials(name: string): string {
  */
 export function getFirstName(name: string | null | undefined): string {
   if (!name) return '';
-  return name.split(' ')[0];
+  return name.split(' ')[0] || '';
 }
 
 /**
@@ -170,7 +170,9 @@ export function parseQueryString(queryString: string): Record<string, string> {
 /**
  * Build query string from object
  */
-export function buildQueryString(params: Record<string, string | number | boolean | undefined>): string {
+export function buildQueryString(
+  params: Record<string, string | number | boolean | undefined>
+): string {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -196,7 +198,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 /**
  * Download data as a file
  */
-export function downloadFile(data: string, filename: string, mimeType: string = 'text/plain'): void {
+export function downloadFile(data: string, filename: string, mimeType = 'text/plain'): void {
   const blob = new Blob([data], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -211,7 +213,7 @@ export function downloadFile(data: string, filename: string, mimeType: string = 
 /**
  * Generate a random ID
  */
-export function generateId(length: number = 8): string {
+export function generateId(length = 8): string {
   return Math.random()
     .toString(36)
     .substring(2, 2 + length);
@@ -221,7 +223,7 @@ export function generateId(length: number = 8): string {
  * Pluralize a word based on count
  */
 export function pluralize(count: number, singular: string, plural?: string): string {
-  return count === 1 ? singular : (plural || `${singular}s`);
+  return count === 1 ? singular : plural || `${singular}s`;
 }
 
 /**

@@ -1,6 +1,6 @@
-import { initializeApp, getApps, cert, type App, type ServiceAccount } from 'firebase-admin/app';
-import { getAuth, type Auth } from 'firebase-admin/auth';
-import { getFirestore, type Firestore, Timestamp } from 'firebase-admin/firestore';
+import { type App, type ServiceAccount, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { type Auth, getAuth } from 'firebase-admin/auth';
+import { type Firestore, Timestamp, getFirestore } from 'firebase-admin/firestore';
 
 let app: App;
 let auth: Auth;
@@ -82,9 +82,7 @@ export function toFirestoreTimestamp(date: Date): Timestamp {
   return Timestamp.fromDate(date);
 }
 
-export function fromFirestoreTimestamp(
-  timestamp: Timestamp | undefined | null
-): Date | undefined {
+export function fromFirestoreTimestamp(timestamp: Timestamp | undefined | null): Date | undefined {
   if (!timestamp) return undefined;
   return timestamp.toDate();
 }
@@ -92,9 +90,7 @@ export function fromFirestoreTimestamp(
 /**
  * Convert Firestore document data to typed object with Date conversions
  */
-export function convertFirestoreDoc<T>(
-  doc: FirebaseFirestore.DocumentSnapshot
-): T | null {
+export function convertFirestoreDoc<T>(doc: FirebaseFirestore.DocumentSnapshot): T | null {
   if (!doc.exists) return null;
 
   const data = doc.data()!;
@@ -114,9 +110,7 @@ export function convertFirestoreDoc<T>(
 /**
  * Convert array of Firestore documents
  */
-export function convertFirestoreDocs<T>(
-  snapshot: FirebaseFirestore.QuerySnapshot
-): T[] {
+export function convertFirestoreDocs<T>(snapshot: FirebaseFirestore.QuerySnapshot): T[] {
   return snapshot.docs
     .map((doc) => convertFirestoreDoc<T>(doc))
     .filter((doc): doc is T => doc !== null);

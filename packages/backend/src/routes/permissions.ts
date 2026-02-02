@@ -1,14 +1,13 @@
-import { Hono } from 'hono';
-import type { AppEnv } from '../types/context';
-import { authMiddleware } from '../middleware/auth';
-import { successResponse } from '../utils/response';
 import {
-  PERMISSIONS,
   ALL_PERMISSIONS,
-  getPermissionsByResource,
+  PERMISSIONS,
   type Permission,
-  type PermissionDefinition,
+  getPermissionsByResource,
 } from '@admin-dashboard/shared';
+import { Hono } from 'hono';
+import { authMiddleware } from '../middleware/auth';
+import type { AppEnv } from '../types/context';
+import { successResponse } from '../utils/response';
 
 const permissionRoutes = new Hono<AppEnv>();
 
@@ -38,7 +37,7 @@ permissionRoutes.get('/', (c) => {
 
   // Only super admins and users with groups:update can see all permissions
   // (since they need to know what permissions are available to assign)
-  if (!user.isSuperAdmin && !user.permissions.includes('groups:update')) {
+  if (!(user.isSuperAdmin || user.permissions.includes('groups:update'))) {
     // Regular users can only see their own permissions
     return successResponse(c, {
       permissions: user.permissions.map((p) => ({

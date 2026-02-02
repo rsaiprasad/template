@@ -1,27 +1,8 @@
-import * as React from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import {
-  ArrowLeft,
-  Save,
-  Shield,
-  Users,
-  Calendar,
-  Check,
-  X,
-} from 'lucide-react';
+import { WithPermission } from '@/components/features/permission-gate';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -30,16 +11,60 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { WithPermission } from '@/components/features/permission-gate';
+import { toastError, toastSuccess } from '@/hooks/useToast';
 import { groupApi, permissionApi } from '@/lib/api';
+import { formatDateTime, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import { toastSuccess, toastError } from '@/hooks/useToast';
-import { getInitials, formatDateTime } from '@/lib/utils';
-import type { Permission } from '@/types';
+import type { Group, Permission } from '@/types';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Calendar, Check, Save, Shield, Users, X } from 'lucide-react';
+import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { z } from 'zod';
+
+// Extended User type for group members display
+interface GroupMember {
+  id: string;
+  email: string;
+  displayName: string | null;
+  photoURL: string | null;
+}
+
+// Extended Group type that includes users array
+type GroupWithUsers = Group & {
+  users?: GroupMember[];
+};
+
+// Helper interface for displaying permission info
+interface PermissionDisplayInfo {
+  id: string; // The full permission string
+  name: string;
+  description: string;
+  resource: string;
+  action: string;
+}
+
+// Helper to parse a permission string into display info
+function parsePermission(permission: Permission): PermissionDisplayInfo {
+  const parts = permission.split(':');
+  const resource = parts[0] || 'unknown';
+  const action = parts[1] || 'unknown';
+  const capitalizedResource = resource.charAt(0).toUpperCase() + resource.slice(1);
+  const capitalizedAction = action.charAt(0).toUpperCase() + action.slice(1);
+
+  return {
+    id: permission,
+    name: `${capitalizedAction} ${capitalizedResource}`,
+    description: `Can ${action} ${resource}`,
+    resource,
+    action,
+  };
+}
 
 const groupFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -66,8 +91,10 @@ export function GroupDetail() {
     queryFn: () => permissionApi.listPermissions(),
   });
 
-  const group = groupData?.data;
-  const allPermissions = permissionsData?.data || [];
+  const group = groupData?.success ? (groupData.data as GroupWithUsers) : undefined;
+  const allPermissions: PermissionDisplayInfo[] = (
+    permissionsData?.success ? permissionsData.data : []
+  ).map((p: Permission) => parsePermission(p));
 
   // Form setup
   const form = useForm<GroupFormData>({
@@ -103,8 +130,7 @@ export function GroupDetail() {
 
   // Permission mutations
   const addPermissionMutation = useMutation({
-    mutationFn: (permissionId: string) =>
-      groupApi.addPermissionToGroup(id!, permissionId),
+    mutationFn: (permissionId: string) => groupApi.addPermissionToGroup(id!, permissionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(id!) });
     },
@@ -114,8 +140,7 @@ export function GroupDetail() {
   });
 
   const removePermissionMutation = useMutation({
-    mutationFn: (permissionId: string) =>
-      groupApi.removePermissionFromGroup(id!, permissionId),
+    mutationFn: (permissionId: string) => groupApi.removePermissionFromGroup(id!, permissionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(id!) });
     },
@@ -129,10 +154,10 @@ export function GroupDetail() {
   };
 
   const hasPermission = (permissionId: string) => {
-    return group?.permissions?.some((p) => p.id === permissionId) ?? false;
+    return group?.permissions?.includes(permissionId) ?? false;
   };
 
-  const handlePermissionToggle = (permission: Permission, enabled: boolean) => {
+  const handlePermissionToggle = (permission: PermissionDisplayInfo, enabled: boolean) => {
     if (enabled) {
       addPermissionMutation.mutate(permission.id);
     } else {
@@ -142,8 +167,8 @@ export function GroupDetail() {
 
   // Group permissions by resource
   const groupedPermissions = React.useMemo(() => {
-    const grouped: Record<string, Permission[]> = {};
-    allPermissions.forEach((permission) => {
+    const grouped: Record<string, PermissionDisplayInfo[]> = {};
+    allPermissions.forEach((permission: PermissionDisplayInfo) => {
       const resource = permission.resource || 'other';
       if (!grouped[resource]) {
         grouped[resource] = [];
@@ -193,9 +218,7 @@ export function GroupDetail() {
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight">{group.name}</h1>
-              <p className="text-muted-foreground">
-                {group.description || 'No description'}
-              </p>
+              <p className="text-muted-foreground">{group.description || 'No description'}</p>
             </div>
           </div>
         </div>
@@ -237,10 +260,7 @@ export function GroupDetail() {
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Group description (optional)"
-                            {...field}
-                          />
+                          <Input placeholder="Group description (optional)" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -249,10 +269,7 @@ export function GroupDetail() {
 
                   <WithPermission permission="groups:write">
                     <div className="flex justify-end">
-                      <Button
-                        type="submit"
-                        isLoading={updateMutation.isPending}
-                      >
+                      <Button type="submit" isLoading={updateMutation.isPending}>
                         <Save className="mr-2 h-4 w-4" />
                         Save Changes
                       </Button>
@@ -267,9 +284,7 @@ export function GroupDetail() {
           <Card>
             <CardHeader>
               <CardTitle>Permissions</CardTitle>
-              <CardDescription>
-                Configure what members of this group can do
-              </CardDescription>
+              <CardDescription>Configure what members of this group can do</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
@@ -342,7 +357,7 @@ export function GroupDetail() {
             <CardContent>
               {group.users && group.users.length > 0 ? (
                 <div className="space-y-3">
-                  {group.users.slice(0, 10).map((user) => (
+                  {group.users.slice(0, 10).map((user: GroupMember) => (
                     <Link
                       key={user.id}
                       to={`/users/${user.id}`}
@@ -358,9 +373,7 @@ export function GroupDetail() {
                         <p className="text-sm font-medium truncate">
                           {user.displayName || 'No name'}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {user.email}
-                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                       </div>
                     </Link>
                   ))}
@@ -388,27 +401,21 @@ export function GroupDetail() {
                 <Shield className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Group ID</p>
-                  <p className="text-muted-foreground font-mono text-xs">
-                    {group.id}
-                  </p>
+                  <p className="text-muted-foreground font-mono text-xs">{group.id}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Created</p>
-                  <p className="text-muted-foreground">
-                    {formatDateTime(group.createdAt)}
-                  </p>
+                  <p className="text-muted-foreground">{formatDateTime(group.createdAt)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Last Updated</p>
-                  <p className="text-muted-foreground">
-                    {formatDateTime(group.updatedAt)}
-                  </p>
+                  <p className="text-muted-foreground">{formatDateTime(group.updatedAt)}</p>
                 </div>
               </div>
             </CardContent>

@@ -1,7 +1,7 @@
+import type { AuditAction, AuditLogChanges, AuditResource } from '@admin-dashboard/shared';
 import type { MiddlewareHandler } from 'hono';
-import type { AppEnv } from '../types/context';
-import type { AuditAction, AuditResource, AuditLogChanges } from '@admin-dashboard/shared';
 import { AuditService } from '../services/audit.service';
+import type { AppEnv } from '../types/context';
 
 /**
  * Audit context stored in the request for deferred logging

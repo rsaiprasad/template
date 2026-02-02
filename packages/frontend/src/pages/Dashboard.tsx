@@ -1,29 +1,16 @@
-import * as React from 'react';
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Users,
-  Shield,
-  FileText,
-  Activity,
-  ArrowRight,
-  TrendingUp,
-} from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { WithPermission } from '@/components/features/permission-gate';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import { WithPermission } from '@/components/features/permission-gate';
-import { userApi, groupApi, auditLogApi } from '@/lib/api';
+import { auditLogApi, groupApi, userApi } from '@/lib/api';
+import { formatRelativeTime, getFirstName } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import { getFirstName, formatRelativeTime } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { Activity, ArrowRight, FileText, Shield, TrendingUp, Users } from 'lucide-react';
+import type * as React from 'react';
+import { Link } from 'react-router-dom';
 
 interface StatCardProps {
   title: string;
@@ -34,14 +21,7 @@ interface StatCardProps {
   href?: string;
 }
 
-function StatCard({
-  title,
-  value,
-  description,
-  icon: Icon,
-  isLoading,
-  href,
-}: StatCardProps) {
+function StatCard({ title, value, description, icon: Icon, isLoading, href }: StatCardProps) {
   const content = (
     <Card className={href ? 'hover:shadow-md transition-shadow cursor-pointer' : ''}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -54,9 +34,7 @@ function StatCard({
         ) : (
           <>
             <div className="text-2xl font-bold">{value}</div>
-            {description && (
-              <p className="text-xs text-muted-foreground">{description}</p>
-            )}
+            {description && <p className="text-xs text-muted-foreground">{description}</p>}
           </>
         )}
       </CardContent>
@@ -99,9 +77,7 @@ export function Dashboard() {
     <div className="space-y-8">
       {/* Welcome header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Hello, {firstName || 'there'}!
-        </h1>
+        <h1 className="text-3xl font-bold tracking-tight">Hello, {firstName || 'there'}!</h1>
         <p className="text-muted-foreground">
           Welcome to your admin dashboard. Here's what's happening.
         </p>
@@ -112,7 +88,7 @@ export function Dashboard() {
         <WithPermission permission="users:read">
           <StatCard
             title="Total Users"
-            value={usersData?.total ?? 0}
+            value={usersData?.meta.total ?? 0}
             description="Active users in the system"
             icon={Users}
             isLoading={usersLoading}
@@ -123,7 +99,7 @@ export function Dashboard() {
         <WithPermission permission="groups:read">
           <StatCard
             title="Groups"
-            value={groupsData?.total ?? 0}
+            value={groupsData?.meta.total ?? 0}
             description="Permission groups"
             icon={Shield}
             isLoading={groupsLoading}
@@ -134,7 +110,7 @@ export function Dashboard() {
         <WithPermission permission="audit:read">
           <StatCard
             title="Recent Activity"
-            value={auditLogsData?.total ?? 0}
+            value={auditLogsData?.meta.total ?? 0}
             description="Audit log entries"
             icon={FileText}
             isLoading={auditLogsLoading}
@@ -234,21 +210,17 @@ export function Dashboard() {
                       <div className="space-y-1">
                         <p className="text-sm">
                           <span className="font-medium">{log.action}</span> on{' '}
-                          <span className="text-muted-foreground">
-                            {log.resourceType}
-                          </span>
+                          <span className="text-muted-foreground">{log.resource}</span>
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatRelativeTime(log.createdAt)}
+                          {formatRelativeTime(log.timestamp)}
                         </p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  No recent activity to display.
-                </p>
+                <p className="text-sm text-muted-foreground">No recent activity to display.</p>
               )}
             </WithPermission>
           </CardContent>

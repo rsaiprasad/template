@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
-import { Home, ArrowLeft, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ArrowLeft, Home, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export function NotFound() {
   return (
@@ -18,8 +18,8 @@ export function NotFound() {
         <div className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight">Page not found</h2>
           <p className="text-muted-foreground">
-            Sorry, we couldn't find the page you're looking for. It might have
-            been moved, deleted, or never existed.
+            Sorry, we couldn't find the page you're looking for. It might have been moved, deleted,
+            or never existed.
           </p>
         </div>
 

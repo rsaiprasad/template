@@ -1,18 +1,7 @@
-import * as React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, User, Bell, Palette, Shield } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -22,16 +11,20 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { useThemeStore, selectTheme } from '@/stores/theme-store';
+import { toastError, toastSuccess } from '@/hooks/useToast';
 import { userApi } from '@/lib/api';
-import { queryKeys } from '@/types';
-import { toastSuccess, toastError } from '@/hooks/useToast';
 import { getInitials } from '@/lib/utils';
+import { selectTheme, useThemeStore } from '@/stores/theme-store';
+import { queryKeys } from '@/types';
 import type { Theme } from '@/types';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Bell, Palette, Save, Shield, User } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 const profileFormSchema = z.object({
   displayName: z.string().min(1, 'Display name is required'),
@@ -90,9 +83,7 @@ export function Settings() {
     updateProfileMutation.mutate(data);
   };
 
-  const onNotificationSubmit = (data: NotificationFormData) => {
-    // In a real app, this would save to the backend
-    console.log('Notification settings:', data);
+  const onNotificationSubmit = (_data: NotificationFormData) => {
     toastSuccess('Settings saved', 'Your notification preferences have been updated.');
   };
 
@@ -105,9 +96,7 @@ export function Settings() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your account settings and preferences.
-        </p>
+        <p className="text-muted-foreground">Manage your account settings and preferences.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -119,16 +108,11 @@ export function Settings() {
                 <User className="h-5 w-5" />
                 Profile
               </CardTitle>
-              <CardDescription>
-                Update your personal information
-              </CardDescription>
+              <CardDescription>Update your personal information</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...profileForm}>
-                <form
-                  onSubmit={profileForm.handleSubmit(onProfileSubmit)}
-                  className="space-y-6"
-                >
+                <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
                   <div className="flex items-center gap-4">
                     <Avatar className="h-20 w-20">
                       <AvatarImage src={user?.photoURL || undefined} />
@@ -167,8 +151,7 @@ export function Settings() {
                           <Input {...field} disabled />
                         </FormControl>
                         <FormDescription>
-                          Email is linked to your Google account and cannot be
-                          changed
+                          Email is linked to your Google account and cannot be changed
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -176,10 +159,7 @@ export function Settings() {
                   />
 
                   <div className="flex justify-end">
-                    <Button
-                      type="submit"
-                      isLoading={updateProfileMutation.isPending}
-                    >
+                    <Button type="submit" isLoading={updateProfileMutation.isPending}>
                       <Save className="mr-2 h-4 w-4" />
                       Save Changes
                     </Button>
@@ -196,9 +176,7 @@ export function Settings() {
                 <Bell className="h-5 w-5" />
                 Notifications
               </CardTitle>
-              <CardDescription>
-                Configure how you receive notifications
-              </CardDescription>
+              <CardDescription>Configure how you receive notifications</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...notificationForm}>
@@ -212,18 +190,11 @@ export function Settings() {
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Email Notifications
-                          </FormLabel>
-                          <FormDescription>
-                            Receive notifications via email
-                          </FormDescription>
+                          <FormLabel className="text-base">Email Notifications</FormLabel>
+                          <FormDescription>Receive notifications via email</FormDescription>
                         </div>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -235,18 +206,13 @@ export function Settings() {
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Push Notifications
-                          </FormLabel>
+                          <FormLabel className="text-base">Push Notifications</FormLabel>
                           <FormDescription>
                             Receive push notifications in your browser
                           </FormDescription>
                         </div>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -270,9 +236,7 @@ export function Settings() {
                 <Palette className="h-5 w-5" />
                 Appearance
               </CardTitle>
-              <CardDescription>
-                Customize how the dashboard looks
-              </CardDescription>
+              <CardDescription>Customize how the dashboard looks</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -308,9 +272,7 @@ export function Settings() {
                 <Shield className="h-5 w-5" />
                 Your Permissions
               </CardTitle>
-              <CardDescription>
-                Permissions assigned to your account
-              </CardDescription>
+              <CardDescription>Permissions assigned to your account</CardDescription>
             </CardHeader>
             <CardContent>
               {user?.permissions && user.permissions.length > 0 ? (
@@ -322,9 +284,7 @@ export function Settings() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  No specific permissions assigned
-                </p>
+                <p className="text-sm text-muted-foreground">No specific permissions assigned</p>
               )}
             </CardContent>
           </Card>
@@ -337,9 +297,7 @@ export function Settings() {
             <CardContent className="space-y-4">
               <div className="text-sm">
                 <p className="font-medium">User ID</p>
-                <p className="text-muted-foreground font-mono text-xs break-all">
-                  {user?.uid}
-                </p>
+                <p className="text-muted-foreground font-mono text-xs break-all">{user?.uid}</p>
               </div>
               <div className="text-sm">
                 <p className="font-medium">Authentication Provider</p>

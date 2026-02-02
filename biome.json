@@ -49,14 +49,7 @@
     }
   },
   "files": {
-    "ignore": [
-      "node_modules",
-      "dist",
-      ".firebase",
-      "coverage",
-      "*.min.js",
-      "*.d.ts"
-    ]
+    "ignore": ["node_modules", "dist", ".firebase", "coverage", "*.min.js", "*.d.ts"]
   },
   "vcs": {
     "enabled": true,

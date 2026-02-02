@@ -1,21 +1,20 @@
+import type { UserSearchParams } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { AppEnv } from '../types/context';
+import { logAuditAction } from '../middleware/audit';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
-import { logAuditAction } from '../middleware/audit';
-import { UserService } from '../services/user.service';
 import { GroupService } from '../services/group.service';
+import { UserService } from '../services/user.service';
+import type { AppEnv } from '../types/context';
 import {
-  successResponse,
-  paginatedResponse,
-  badRequest,
-  notFound,
-  forbidden,
-  errorResponse,
   ErrorCodes,
+  badRequest,
+  errorResponse,
+  notFound,
+  paginatedResponse,
+  successResponse,
 } from '../utils/response';
-import type { UserSearchParams } from '@admin-dashboard/shared';
 
 const userRoutes = new Hono<AppEnv>();
 
@@ -26,9 +25,11 @@ userRoutes.use('*', authMiddleware);
 const updateUserSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
   photoURL: z.string().url().nullable().optional(),
-  preferences: z.object({
-    theme: z.enum(['light', 'dark', 'system']).optional(),
-  }).optional(),
+  preferences: z
+    .object({
+      theme: z.enum(['light', 'dark', 'system']).optional(),
+    })
+    .optional(),
 });
 
 const changeGroupSchema = z.object({
@@ -41,8 +42,8 @@ const changeGroupSchema = z.object({
  */
 userRoutes.get('/', requirePermission('users:list'), async (c) => {
   const params: UserSearchParams = {
-    page: parseInt(c.req.query('page') || '1'),
-    limit: Math.min(parseInt(c.req.query('limit') || '20'), 100),
+    page: Number.parseInt(c.req.query('page') || '1'),
+    limit: Math.min(Number.parseInt(c.req.query('limit') || '20'), 100),
     status: (c.req.query('status') as 'active' | 'disabled' | 'all') || 'all',
     groupId: c.req.query('groupId') || undefined,
     query: c.req.query('query') || undefined,
@@ -116,25 +117,18 @@ userRoutes.put('/:id', requirePermission('users:update'), async (c) => {
   const updatedUser = await userService.updateUser(userId, result.data);
 
   // Log audit
-  await logAuditAction(
-    c,
-    'USER_UPDATED',
-    'users',
-    userId,
-    `Updated user ${updatedUser.email}`,
-    {
-      before: {
-        displayName: existingUser.displayName,
-        photoURL: existingUser.photoURL,
-        preferences: existingUser.preferences,
-      },
-      after: {
-        displayName: updatedUser.displayName,
-        photoURL: updatedUser.photoURL,
-        preferences: updatedUser.preferences,
-      },
-    }
-  );
+  await logAuditAction(c, 'USER_UPDATED', 'users', userId, `Updated user ${updatedUser.email}`, {
+    before: {
+      displayName: existingUser.displayName,
+      photoURL: existingUser.photoURL,
+      preferences: existingUser.preferences,
+    },
+    after: {
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      preferences: updatedUser.preferences,
+    },
+  });
 
   return successResponse(c, updatedUser);
 });
@@ -149,12 +143,7 @@ userRoutes.delete('/:id', requirePermission('users:delete'), async (c) => {
 
   // Prevent self-deletion
   if (userId === currentUser.uid) {
-    return errorResponse(
-      c,
-      ErrorCodes.CANNOT_DELETE_SELF,
-      'You cannot delete yourself',
-      400
-    );
+    return errorResponse(c, ErrorCodes.CANNOT_DELETE_SELF, 'You cannot delete yourself', 400);
   }
 
   const userService = new UserService();
@@ -180,21 +169,14 @@ userRoutes.delete('/:id', requirePermission('users:delete'), async (c) => {
     await userService.deleteUser(userId);
 
     // Log audit
-    await logAuditAction(
-      c,
-      'USER_DELETED',
-      'users',
-      userId,
-      `Deleted user ${user.email}`,
-      {
-        before: {
-          email: user.email,
-          displayName: user.displayName,
-          groupId: user.groupId,
-        },
-        after: {},
-      }
-    );
+    await logAuditAction(c, 'USER_DELETED', 'users', userId, `Deleted user ${user.email}`, {
+      before: {
+        email: user.email,
+        displayName: user.displayName,
+        groupId: user.groupId,
+      },
+      after: {},
+    });
 
     return successResponse(c, { message: 'User deleted successfully' });
   } catch (error) {
@@ -227,12 +209,7 @@ userRoutes.post('/:id/disable', requirePermission('users:update'), async (c) => 
 
   // Prevent self-disable
   if (userId === currentUser.uid) {
-    return errorResponse(
-      c,
-      ErrorCodes.CANNOT_DISABLE_SELF,
-      'You cannot disable yourself',
-      400
-    );
+    return errorResponse(c, ErrorCodes.CANNOT_DISABLE_SELF, 'You cannot disable yourself', 400);
   }
 
   const userService = new UserService();
@@ -241,17 +218,10 @@ userRoutes.post('/:id/disable', requirePermission('users:update'), async (c) => 
     const user = await userService.disableUser(userId, currentUser.uid);
 
     // Log audit
-    await logAuditAction(
-      c,
-      'USER_DISABLED',
-      'users',
-      userId,
-      `Disabled user ${user.email}`,
-      {
-        before: { status: 'active' },
-        after: { status: 'disabled', disabledBy: currentUser.uid },
-      }
-    );
+    await logAuditAction(c, 'USER_DISABLED', 'users', userId, `Disabled user ${user.email}`, {
+      before: { status: 'active' },
+      after: { status: 'disabled', disabledBy: currentUser.uid },
+    });
 
     return successResponse(c, user);
   } catch (error) {
@@ -290,17 +260,10 @@ userRoutes.post('/:id/enable', requirePermission('users:update'), async (c) => {
     const user = await userService.enableUser(userId);
 
     // Log audit
-    await logAuditAction(
-      c,
-      'USER_ENABLED',
-      'users',
-      userId,
-      `Enabled user ${user.email}`,
-      {
-        before: { status: 'disabled' },
-        after: { status: 'active' },
-      }
-    );
+    await logAuditAction(c, 'USER_ENABLED', 'users', userId, `Enabled user ${user.email}`, {
+      before: { status: 'disabled' },
+      after: { status: 'active' },
+    });
 
     return successResponse(c, user);
   } catch (error) {

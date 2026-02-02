@@ -1,28 +1,25 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 // Layout
 import { AppLayout } from '@/components/layout/app-layout';
 
+import { AuditLogs } from '@/pages/AuditLogs';
+import { Dashboard } from '@/pages/Dashboard';
+import { Forbidden } from '@/pages/Forbidden';
 // Pages
 import { Login } from '@/pages/Login';
-import { Dashboard } from '@/pages/Dashboard';
-import { UserList } from '@/pages/users/UserList';
-import { UserDetail } from '@/pages/users/UserDetail';
-import { GroupList } from '@/pages/groups/GroupList';
-import { GroupDetail } from '@/pages/groups/GroupDetail';
-import { Settings } from '@/pages/Settings';
-import { AuditLogs } from '@/pages/AuditLogs';
 import { NotFound } from '@/pages/NotFound';
-import { Forbidden } from '@/pages/Forbidden';
+import { Settings } from '@/pages/Settings';
+import { GroupDetail } from '@/pages/groups/GroupDetail';
+import { GroupList } from '@/pages/groups/GroupList';
+import { UserDetail } from '@/pages/users/UserDetail';
+import { UserList } from '@/pages/users/UserList';
 
+import { RequireAuth, RequirePermission } from '@/components/features/permission-gate';
 // Components
 import { Toaster } from '@/components/ui/toaster';
-import {
-  RequireAuth,
-  RequirePermission,
-} from '@/components/features/permission-gate';
 
 // Create a query client
 const queryClient = new QueryClient({

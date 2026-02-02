@@ -1,5 +1,3 @@
-import * as React from 'react';
-import { Moon, Sun, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -7,8 +5,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useThemeStore, selectTheme, selectResolvedTheme } from '@/stores/theme-store';
+import { selectResolvedTheme, selectTheme, useThemeStore } from '@/stores/theme-store';
 import type { Theme } from '@/types';
+import { Monitor, Moon, Sun } from 'lucide-react';
+import type * as React from 'react';
 
 interface ThemeOption {
   value: Theme;
@@ -62,11 +62,7 @@ export function ThemeToggleButton() {
 
   return (
     <Button variant="ghost" size="icon" onClick={toggleTheme}>
-      {resolvedTheme === 'dark' ? (
-        <Sun className="h-5 w-5" />
-      ) : (
-        <Moon className="h-5 w-5" />
-      )}
+      {resolvedTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
       <span className="sr-only">Toggle theme</span>
     </Button>
   );

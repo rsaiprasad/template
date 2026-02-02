@@ -1,20 +1,15 @@
+import type { Group, UserWithPermissions } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { AppEnv } from '../types/context';
+import { Collections, convertFirestoreDoc, getAuthAdmin, getDb } from '../lib/firebase-admin';
+import { logAuditAction, loginAuditMiddleware } from '../middleware/audit';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
-import { loginAuditMiddleware, logAuditAction } from '../middleware/audit';
-import { UserService } from '../services/user.service';
+import { AuditService } from '../services/audit.service';
 import { GroupService } from '../services/group.service';
 import { SettingsService } from '../services/settings.service';
-import { AuditService } from '../services/audit.service';
-import {
-  successResponse,
-  badRequest,
-  unauthorized,
-  internalError,
-} from '../utils/response';
-import { getAuthAdmin, convertFirestoreDoc, getDb, Collections } from '../lib/firebase-admin';
-import type { Group, UserWithPermissions } from '@admin-dashboard/shared';
+import { UserService } from '../services/user.service';
+import type { AppEnv } from '../types/context';
+import { badRequest, internalError, successResponse, unauthorized } from '../utils/response';
 
 const authRoutes = new Hono<AppEnv>();
 
@@ -141,13 +136,7 @@ authRoutes.post('/logout', authMiddleware, async (c) => {
   const user = c.get('user');
 
   // Log logout event
-  await logAuditAction(
-    c,
-    'LOGOUT',
-    'auth',
-    user.uid,
-    `User ${user.email} logged out`
-  );
+  await logAuditAction(c, 'LOGOUT', 'auth', user.uid, `User ${user.email} logged out`);
 
   return successResponse(c, {
     message: 'Logout successful',

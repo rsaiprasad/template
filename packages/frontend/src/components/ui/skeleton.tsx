@@ -1,15 +1,7 @@
 import { cn } from '@/lib/utils';
 
-function Skeleton({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn('animate-pulse rounded-md bg-muted', className)}
-      {...props}
-    />
-  );
+function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('animate-pulse rounded-md bg-muted', className)} {...props} />;
 }
 
 function SkeletonText({
@@ -22,25 +14,16 @@ function SkeletonText({
       {Array.from({ length: lines }).map((_, index) => (
         <Skeleton
           key={index}
-          className={cn(
-            'h-4',
-            index === lines - 1 && lines > 1 ? 'w-4/5' : 'w-full'
-          )}
+          className={cn('h-4', index === lines - 1 && lines > 1 ? 'w-4/5' : 'w-full')}
         />
       ))}
     </div>
   );
 }
 
-function SkeletonCard({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+function SkeletonCard({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      className={cn('rounded-lg border bg-card p-6 space-y-4', className)}
-      {...props}
-    >
+    <div className={cn('rounded-lg border bg-card p-6 space-y-4', className)} {...props}>
       <div className="flex items-center space-x-4">
         <Skeleton className="h-12 w-12 rounded-full" />
         <div className="space-y-2 flex-1">
@@ -92,12 +75,7 @@ function SkeletonAvatar({
     lg: 'h-12 w-12',
   };
 
-  return (
-    <Skeleton
-      className={cn('rounded-full', sizeClasses[size], className)}
-      {...props}
-    />
-  );
+  return <Skeleton className={cn('rounded-full', sizeClasses[size], className)} {...props} />;
 }
 
 export { Skeleton, SkeletonText, SkeletonCard, SkeletonTable, SkeletonAvatar };

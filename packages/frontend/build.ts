@@ -1,6 +1,6 @@
-import { $ } from 'bun';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { $ } from 'bun';
 
 const outdir = './dist';
 
@@ -8,13 +8,7 @@ const outdir = './dist';
 if (existsSync(outdir)) {
   rmSync(outdir, { recursive: true });
 }
-
-// Build CSS with Tailwind
-console.log('Building CSS with Tailwind...');
 await $`bunx tailwindcss -i ./src/index.css -o ./dist/styles.css --minify`;
-
-// Build the React app with Bun
-console.log('Building React app...');
 const result = await Bun.build({
   entrypoints: ['./src/main.tsx'],
   outdir,
@@ -55,21 +49,17 @@ if (!result.success) {
 const indexHtml = await Bun.file('./index.html').text();
 const updatedHtml = indexHtml
   .replace('/src/main.tsx', '/main.js')
-  .replace(
-    '</head>',
-    '  <link rel="stylesheet" href="/styles.css">\n  </head>'
-  );
+  .replace('</head>', '  <link rel="stylesheet" href="/styles.css">\n  </head>');
 
 await Bun.write(join(outdir, 'index.html'), updatedHtml);
 
 // Copy public assets if they exist
 const publicDir = './public';
 if (existsSync(publicDir)) {
-  await $`cp -r ${publicDir}/* ${outdir}/`;
+  const files = await Array.fromAsync(new Bun.Glob('*').scan({ cwd: publicDir }));
+  if (files.length > 0) {
+    await $`cp -r ${publicDir}/* ${outdir}/`;
+  }
 }
-
-console.log('Build complete! Output in', outdir);
-console.log('Files:');
-for (const output of result.outputs) {
-  console.log(' -', output.path);
+for (const _output of result.outputs) {
 }

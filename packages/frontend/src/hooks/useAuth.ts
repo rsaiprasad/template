@@ -1,14 +1,14 @@
-import { useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { userApi } from '@/lib/api';
 import {
+  type FirebaseUser,
   signInWithGoogle as firebaseSignInWithGoogle,
   signOut as firebaseSignOut,
   onAuthChange,
-  FirebaseUser,
 } from '@/lib/firebase';
-import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import type { AuthUser } from '@/types';
+import { useCallback, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface UseAuthReturn {
   user: AuthUser | null;
@@ -60,6 +60,9 @@ export function useAuth(): UseAuthReturn {
   const fetchUserData = useCallback(async (firebaseUser: FirebaseUser): Promise<AuthUser> => {
     try {
       const response = await userApi.getCurrentUser();
+      if (!response.success) {
+        throw new Error(response.error.message);
+      }
       const userData = response.data;
 
       return {
@@ -67,9 +70,13 @@ export function useAuth(): UseAuthReturn {
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
         photoURL: firebaseUser.photoURL,
-        firstName: userData.displayName?.split(' ')[0] || parseFirebaseUser(firebaseUser).firstName || '',
-        lastName: userData.displayName?.split(' ').slice(1).join(' ') || parseFirebaseUser(firebaseUser).lastName || '',
-        permissions: userData.permissions || [],
+        firstName:
+          userData.displayName?.split(' ')[0] || parseFirebaseUser(firebaseUser).firstName || '',
+        lastName:
+          userData.displayName?.split(' ').slice(1).join(' ') ||
+          parseFirebaseUser(firebaseUser).lastName ||
+          '',
+        permissions: (userData as { permissions?: string[] }).permissions || [],
       };
     } catch (err) {
       // If backend is unavailable, use basic Firebase user data
@@ -152,12 +159,15 @@ export function useAuth(): UseAuthReturn {
     setLoading(true);
     try {
       const response = await userApi.getCurrentUser();
+      if (!response.success) {
+        throw new Error(response.error.message);
+      }
       const userData = response.data;
       setUser({
         ...user,
         firstName: userData.displayName?.split(' ')[0] || user.firstName,
         lastName: userData.displayName?.split(' ').slice(1).join(' ') || user.lastName,
-        permissions: userData.permissions || user.permissions,
+        permissions: (userData as { permissions?: string[] }).permissions || user.permissions,
       });
     } catch (err) {
       console.error('Failed to refresh user:', err);

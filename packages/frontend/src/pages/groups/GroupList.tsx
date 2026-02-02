@@ -1,43 +1,6 @@
-import * as React from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Search,
-  Plus,
-  MoreHorizontal,
-  Eye,
-  Pencil,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  Users,
-  Shield,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { WithPermission } from '@/components/features/permission-gate';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -46,12 +9,49 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { WithPermission } from '@/components/features/permission-gate';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { toastError, toastSuccess } from '@/hooks/useToast';
 import { groupApi } from '@/lib/api';
+import { debounce, formatDate } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import { toastSuccess, toastError } from '@/hooks/useToast';
-import { formatDate, debounce } from '@/lib/utils';
 import type { Group } from '@/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Shield,
+  Trash2,
+  Users,
+} from 'lucide-react';
+import * as React from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 const PAGE_SIZES = [10, 20, 50];
 
@@ -60,8 +60,8 @@ export function GroupList() {
   const queryClient = useQueryClient();
 
   // Parse search params
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
+  const page = Number.parseInt(searchParams.get('page') || '1', 10);
+  const pageSize = Number.parseInt(searchParams.get('pageSize') || '10', 10);
   const search = searchParams.get('search') || '';
 
   // Local state
@@ -80,8 +80,7 @@ export function GroupList() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; description?: string }) =>
-      groupApi.createGroup(data),
+    mutationFn: (data: { name: string; description?: string }) => groupApi.createGroup(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
       toastSuccess('Group created', 'The group has been successfully created.');
@@ -162,7 +161,7 @@ export function GroupList() {
     }
   };
 
-  const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
+  const totalPages = data ? Math.ceil(data.meta.total / pageSize) : 0;
 
   return (
     <div className="space-y-6">
@@ -170,9 +169,7 @@ export function GroupList() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Groups</h1>
-          <p className="text-muted-foreground">
-            Manage permission groups and their members.
-          </p>
+          <p className="text-muted-foreground">Manage permission groups and their members.</p>
         </div>
         <WithPermission permission="groups:write">
           <Button onClick={() => setCreateDialogOpen(true)}>
@@ -205,7 +202,7 @@ export function GroupList() {
               <TableHead>Members</TableHead>
               <TableHead>Permissions</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead className="w-[70px]"></TableHead>
+              <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -261,13 +258,11 @@ export function GroupList() {
                   <TableCell>
                     <Badge variant="outline" className="gap-1">
                       <Users className="h-3 w-3" />
-                      {group.users?.length || 0}
+                      {(group as Group & { users?: unknown[] }).users?.length || 0}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">
-                      {group.permissions?.length || 0} permissions
-                    </Badge>
+                    <Badge variant="secondary">{group.permissions?.length || 0} permissions</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(group.createdAt)}
@@ -315,26 +310,23 @@ export function GroupList() {
       </div>
 
       {/* Pagination */}
-      {data && data.total > 0 && (
+      {data && data.meta.total > 0 && (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Showing</span>
-            <Select
-              value={pageSize.toString()}
-              onValueChange={handlePageSizeChange}
-            >
+            <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
               <SelectTrigger className="w-[70px] h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PAGE_SIZES.map((size) => (
+                {PAGE_SIZES.map((size: number) => (
                   <SelectItem key={size} value={size.toString()}>
                     {size}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <span>of {data.total} groups</span>
+            <span>of {data.meta.total} groups</span>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -389,9 +381,7 @@ export function GroupList() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Group</DialogTitle>
-            <DialogDescription>
-              Create a new permission group to organize users.
-            </DialogDescription>
+            <DialogDescription>Create a new permission group to organize users.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -418,10 +408,7 @@ export function GroupList() {
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setCreateDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -442,16 +429,12 @@ export function GroupList() {
             <DialogTitle>Delete Group</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete{' '}
-              <span className="font-medium">{groupToDelete?.name}</span>? This
-              will remove all users from this group. This action cannot be
-              undone.
+              <span className="font-medium">{groupToDelete?.name}</span>? This will remove all users
+              from this group. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
             <Button

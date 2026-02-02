@@ -1,15 +1,10 @@
+import type { AuditAction, AuditResource, AuditSearchParams } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
-import type { AppEnv } from '../types/context';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
 import { AuditService } from '../services/audit.service';
-import {
-  successResponse,
-  paginatedResponse,
-  notFound,
-  badRequest,
-} from '../utils/response';
-import type { AuditSearchParams, AuditAction, AuditResource } from '@admin-dashboard/shared';
+import type { AppEnv } from '../types/context';
+import { badRequest, notFound, paginatedResponse, successResponse } from '../utils/response';
 
 const auditRoutes = new Hono<AppEnv>();
 
@@ -42,8 +37,8 @@ const VALID_RESOURCES: AuditResource[] = ['users', 'groups', 'settings', 'auth']
 auditRoutes.get('/', requirePermission('audit:list'), async (c) => {
   // Parse query parameters
   const params: AuditSearchParams = {
-    page: parseInt(c.req.query('page') || '1'),
-    limit: Math.min(parseInt(c.req.query('limit') || '50'), 100),
+    page: Number.parseInt(c.req.query('page') || '1'),
+    limit: Math.min(Number.parseInt(c.req.query('limit') || '50'), 100),
     action: c.req.query('action') || undefined,
     resource: c.req.query('resource') || undefined,
     actorId: c.req.query('actorId') || undefined,
@@ -63,11 +58,11 @@ auditRoutes.get('/', requirePermission('audit:list'), async (c) => {
   }
 
   // Validate date formats if provided
-  if (params.startDate && isNaN(Date.parse(params.startDate))) {
+  if (params.startDate && Number.isNaN(Date.parse(params.startDate))) {
     return badRequest(c, 'Invalid startDate format. Use ISO 8601 format.');
   }
 
-  if (params.endDate && isNaN(Date.parse(params.endDate))) {
+  if (params.endDate && Number.isNaN(Date.parse(params.endDate))) {
     return badRequest(c, 'Invalid endDate format. Use ISO 8601 format.');
   }
 
@@ -90,11 +85,11 @@ auditRoutes.get('/stats', requirePermission('audit:list'), async (c) => {
   const endDate = c.req.query('endDate');
 
   // Validate date formats if provided
-  if (startDate && isNaN(Date.parse(startDate))) {
+  if (startDate && Number.isNaN(Date.parse(startDate))) {
     return badRequest(c, 'Invalid startDate format. Use ISO 8601 format.');
   }
 
-  if (endDate && isNaN(Date.parse(endDate))) {
+  if (endDate && Number.isNaN(Date.parse(endDate))) {
     return badRequest(c, 'Invalid endDate format. Use ISO 8601 format.');
   }
 
@@ -140,7 +135,7 @@ auditRoutes.get('/resources', requirePermission('audit:list'), (c) => {
  */
 auditRoutes.get('/user/:userId', requirePermission('audit:list'), async (c) => {
   const userId = c.req.param('userId');
-  const limit = Math.min(parseInt(c.req.query('limit') || '50'), 100);
+  const limit = Math.min(Number.parseInt(c.req.query('limit') || '50'), 100);
 
   const auditService = new AuditService();
   const logs = await auditService.getAuditLogsForUser(userId, limit);
@@ -155,7 +150,7 @@ auditRoutes.get('/user/:userId', requirePermission('audit:list'), async (c) => {
 auditRoutes.get('/resource/:resource/:resourceId', requirePermission('audit:list'), async (c) => {
   const resource = c.req.param('resource');
   const resourceId = c.req.param('resourceId');
-  const limit = Math.min(parseInt(c.req.query('limit') || '50'), 100);
+  const limit = Math.min(Number.parseInt(c.req.query('limit') || '50'), 100);
 
   // Validate resource
   if (!VALID_RESOURCES.includes(resource as AuditResource)) {

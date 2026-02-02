@@ -1,12 +1,12 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { type FirebaseApp, getApps, initializeApp } from 'firebase/app';
 import {
-  getAuth,
+  type Auth,
+  type User as FirebaseUser,
   GoogleAuthProvider,
-  signInWithPopup,
   signOut as firebaseSignOut,
+  getAuth,
   onAuthStateChanged,
-  User as FirebaseUser,
-  Auth,
+  signInWithPopup,
 } from 'firebase/auth';
 
 // Firebase configuration from environment variables
@@ -27,7 +27,7 @@ function initializeFirebase(): { app: FirebaseApp; auth: Auth } {
   if (getApps().length === 0) {
     app = initializeApp(firebaseConfig);
   } else {
-    app = getApps()[0];
+    app = getApps()[0] as FirebaseApp;
   }
   auth = getAuth(app);
   return { app, auth };
@@ -103,9 +103,7 @@ export async function getIdTokenForced(): Promise<string | null> {
 /**
  * Subscribe to auth state changes
  */
-export function onAuthChange(
-  callback: (user: FirebaseUser | null) => void
-): () => void {
+export function onAuthChange(callback: (user: FirebaseUser | null) => void): () => void {
   return onAuthStateChanged(firebaseAuth, callback);
 }
 

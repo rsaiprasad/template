@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
+  "workspaces": ["packages/*"],
   "scripts": {
     "dev": "bun run --filter '*' dev",
     "dev:frontend": "bun run --filter frontend dev",

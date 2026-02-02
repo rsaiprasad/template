@@ -1,5 +1,10 @@
-import { useMemo, useCallback } from 'react';
-import { useAuthStore, hasPermission, hasAnyPermission, hasAllPermissions } from '@/stores/auth-store';
+import {
+  hasAllPermissions,
+  hasAnyPermission,
+  hasPermission,
+  useAuthStore,
+} from '@/stores/auth-store';
+import { useCallback, useMemo } from 'react';
 
 interface UsePermissionsReturn {
   permissions: string[];
@@ -42,33 +47,18 @@ export function usePermissions(): UsePermissionsReturn {
   );
 
   const canManageUsers = useMemo(
-    () =>
-      isAdmin ||
-      checkAnyPermission([
-        'users:read',
-        'users:write',
-        'users:delete',
-        'users:*',
-      ]),
+    () => isAdmin || checkAnyPermission(['users:read', 'users:write', 'users:delete', 'users:*']),
     [isAdmin, checkAnyPermission]
   );
 
   const canManageGroups = useMemo(
     () =>
-      isAdmin ||
-      checkAnyPermission([
-        'groups:read',
-        'groups:write',
-        'groups:delete',
-        'groups:*',
-      ]),
+      isAdmin || checkAnyPermission(['groups:read', 'groups:write', 'groups:delete', 'groups:*']),
     [isAdmin, checkAnyPermission]
   );
 
   const canViewAuditLogs = useMemo(
-    () =>
-      isAdmin ||
-      checkAnyPermission(['audit:read', 'audit:*']),
+    () => isAdmin || checkAnyPermission(['audit:read', 'audit:*']),
     [isAdmin, checkAnyPermission]
   );
 

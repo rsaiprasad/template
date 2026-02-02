@@ -1,8 +1,8 @@
+import type { Group, User } from '@admin-dashboard/shared';
 import type { MiddlewareHandler } from 'hono';
-import { getAuthAdmin, getDb, Collections, convertFirestoreDoc } from '../lib/firebase-admin';
+import { Collections, convertFirestoreDoc, getAuthAdmin, getDb } from '../lib/firebase-admin';
 import type { AppEnv, AuthUser } from '../types/context';
-import type { User, Group } from '@admin-dashboard/shared';
-import { unauthorized, errorResponse, ErrorCodes } from '../utils/response';
+import { ErrorCodes, errorResponse, unauthorized } from '../utils/response';
 
 /**
  * Authentication middleware

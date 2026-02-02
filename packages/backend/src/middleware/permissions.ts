@@ -1,5 +1,5 @@
-import type { MiddlewareHandler } from 'hono';
 import type { Permission } from '@admin-dashboard/shared';
+import type { MiddlewareHandler } from 'hono';
 import type { AppEnv } from '../types/context';
 import { forbidden } from '../utils/response';
 
@@ -138,7 +138,7 @@ export function requireSuperAdmin(): MiddlewareHandler<AppEnv> {
  * @returns Middleware handler
  */
 export function canModifyUser(
-  targetUserId: string,
+  _targetUserId: string,
   targetIsSuperAdmin: boolean
 ): (user: { uid: string; isSuperAdmin: boolean }) => { allowed: boolean; reason?: string } {
   return (user) => {

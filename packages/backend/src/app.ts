@@ -1,19 +1,25 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
-import { HTTPException } from 'hono/http-exception';
-import type { AppEnv } from './types/context';
-import { errorResponse, ErrorCodes, generateRequestId, getClientIp, getUserAgent } from './utils/response';
 import { initializeFirebaseAdmin } from './lib/firebase-admin';
+import type { AppEnv } from './types/context';
+import {
+  ErrorCodes,
+  errorResponse,
+  generateRequestId,
+  getClientIp,
+  getUserAgent,
+} from './utils/response';
 
+import { auditRoutes } from './routes/audit';
 // Import routes
 import { authRoutes } from './routes/auth';
-import { userRoutes } from './routes/users';
 import { groupRoutes } from './routes/groups';
 import { permissionRoutes } from './routes/permissions';
 import { settingsRoutes } from './routes/settings';
-import { auditRoutes } from './routes/audit';
+import { userRoutes } from './routes/users';
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
@@ -98,10 +104,13 @@ app.onError((err, c) => {
     const status = err.status as 400 | 401 | 403 | 404 | 409 | 500;
     return errorResponse(
       c,
-      status === 401 ? ErrorCodes.UNAUTHORIZED :
-      status === 403 ? ErrorCodes.FORBIDDEN :
-      status === 404 ? ErrorCodes.NOT_FOUND :
-      ErrorCodes.INTERNAL_ERROR,
+      status === 401
+        ? ErrorCodes.UNAUTHORIZED
+        : status === 403
+          ? ErrorCodes.FORBIDDEN
+          : status === 404
+            ? ErrorCodes.NOT_FOUND
+            : ErrorCodes.INTERNAL_ERROR,
       err.message,
       status
     );

@@ -1,8 +1,8 @@
+import { cn } from '@/lib/utils';
 import * as React from 'react';
 import { Outlet } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { Sidebar } from './sidebar';
 import { Header } from './header';
+import { Sidebar } from './sidebar';
 
 export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
@@ -41,10 +41,7 @@ export function AppLayout() {
 
       {/* Mobile Sidebar Overlay */}
       {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/50 md:hidden"
-          onClick={handleMobileMenuClose}
-        />
+        <div className="fixed inset-0 z-50 bg-black/50 md:hidden" onClick={handleMobileMenuClose} />
       )}
 
       {/* Mobile Sidebar */}

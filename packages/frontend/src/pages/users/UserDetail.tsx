@@ -1,27 +1,8 @@
-import * as React from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import {
-  ArrowLeft,
-  Save,
-  Shield,
-  Calendar,
-  Mail,
-  User as UserIcon,
-  X,
-} from 'lucide-react';
+import { WithPermission } from '@/components/features/permission-gate';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -31,6 +12,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -38,33 +20,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
-import { WithPermission } from '@/components/features/permission-gate';
-import { userApi, groupApi } from '@/lib/api';
+import { toastError, toastSuccess } from '@/hooks/useToast';
+import { groupApi, userApi } from '@/lib/api';
+import { formatDateTime, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import { toastSuccess, toastError } from '@/hooks/useToast';
-import { getInitials, formatDate, formatDateTime } from '@/lib/utils';
+import type { Group, User } from '@/types';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Calendar, Mail, Save, Shield, User as UserIcon, X } from 'lucide-react';
+import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { z } from 'zod';
+
+// Extended User type that includes groups array
+interface UserGroup {
+  id: string;
+  name: string;
+}
+
+type UserWithGroups = User & {
+  groups?: UserGroup[];
+  firebaseUid?: string;
+};
 
 // Separator component since it wasn't created
-const SeparatorComponent = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className="shrink-0 bg-border h-[1px] w-full my-4"
-    {...props}
-  />
-));
+const SeparatorComponent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className="shrink-0 bg-border h-[1px] w-full my-4" {...props} />
+  )
+);
 SeparatorComponent.displayName = 'Separator';
 
 const userFormSchema = z.object({
   displayName: z.string().min(1, 'Display name is required'),
   email: z.string().email('Invalid email address'),
-  status: z.enum(['active', 'inactive', 'suspended']),
+  status: z.enum(['active', 'disabled']),
   groupIds: z.array(z.string()),
 });
 
@@ -89,8 +81,8 @@ export function UserDetail() {
     queryFn: () => groupApi.listGroups({ pageSize: 100 }),
   });
 
-  const user = userData?.data;
-  const availableGroups = groupsData?.data || [];
+  const user = userData?.success ? (userData.data as UserWithGroups) : undefined;
+  const availableGroups: Group[] = groupsData?.data || [];
 
   // Form setup
   const form = useForm<UserFormData>({
@@ -110,7 +102,7 @@ export function UserDetail() {
         displayName: user.displayName || '',
         email: user.email,
         status: user.status,
-        groupIds: user.groups?.map((g) => g.id) || [],
+        groupIds: user.groups?.map((g: UserGroup) => g.id) || [],
       });
     }
   }, [user, form]);
@@ -162,7 +154,7 @@ export function UserDetail() {
     );
   }
 
-  if (!user && !isNew) {
+  if (!(user || isNew)) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <p className="text-lg text-muted-foreground">User not found</p>
@@ -185,9 +177,7 @@ export function UserDetail() {
             {user && (
               <Avatar className="h-12 w-12">
                 <AvatarImage src={user.photoURL || undefined} />
-                <AvatarFallback>
-                  {getInitials(user.displayName || user.email)}
-                </AvatarFallback>
+                <AvatarFallback>{getInitials(user.displayName || user.email)}</AvatarFallback>
               </Avatar>
             )}
             <div>
@@ -201,15 +191,7 @@ export function UserDetail() {
           </div>
         </div>
         {user && (
-          <Badge
-            variant={
-              user.status === 'active'
-                ? 'success'
-                : user.status === 'suspended'
-                ? 'destructive'
-                : 'secondary'
-            }
-          >
+          <Badge variant={user.status === 'active' ? 'success' : 'destructive'}>
             {user.status}
           </Badge>
         )}
@@ -222,9 +204,7 @@ export function UserDetail() {
             <CardHeader>
               <CardTitle>User Information</CardTitle>
               <CardDescription>
-                {isNew
-                  ? 'Enter the details for the new user'
-                  : 'View and edit user details'}
+                {isNew ? 'Enter the details for the new user' : 'View and edit user details'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -259,9 +239,7 @@ export function UserDetail() {
                           />
                         </FormControl>
                         {!isNew && (
-                          <FormDescription>
-                            Email cannot be changed after creation
-                          </FormDescription>
+                          <FormDescription>Email cannot be changed after creation</FormDescription>
                         )}
                         <FormMessage />
                       </FormItem>
@@ -286,8 +264,7 @@ export function UserDetail() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="inactive">Inactive</SelectItem>
-                            <SelectItem value="suspended">Suspended</SelectItem>
+                            <SelectItem value="disabled">Disabled</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -297,10 +274,7 @@ export function UserDetail() {
 
                   <WithPermission permission="users:write">
                     <div className="flex justify-end">
-                      <Button
-                        type="submit"
-                        isLoading={updateMutation.isPending}
-                      >
+                      <Button type="submit" isLoading={updateMutation.isPending}>
                         <Save className="mr-2 h-4 w-4" />
                         Save Changes
                       </Button>
@@ -321,19 +295,13 @@ export function UserDetail() {
                 <Shield className="h-4 w-4" />
                 Groups
               </CardTitle>
-              <CardDescription>
-                Manage user group memberships
-              </CardDescription>
+              <CardDescription>Manage user group memberships</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {user?.groups && user.groups.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {user.groups.map((group) => (
-                    <Badge
-                      key={group.id}
-                      variant="secondary"
-                      className="flex items-center gap-1"
-                    >
+                  {user.groups.map((group: UserGroup) => (
+                    <Badge key={group.id} variant="secondary" className="flex items-center gap-1">
                       {group.name}
                       <WithPermission permission="users:write">
                         <button
@@ -348,9 +316,7 @@ export function UserDetail() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Not a member of any groups
-                </p>
+                <p className="text-sm text-muted-foreground">Not a member of any groups</p>
               )}
 
               <WithPermission permission="users:write">
@@ -367,9 +333,9 @@ export function UserDetail() {
                     <SelectContent>
                       {availableGroups
                         .filter(
-                          (g) => !user?.groups?.some((ug) => ug.id === g.id)
+                          (g: Group) => !user?.groups?.some((ug: UserGroup) => ug.id === g.id)
                         )
-                        .map((group) => (
+                        .map((group: Group) => (
                           <SelectItem key={group.id} value={group.id}>
                             {group.name}
                           </SelectItem>
@@ -392,36 +358,28 @@ export function UserDetail() {
                   <UserIcon className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="font-medium">User ID</p>
-                    <p className="text-muted-foreground font-mono text-xs">
-                      {user.id}
-                    </p>
+                    <p className="text-muted-foreground font-mono text-xs">{user.id}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <Mail className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="font-medium">Firebase UID</p>
-                    <p className="text-muted-foreground font-mono text-xs">
-                      {user.firebaseUid}
-                    </p>
+                    <p className="text-muted-foreground font-mono text-xs">{user.firebaseUid}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="font-medium">Created</p>
-                    <p className="text-muted-foreground">
-                      {formatDateTime(user.createdAt)}
-                    </p>
+                    <p className="text-muted-foreground">{formatDateTime(user.createdAt)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="font-medium">Last Updated</p>
-                    <p className="text-muted-foreground">
-                      {formatDateTime(user.updatedAt)}
-                    </p>
+                    <p className="text-muted-foreground">{formatDateTime(user.updatedAt)}</p>
                   </div>
                 </div>
               </CardContent>

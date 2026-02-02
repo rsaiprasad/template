@@ -1,5 +1,5 @@
-import type { Context } from 'hono';
 import type { User } from '@admin-dashboard/shared';
+import type { Context } from 'hono';
 
 /**
  * Authenticated user information attached to the request context

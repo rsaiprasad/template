@@ -1,17 +1,17 @@
+import type {
+  CreateGroupInput,
+  Group,
+  Permission,
+  UpdateGroupInput,
+  User,
+} from '@admin-dashboard/shared';
+import { ADMIN_PERMISSIONS, USER_PERMISSIONS } from '@admin-dashboard/shared';
 import {
-  getDb,
   Collections,
   convertFirestoreDoc,
   convertFirestoreDocs,
+  getDb,
 } from '../lib/firebase-admin';
-import type {
-  Group,
-  CreateGroupInput,
-  UpdateGroupInput,
-  User,
-  Permission,
-} from '@admin-dashboard/shared';
-import { ADMIN_PERMISSIONS, USER_PERMISSIONS } from '@admin-dashboard/shared';
 import { UserService } from './user.service';
 
 /**
@@ -51,10 +51,7 @@ export class GroupService {
    * List all groups
    */
   async listGroups(): Promise<Group[]> {
-    const snapshot = await this.db
-      .collection(Collections.GROUPS)
-      .orderBy('name', 'asc')
-      .get();
+    const snapshot = await this.db.collection(Collections.GROUPS).orderBy('name', 'asc').get();
 
     return convertFirestoreDocs<Group>(snapshot);
   }
@@ -279,8 +276,8 @@ export class GroupService {
 
     const batch = this.db.batch();
 
-    if (!currentDefault.empty) {
-      batch.update(currentDefault.docs[0]!.ref, { isDefault: false });
+    if (!currentDefault.empty && currentDefault.docs[0]) {
+      batch.update(currentDefault.docs[0].ref, { isDefault: false });
     }
 
     // Set new default

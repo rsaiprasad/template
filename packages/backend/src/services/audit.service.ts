@@ -1,14 +1,10 @@
+import type { AuditLog, AuditSearchParams, CreateAuditLogInput } from '@admin-dashboard/shared';
 import {
-  getDb,
   Collections,
   convertFirestoreDoc,
   convertFirestoreDocs,
+  getDb,
 } from '../lib/firebase-admin';
-import type {
-  AuditLog,
-  CreateAuditLogInput,
-  AuditSearchParams,
-} from '@admin-dashboard/shared';
 
 /**
  * Audit Service

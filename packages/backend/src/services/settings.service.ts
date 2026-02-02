@@ -1,9 +1,5 @@
-import {
-  getDb,
-  Collections,
-  convertFirestoreDoc,
-} from '../lib/firebase-admin';
 import type { AppSettings, UpdateSettingsInput } from '@admin-dashboard/shared';
+import { Collections, convertFirestoreDoc, getDb } from '../lib/firebase-admin';
 
 /**
  * Settings Service

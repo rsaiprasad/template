@@ -1,18 +1,18 @@
+import type {
+  CreateUserInput,
+  Group,
+  UpdateUserInput,
+  User,
+  UserSearchParams,
+  UserWithPermissions,
+} from '@admin-dashboard/shared';
 import {
-  getDb,
-  getAuthAdmin,
   Collections,
   convertFirestoreDoc,
   convertFirestoreDocs,
+  getAuthAdmin,
+  getDb,
 } from '../lib/firebase-admin';
-import type {
-  User,
-  CreateUserInput,
-  UpdateUserInput,
-  UserSearchParams,
-  Group,
-  UserWithPermissions,
-} from '@admin-dashboard/shared';
 
 /**
  * User Service
@@ -60,7 +60,7 @@ export class UserService {
 
     return {
       ...user,
-      permissions: user.isSuperAdmin ? [] : (group?.permissions || []),
+      permissions: user.isSuperAdmin ? [] : group?.permissions || [],
       groupName: group?.name || 'Unknown',
     };
   }
@@ -69,7 +69,15 @@ export class UserService {
    * List users with pagination and filtering
    */
   async listUsers(params: UserSearchParams = {}): Promise<{ users: User[]; total: number }> {
-    const { page = 1, limit = 20, status = 'all', groupId, query, sortBy = 'createdAt', sortOrder = 'desc' } = params;
+    const {
+      page = 1,
+      limit = 20,
+      status = 'all',
+      groupId,
+      query,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = params;
 
     let baseQuery: FirebaseFirestore.Query = this.db.collection(Collections.USERS);
 
@@ -115,7 +123,7 @@ export class UserService {
   /**
    * Create a new user
    */
-  async createUser(input: CreateUserInput, creatorId: string): Promise<User> {
+  async createUser(input: CreateUserInput, _creatorId: string): Promise<User> {
     // Check if user already exists with this email
     const existingUser = await this.getUserByEmail(input.email);
     if (existingUser) {
@@ -156,14 +164,12 @@ export class UserService {
    * Create or update user on login (upsert)
    * Called when a user logs in through Firebase Auth
    */
-  async createOrUpdateOnLogin(
-    firebaseUser: {
-      uid: string;
-      email: string;
-      displayName: string | null;
-      photoURL: string | null;
-    }
-  ): Promise<User> {
+  async createOrUpdateOnLogin(firebaseUser: {
+    uid: string;
+    email: string;
+    displayName: string | null;
+    photoURL: string | null;
+  }): Promise<User> {
     const userRef = this.db.collection(Collections.USERS).doc(firebaseUser.uid);
     const userDoc = await userRef.get();
     const now = new Date();

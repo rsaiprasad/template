@@ -1,23 +1,14 @@
-import * as React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { Chrome } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { useAuth } from '@/hooks/useAuth';
-import { useThemeStore, selectResolvedTheme } from '@/stores/theme-store';
 import { ThemeToggle } from '@/components/features/theme-toggle';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/useAuth';
+import { useState } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 
 export function Login() {
   const location = useLocation();
   const { isAuthenticated, isLoading, error, signInWithGoogle } = useAuth();
-  const resolvedTheme = useThemeStore(selectResolvedTheme);
-  const [isSigningIn, setIsSigningIn] = React.useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   // Redirect if already authenticated
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
@@ -51,18 +42,14 @@ export function Login() {
             A
           </div>
           <h1 className="mt-6 text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="mt-2 text-muted-foreground">
-            Manage users, groups, and permissions
-          </p>
+          <p className="mt-2 text-muted-foreground">Manage users, groups, and permissions</p>
         </div>
 
         {/* Login card */}
         <Card className="shadow-lg">
           <CardHeader className="text-center">
             <CardTitle>Welcome back</CardTitle>
-            <CardDescription>
-              Sign in to access the admin dashboard
-            </CardDescription>
+            <CardDescription>Sign in to access the admin dashboard</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {error && (
@@ -80,11 +67,7 @@ export function Login() {
               loadingText="Signing in..."
             >
               {!isSigningIn && (
-                <svg
-                  className="mr-2 h-5 w-5"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
+                <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                     fill="#4285F4"

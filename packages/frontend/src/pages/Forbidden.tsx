@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom';
-import { Home, ArrowLeft, ShieldOff, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { ArrowLeft, Home, Mail, ShieldOff } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export function Forbidden() {
   const { user } = useAuth();
@@ -21,8 +21,8 @@ export function Forbidden() {
         <div className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight">Access Denied</h2>
           <p className="text-muted-foreground">
-            Sorry, you don't have permission to access this page. This might be
-            because your account doesn't have the required permissions.
+            Sorry, you don't have permission to access this page. This might be because your account
+            doesn't have the required permissions.
           </p>
         </div>
 
@@ -30,8 +30,7 @@ export function Forbidden() {
         {user && (
           <div className="bg-muted/50 rounded-lg p-4 text-sm">
             <p className="text-muted-foreground">
-              Signed in as{' '}
-              <span className="font-medium text-foreground">{user.email}</span>
+              Signed in as <span className="font-medium text-foreground">{user.email}</span>
             </p>
           </div>
         )}
@@ -53,8 +52,7 @@ export function Forbidden() {
         {/* Help text */}
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Need access? Contact your administrator to request the necessary
-            permissions.
+            Need access? Contact your administrator to request the necessary permissions.
           </p>
           <Button variant="link" size="sm" className="text-muted-foreground">
             <Mail className="mr-2 h-4 w-4" />

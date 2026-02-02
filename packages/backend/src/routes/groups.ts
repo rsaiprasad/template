@@ -1,18 +1,18 @@
+import { ALL_PERMISSIONS, type Permission } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { AppEnv } from '../types/context';
+import { logAuditAction } from '../middleware/audit';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
-import { logAuditAction } from '../middleware/audit';
 import { GroupService } from '../services/group.service';
+import type { AppEnv } from '../types/context';
 import {
-  successResponse,
-  badRequest,
-  notFound,
-  errorResponse,
   ErrorCodes,
+  badRequest,
+  errorResponse,
+  notFound,
+  successResponse,
 } from '../utils/response';
-import { ALL_PERMISSIONS, type Permission } from '@admin-dashboard/shared';
 
 const groupRoutes = new Hono<AppEnv>();
 
@@ -83,21 +83,14 @@ groupRoutes.post('/', requirePermission('groups:create'), async (c) => {
     const group = await groupService.createGroup(result.data, currentUser.uid);
 
     // Log audit
-    await logAuditAction(
-      c,
-      'GROUP_CREATED',
-      'groups',
-      group.id,
-      `Created group "${group.name}"`,
-      {
-        before: {},
-        after: {
-          name: group.name,
-          description: group.description,
-          permissions: group.permissions,
-        },
-      }
-    );
+    await logAuditAction(c, 'GROUP_CREATED', 'groups', group.id, `Created group "${group.name}"`, {
+      before: {},
+      after: {
+        name: group.name,
+        description: group.description,
+        permissions: group.permissions,
+      },
+    });
 
     return successResponse(c, group, 201);
   } catch (error) {
@@ -220,21 +213,14 @@ groupRoutes.delete('/:id', requirePermission('groups:delete'), async (c) => {
     await groupService.deleteGroup(groupId);
 
     // Log audit
-    await logAuditAction(
-      c,
-      'GROUP_DELETED',
-      'groups',
-      groupId,
-      `Deleted group "${group.name}"`,
-      {
-        before: {
-          name: group.name,
-          description: group.description,
-          permissions: group.permissions,
-        },
-        after: {},
-      }
-    );
+    await logAuditAction(c, 'GROUP_DELETED', 'groups', groupId, `Deleted group "${group.name}"`, {
+      before: {
+        name: group.name,
+        description: group.description,
+        permissions: group.permissions,
+      },
+      after: {},
+    });
 
     return successResponse(c, { message: 'Group deleted successfully' });
   } catch (error) {

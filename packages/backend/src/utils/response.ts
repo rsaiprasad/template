@@ -1,5 +1,5 @@
+import type { ApiErrorResponse, ApiSuccessResponse } from '@admin-dashboard/shared';
 import type { Context } from 'hono';
-import type { ApiSuccessResponse, ApiErrorResponse } from '@admin-dashboard/shared';
 
 /**
  * Standard error codes used in API responses
@@ -153,9 +153,7 @@ export function generateRequestId(): string {
  */
 export function getClientIp(c: Context): string {
   return (
-    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ||
-    c.req.header('x-real-ip') ||
-    'unknown'
+    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || c.req.header('x-real-ip') || 'unknown'
   );
 }
 

@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AuthUser } from '@/types';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 interface AuthState {
   user: AuthUser | null;
@@ -100,7 +100,7 @@ export const hasPermission = (state: AuthStore, permission: string): boolean => 
     if (p === '*' || p === 'admin:*') return true;
     if (p === permission) return true;
     // Check for wildcard patterns (e.g., "users:*" matches "users:read")
-    const [resource, action] = permission.split(':');
+    const [resource] = permission.split(':');
     const [pResource, pAction] = p.split(':');
     return pResource === resource && pAction === '*';
   });

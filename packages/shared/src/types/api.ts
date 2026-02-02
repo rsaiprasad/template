@@ -43,3 +43,15 @@ export interface AuditSearchParams extends SearchParams {
   startDate?: string;
   endDate?: string;
 }
+
+export interface PaginatedResponse<T> {
+  success: true;
+  data: T[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}

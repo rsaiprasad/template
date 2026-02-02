@@ -1,42 +1,7 @@
-import * as React from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Search,
-  Plus,
-  MoreHorizontal,
-  Eye,
-  Pencil,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import { WithPermission } from '@/components/features/permission-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -45,12 +10,47 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { WithPermission } from '@/components/features/permission-gate';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { toastError, toastSuccess } from '@/hooks/useToast';
 import { userApi } from '@/lib/api';
+import { debounce, formatDate, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import { useToast, toastSuccess, toastError } from '@/hooks/useToast';
-import { getInitials, formatDate, debounce } from '@/lib/utils';
 import type { User } from '@/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react';
+import * as React from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 const PAGE_SIZES = [10, 20, 50];
 
@@ -72,8 +72,8 @@ export function UserList() {
   const queryClient = useQueryClient();
 
   // Parse search params
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
+  const page = Number.parseInt(searchParams.get('page') || '1', 10);
+  const pageSize = Number.parseInt(searchParams.get('pageSize') || '10', 10);
   const search = searchParams.get('search') || '';
   const status = searchParams.get('status') || '';
 
@@ -158,7 +158,7 @@ export function UserList() {
     }
   };
 
-  const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
+  const totalPages = data ? Math.ceil(data.meta.total / pageSize) : 0;
 
   return (
     <div className="space-y-6">
@@ -166,9 +166,7 @@ export function UserList() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Users</h1>
-          <p className="text-muted-foreground">
-            Manage user accounts and their permissions.
-          </p>
+          <p className="text-muted-foreground">Manage user accounts and their permissions.</p>
         </div>
         <WithPermission permission="users:write">
           <Button asChild>
@@ -214,7 +212,7 @@ export function UserList() {
               <TableHead>Status</TableHead>
               <TableHead>Groups</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead className="w-[70px]"></TableHead>
+              <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -267,21 +265,15 @@ export function UserList() {
                           {getInitials(user.displayName || user.email)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="font-medium">
-                        {user.displayName || 'No name'}
-                      </span>
+                      <span className="font-medium">{user.displayName || 'No name'}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {user.email}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{user.email}</TableCell>
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(user.status)}>
-                      {user.status}
-                    </Badge>
+                    <Badge variant={getStatusBadgeVariant(user.status)}>{user.status}</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {user.groups?.length || 0} groups
+                    {(user as User & { groups?: unknown[] }).groups?.length || 0} groups
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(user.createdAt)}
@@ -329,26 +321,23 @@ export function UserList() {
       </div>
 
       {/* Pagination */}
-      {data && data.total > 0 && (
+      {data && data.meta.total > 0 && (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Showing</span>
-            <Select
-              value={pageSize.toString()}
-              onValueChange={handlePageSizeChange}
-            >
+            <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
               <SelectTrigger className="w-[70px] h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PAGE_SIZES.map((size) => (
+                {PAGE_SIZES.map((size: number) => (
                   <SelectItem key={size} value={size.toString()}>
                     {size}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <span>of {data.total} users</span>
+            <span>of {data.meta.total} users</span>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -412,10 +401,7 @@ export function UserList() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
             <Button

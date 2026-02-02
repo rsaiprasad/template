@@ -31,9 +31,7 @@ export const api = onRequest(
       }
     }
 
-    const body = ['GET', 'HEAD'].includes(req.method)
-      ? undefined
-      : JSON.stringify(req.body);
+    const body = ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body);
 
     const request = new Request(url, {
       method: req.method,

@@ -23,7 +23,7 @@ const server = Bun.serve({
   port: PORT,
   async fetch(req) {
     const url = new URL(req.url);
-    let pathname = url.pathname;
+    const pathname = url.pathname;
 
     // Try to serve the file directly
     if (pathname !== '/') {
@@ -48,4 +48,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`Preview server running at http://localhost:${PORT}`);
+console.log(`Preview server running at ${server.url}`);

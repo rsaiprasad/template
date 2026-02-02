@@ -1,6 +1,5 @@
-import * as React from 'react';
-import { Link } from 'react-router-dom';
-import { LogOut, Settings, User, Menu } from 'lucide-react';
+import { ThemeToggle } from '@/components/features/theme-toggle';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,10 +9,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ThemeToggle } from '@/components/features/theme-toggle';
 import { useAuth } from '@/hooks/useAuth';
 import { getInitials } from '@/lib/utils';
+import { LogOut, Menu, Settings, User } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -35,12 +34,7 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
       <div className="flex items-center gap-4">
         {showMenuButton && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={onMenuClick}
-          >
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle menu</span>
           </Button>
@@ -54,10 +48,7 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
               <Avatar className="h-9 w-9">
-                <AvatarImage
-                  src={user?.photoURL || undefined}
-                  alt={user?.displayName || 'User'}
-                />
+                <AvatarImage src={user?.photoURL || undefined} alt={user?.displayName || 'User'} />
                 <AvatarFallback>
                   {user?.displayName ? getInitials(user.displayName) : 'U'}
                 </AvatarFallback>
@@ -67,12 +58,8 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  {user?.displayName || 'User'}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email}
-                </p>
+                <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

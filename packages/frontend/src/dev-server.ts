@@ -1,5 +1,5 @@
 import { watch } from 'node:fs';
-import { join, extname } from 'node:path';
+import { extname, join } from 'node:path';
 import { $ } from 'bun';
 
 const PORT = Number(process.env.PORT) || 5173;
@@ -24,17 +24,17 @@ const mimeTypes: Record<string, string> = {
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',
 };
-
-// Build CSS initially
-console.log('Building CSS...');
 await $`bunx tailwindcss -i ./src/index.css -o ./src/generated.css`.quiet();
 
 // Watch for CSS changes and rebuild
 const srcDir = join(import.meta.dir, '.');
 let cssRebuildTimeout: ReturnType<typeof setTimeout> | null = null;
 
-watch(srcDir, { recursive: true }, (event, filename) => {
-  if (filename && (filename.endsWith('.css') || filename.endsWith('.tsx') || filename.endsWith('.ts'))) {
+watch(srcDir, { recursive: true }, (_event, filename) => {
+  if (
+    filename &&
+    (filename.endsWith('.css') || filename.endsWith('.tsx') || filename.endsWith('.ts'))
+  ) {
     if (cssRebuildTimeout) clearTimeout(cssRebuildTimeout);
     cssRebuildTimeout = setTimeout(async () => {
       await $`bunx tailwindcss -i ./src/index.css -o ./src/generated.css`.quiet();
@@ -53,11 +53,12 @@ const envVars = Object.entries(process.env)
     {} as Record<string, string>
   );
 
+// Server instance for hot reloading and API proxying
 const server = Bun.serve({
   port: PORT,
   async fetch(req) {
     const url = new URL(req.url);
-    let pathname = url.pathname;
+    const pathname = url.pathname;
 
     // Proxy API requests
     if (pathname.startsWith('/api/')) {
@@ -77,7 +78,7 @@ const server = Bun.serve({
           statusText: response.statusText,
           headers: response.headers,
         });
-      } catch (error) {
+      } catch (_error) {
         return new Response(JSON.stringify({ error: 'API proxy error' }), {
           status: 502,
           headers: { 'Content-Type': 'application/json' },
@@ -96,13 +97,25 @@ const server = Bun.serve({
     }
 
     // Handle source files with Bun transpiler
-    if (pathname.startsWith('/src/') && (pathname.endsWith('.tsx') || pathname.endsWith('.ts') || pathname.endsWith('.jsx') || pathname.endsWith('.js'))) {
+    if (
+      pathname.startsWith('/src/') &&
+      (pathname.endsWith('.tsx') ||
+        pathname.endsWith('.ts') ||
+        pathname.endsWith('.jsx') ||
+        pathname.endsWith('.js'))
+    ) {
       const filePath = `.${pathname}`;
       const file = Bun.file(filePath);
 
       if (await file.exists()) {
         const transpiler = new Bun.Transpiler({
-          loader: pathname.endsWith('.tsx') ? 'tsx' : pathname.endsWith('.ts') ? 'ts' : pathname.endsWith('.jsx') ? 'jsx' : 'js',
+          loader: pathname.endsWith('.tsx')
+            ? 'tsx'
+            : pathname.endsWith('.ts')
+              ? 'ts'
+              : pathname.endsWith('.jsx')
+                ? 'jsx'
+                : 'js',
           define: {
             'process.env.NODE_ENV': '"development"',
             ...envVars,
@@ -131,7 +144,7 @@ const server = Bun.serve({
       let modulePath = pathname;
       if (pathname.startsWith('/@admin-dashboard/')) {
         // Handle workspace packages
-        const packageName = pathname.split('/')[1];
+        // Extract package path parts - package name (e.g., shared) is ignored since we hardcode the path
         const rest = pathname.split('/').slice(2).join('/');
         modulePath = `../shared/src/${rest || 'index.ts'}`;
       } else {
@@ -190,7 +203,7 @@ const server = Bun.serve({
 });
 
 console.log(`
-  Dev server running at http://localhost:${PORT}
+  Dev server running at ${server.url}
 
   API proxy: ${API_URL}
 

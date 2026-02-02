@@ -1,18 +1,22 @@
-import * as React from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Search,
-  Filter,
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  User,
-  Clock,
-} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -21,33 +25,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { auditLogApi } from '@/lib/api';
+import { debounce, formatDateTime, formatRelativeTime } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import { formatDateTime, formatRelativeTime, debounce } from '@/lib/utils';
 import type { AuditLog } from '@/types';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight, Clock, FileText, Filter, Search, User } from 'lucide-react';
+import * as React from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 const PAGE_SIZES = [10, 20, 50, 100];
 
@@ -86,8 +71,8 @@ export function AuditLogs() {
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
 
   // Parse search params
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
+  const page = Number.parseInt(searchParams.get('page') || '1', 10);
+  const pageSize = Number.parseInt(searchParams.get('pageSize') || '20', 10);
   const userId = searchParams.get('userId') || '';
   const action = searchParams.get('action') || '';
   const resourceType = searchParams.get('resourceType') || '';
@@ -165,16 +150,14 @@ export function AuditLogs() {
   };
 
   const hasFilters = userId || action || resourceType;
-  const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
+  const totalPages = data ? Math.ceil(data.meta.total / pageSize) : 0;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Audit Logs</h1>
-        <p className="text-muted-foreground">
-          View all actions and changes made in the system.
-        </p>
+        <p className="text-muted-foreground">View all actions and changes made in the system.</p>
       </div>
 
       {/* Filters */}
@@ -298,27 +281,25 @@ export function AuditLogs() {
                 </TableCell>
               </TableRow>
             ) : (
-              data?.data.map((log) => (
+              data?.data.map((log: AuditLog) => (
                 <TableRow key={log.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm">{formatDateTime(log.createdAt)}</p>
+                        <p className="text-sm">{formatDateTime(log.timestamp)}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatRelativeTime(log.createdAt)}
+                          {formatRelativeTime(log.timestamp)}
                         </p>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getActionBadgeVariant(log.action)}>
-                      {log.action}
-                    </Badge>
+                    <Badge variant={getActionBadgeVariant(log.action)}>{log.action}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{log.resourceType}</Badge>
+                      <Badge variant="outline">{log.resource}</Badge>
                       {log.resourceId && (
                         <span className="text-xs text-muted-foreground font-mono">
                           {log.resourceId.slice(0, 8)}...
@@ -330,16 +311,12 @@ export function AuditLogs() {
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-mono">
-                        {log.userId?.slice(0, 8) || 'System'}...
+                        {log.actorId?.slice(0, 8) || 'System'}...
                       </span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedLog(log)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
                       View
                     </Button>
                   </TableCell>
@@ -351,26 +328,23 @@ export function AuditLogs() {
       </div>
 
       {/* Pagination */}
-      {data && data.total > 0 && (
+      {data && data.meta.total > 0 && (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Showing</span>
-            <Select
-              value={pageSize.toString()}
-              onValueChange={handlePageSizeChange}
-            >
+            <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
               <SelectTrigger className="w-[70px] h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PAGE_SIZES.map((size) => (
+                {PAGE_SIZES.map((size: number) => (
                   <SelectItem key={size} value={size.toString()}>
                     {size}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <span>of {data.total} entries</span>
+            <span>of {data.meta.total} entries</span>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -403,59 +377,43 @@ export function AuditLogs() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Audit Log Details</DialogTitle>
-            <DialogDescription>
-              Complete information about this audit event
-            </DialogDescription>
+            <DialogDescription>Complete information about this audit event</DialogDescription>
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Timestamp
-                  </p>
-                  <p className="text-sm">{formatDateTime(selectedLog.createdAt)}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Timestamp</p>
+                  <p className="text-sm">{formatDateTime(selectedLog.timestamp)}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Action
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground">Action</p>
                   <Badge variant={getActionBadgeVariant(selectedLog.action)}>
                     {selectedLog.action}
                   </Badge>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Resource Type
-                  </p>
-                  <p className="text-sm">{selectedLog.resourceType}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Resource Type</p>
+                  <p className="text-sm">{selectedLog.resource}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Resource ID
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground">Resource ID</p>
                   <p className="text-sm font-mono">{selectedLog.resourceId || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    User ID
-                  </p>
-                  <p className="text-sm font-mono">{selectedLog.userId || 'System'}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Actor ID</p>
+                  <p className="text-sm font-mono">{selectedLog.actorId || 'System'}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    IP Address
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground">IP Address</p>
                   <p className="text-sm font-mono">{selectedLog.ipAddress || '-'}</p>
                 </div>
               </div>
-              {selectedLog.details && (
+              {selectedLog.changes && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
-                    Details
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Changes</p>
                   <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-64">
-                    {JSON.stringify(selectedLog.details, null, 2)}
+                    {JSON.stringify(selectedLog.changes, null, 2)}
                   </pre>
                 </div>
               )}

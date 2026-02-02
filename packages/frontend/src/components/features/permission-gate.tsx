@@ -1,7 +1,7 @@
-import * as React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuthStore } from '@/stores/auth-store';
+import * as React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 
 interface PermissionGateProps {
   children: React.ReactNode;
@@ -24,7 +24,7 @@ export function PermissionGate({
   redirectTo,
 }: PermissionGateProps) {
   const location = useLocation();
-  const { hasPermission, hasAnyPermission, hasAllPermissions, isAdmin } = usePermissions();
+  const { hasAnyPermission, hasAllPermissions, isAdmin } = usePermissions();
 
   const allPermissions = permission ? [permission, ...permissions] : permissions;
 
@@ -102,14 +102,10 @@ interface WithPermissionProps {
 /**
  * Inline component to conditionally render based on permission
  */
-export function WithPermission({
-  permission,
-  children,
-  fallback = null,
-}: WithPermissionProps) {
+export function WithPermission({ permission, children, fallback = null }: WithPermissionProps) {
   const { hasPermission, isAdmin } = usePermissions();
 
-  if (!isAdmin && !hasPermission(permission)) {
+  if (!(isAdmin || hasPermission(permission))) {
     return <>{fallback}</>;
   }
 

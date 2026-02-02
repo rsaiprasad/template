@@ -1,13 +1,13 @@
-import { getIdToken } from './firebase';
 import type {
-  User,
-  Group,
-  Permission,
-  AuditLog,
-  PaginatedResponse,
-  ApiResponse,
   ApiError,
+  ApiResponse,
+  AuditLog,
+  Group,
+  PaginatedResponse,
+  Permission,
+  User,
 } from '@/types';
+import { getIdToken } from './firebase';
 
 const API_BASE_URL = process.env.VITE_API_BASE_URL || '/api';
 
@@ -37,7 +37,7 @@ async function getAuthHeaders(): Promise<HeadersInit> {
     'Content-Type': 'application/json',
   };
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
   return headers;
 }
@@ -66,10 +66,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 /**
  * Generic fetch wrapper with auth
  */
-async function fetchWithAuth<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
+async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
@@ -241,7 +238,10 @@ export const groupApi = {
   /**
    * Remove permission from group
    */
-  async removePermissionFromGroup(groupId: string, permissionId: string): Promise<ApiResponse<void>> {
+  async removePermissionFromGroup(
+    groupId: string,
+    permissionId: string
+  ): Promise<ApiResponse<void>> {
     return fetchWithAuth<ApiResponse<void>>(`/groups/${groupId}/permissions/${permissionId}`, {
       method: 'DELETE',
     });

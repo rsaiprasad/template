@@ -1,5 +1,5 @@
-import * as React from 'react';
 import type { ToastActionElement, ToastProps } from '@/components/ui/toast';
+import * as React from 'react';
 
 const TOAST_LIMIT = 5;
 const TOAST_REMOVE_DELAY = 5000;
@@ -78,9 +78,7 @@ export const reducer = (state: State, action: Action): State => {
     case 'UPDATE_TOAST':
       return {
         ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === action.toast.id ? { ...t, ...action.toast } : t
-        ),
+        toasts: state.toasts.map((t) => (t.id === action.toast.id ? { ...t, ...action.toast } : t)),
       };
 
     case 'DISMISS_TOAST': {
@@ -189,7 +187,6 @@ const toastSuccess = (title: string, description?: string) =>
 const toastError = (title: string, description?: string) =>
   toast({ title, description, variant: 'destructive' });
 
-const toastInfo = (title: string, description?: string) =>
-  toast({ title, description });
+const toastInfo = (title: string, description?: string) => toast({ title, description });
 
 export { useToast, toast, toastSuccess, toastError, toastInfo };

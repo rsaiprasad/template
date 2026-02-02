@@ -37,3 +37,6 @@ dist-ssr
 
 # Build
 /build
+
+# Generated CSS (from dev server)
+src/generated.css
