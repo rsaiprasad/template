@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserData().groupId == 'admin';
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().isSuperAdmin == true;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isActiveUser() {
+      return isAuthenticated() && getUserData().status == 'active';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Users can read their own profile, admins can read all
+      allow read: if isActiveUser() && (isOwner(userId) || isAdmin());
+
+      // Only admins can create/update users (except for own profile updates)
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['groupId', 'isSuperAdmin', 'status']));
+
+      // Only admins can delete, but not super admin
+      allow delete: if isAdmin() && !resource.data.isSuperAdmin;
+    }
+
+    // Groups collection
+    match /groups/{groupId} {
+      // All authenticated users can read groups
+      allow read: if isActiveUser();
+
+      // Only admins can modify groups
+      allow create, update: if isAdmin();
+
+      // Cannot delete default groups
+      allow delete: if isAdmin() && !resource.data.isDefault;
+    }
+
+    // Audit logs - read only, write only via admin SDK (server-side)
+    match /auditLogs/{logId} {
+      // Only admins can read audit logs
+      allow read: if isAdmin();
+
+      // No client-side writes allowed - only server-side via admin SDK
+      allow write: if false;
+    }
+
+    // Settings
+    match /settings/{doc} {
+      // All authenticated users can read settings
+      allow read: if isActiveUser();
+
+      // Only admins can modify settings
+      allow write: if isAdmin();
+    }
+
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
