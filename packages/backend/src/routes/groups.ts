@@ -1,10 +1,11 @@
 import { ALL_PERMISSIONS, type Permission } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { AppError } from '../errors';
 import { logAuditAction } from '../middleware/audit';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
-import { GroupService } from '../services/group.service';
+import { groupService } from '../services';
 import type { AppEnv } from '../types/context';
 import {
   ErrorCodes,
@@ -41,7 +42,6 @@ const updatePermissionsSchema = z.object({
  */
 groupRoutes.get('/', requirePermission('groups:list'), async (c) => {
   const includeUserCounts = c.req.query('includeUserCounts') === 'true';
-  const groupService = new GroupService();
 
   if (includeUserCounts) {
     const groups = await groupService.listGroupsWithUserCounts();
@@ -77,36 +77,20 @@ groupRoutes.post('/', requirePermission('groups:create'), async (c) => {
     }
   }
 
-  const groupService = new GroupService();
+  // Create group - throws AppError on failure (handled by global error handler)
+  const group = await groupService.createGroup(result.data, currentUser.uid);
 
-  try {
-    const group = await groupService.createGroup(result.data, currentUser.uid);
+  // Log audit
+  await logAuditAction(c, 'GROUP_CREATED', 'groups', group.id, `Created group "${group.name}"`, {
+    before: {},
+    after: {
+      name: group.name,
+      description: group.description,
+      permissions: group.permissions,
+    },
+  });
 
-    // Log audit
-    await logAuditAction(c, 'GROUP_CREATED', 'groups', group.id, `Created group "${group.name}"`, {
-      before: {},
-      after: {
-        name: group.name,
-        description: group.description,
-        permissions: group.permissions,
-      },
-    });
-
-    return successResponse(c, group, 201);
-  } catch (error) {
-    const message = (error as Error).message;
-
-    if (message === 'GROUP_ALREADY_EXISTS') {
-      return errorResponse(
-        c,
-        ErrorCodes.ALREADY_EXISTS,
-        'A group with this name already exists',
-        409
-      );
-    }
-
-    throw error;
-  }
+  return successResponse(c, group, 201);
 });
 
 /**
@@ -115,7 +99,6 @@ groupRoutes.post('/', requirePermission('groups:create'), async (c) => {
  */
 groupRoutes.get('/:id', requirePermission('groups:read'), async (c) => {
   const groupId = c.req.param('id');
-  const groupService = new GroupService();
 
   const group = await groupService.getGroup(groupId);
 
@@ -142,8 +125,6 @@ groupRoutes.put('/:id', requirePermission('groups:update'), async (c) => {
     return badRequest(c, 'Invalid request body', result.error.errors);
   }
 
-  const groupService = new GroupService();
-
   // Get existing group
   const existingGroup = await groupService.getGroup(groupId);
 
@@ -151,47 +132,29 @@ groupRoutes.put('/:id', requirePermission('groups:update'), async (c) => {
     return notFound(c, 'Group');
   }
 
-  try {
-    const updatedGroup = await groupService.updateGroup(groupId, result.data, currentUser.uid);
+  // Update group - throws AppError on failure (handled by global error handler)
+  const updatedGroup = await groupService.updateGroup(groupId, result.data, currentUser.uid);
 
-    // Log audit
-    await logAuditAction(
-      c,
-      'GROUP_UPDATED',
-      'groups',
-      groupId,
-      `Updated group "${updatedGroup.name}"`,
-      {
-        before: {
-          name: existingGroup.name,
-          description: existingGroup.description,
-        },
-        after: {
-          name: updatedGroup.name,
-          description: updatedGroup.description,
-        },
-      }
-    );
-
-    return successResponse(c, updatedGroup);
-  } catch (error) {
-    const message = (error as Error).message;
-
-    if (message === 'GROUP_NOT_FOUND') {
-      return notFound(c, 'Group');
+  // Log audit
+  await logAuditAction(
+    c,
+    'GROUP_UPDATED',
+    'groups',
+    groupId,
+    `Updated group "${updatedGroup.name}"`,
+    {
+      before: {
+        name: existingGroup.name,
+        description: existingGroup.description,
+      },
+      after: {
+        name: updatedGroup.name,
+        description: updatedGroup.description,
+      },
     }
+  );
 
-    if (message === 'GROUP_NAME_CONFLICT') {
-      return errorResponse(
-        c,
-        ErrorCodes.ALREADY_EXISTS,
-        'A group with this name already exists',
-        409
-      );
-    }
-
-    throw error;
-  }
+  return successResponse(c, updatedGroup);
 });
 
 /**
@@ -200,7 +163,6 @@ groupRoutes.put('/:id', requirePermission('groups:update'), async (c) => {
  */
 groupRoutes.delete('/:id', requirePermission('groups:delete'), async (c) => {
   const groupId = c.req.param('id');
-  const groupService = new GroupService();
 
   // Get group before deletion for audit
   const group = await groupService.getGroup(groupId);
@@ -209,56 +171,20 @@ groupRoutes.delete('/:id', requirePermission('groups:delete'), async (c) => {
     return notFound(c, 'Group');
   }
 
-  try {
-    await groupService.deleteGroup(groupId);
+  // Delete group - throws AppError on failure (handled by global error handler)
+  await groupService.deleteGroup(groupId);
 
-    // Log audit
-    await logAuditAction(c, 'GROUP_DELETED', 'groups', groupId, `Deleted group "${group.name}"`, {
-      before: {
-        name: group.name,
-        description: group.description,
-        permissions: group.permissions,
-      },
-      after: {},
-    });
+  // Log audit
+  await logAuditAction(c, 'GROUP_DELETED', 'groups', groupId, `Deleted group "${group.name}"`, {
+    before: {
+      name: group.name,
+      description: group.description,
+      permissions: group.permissions,
+    },
+    after: {},
+  });
 
-    return successResponse(c, { message: 'Group deleted successfully' });
-  } catch (error) {
-    const message = (error as Error).message;
-
-    if (message === 'GROUP_NOT_FOUND') {
-      return notFound(c, 'Group');
-    }
-
-    if (message === 'CANNOT_DELETE_SYSTEM_GROUP') {
-      return errorResponse(
-        c,
-        ErrorCodes.CANNOT_DELETE_SYSTEM_GROUP,
-        'Cannot delete system groups',
-        403
-      );
-    }
-
-    if (message === 'CANNOT_DELETE_DEFAULT_GROUP') {
-      return errorResponse(
-        c,
-        ErrorCodes.CANNOT_DELETE_DEFAULT_GROUP,
-        'Cannot delete the default group',
-        403
-      );
-    }
-
-    if (message === 'GROUP_HAS_USERS') {
-      return errorResponse(
-        c,
-        ErrorCodes.GROUP_HAS_USERS,
-        'Cannot delete a group that has users. Please move users to another group first.',
-        400
-      );
-    }
-
-    throw error;
-  }
+  return successResponse(c, { message: 'Group deleted successfully' });
 });
 
 /**
@@ -267,20 +193,10 @@ groupRoutes.delete('/:id', requirePermission('groups:delete'), async (c) => {
  */
 groupRoutes.get('/:id/users', requirePermission('groups:read'), async (c) => {
   const groupId = c.req.param('id');
-  const groupService = new GroupService();
 
-  try {
-    const users = await groupService.getGroupUsers(groupId);
-    return successResponse(c, users);
-  } catch (error) {
-    const message = (error as Error).message;
-
-    if (message === 'GROUP_NOT_FOUND') {
-      return notFound(c, 'Group');
-    }
-
-    throw error;
-  }
+  // Get group users - throws AppError on failure (handled by global error handler)
+  const users = await groupService.getGroupUsers(groupId);
+  return successResponse(c, users);
 });
 
 /**
@@ -308,8 +224,6 @@ groupRoutes.put('/:id/permissions', requirePermission('groups:update'), async (c
     return badRequest(c, 'Invalid permissions', { invalidPermissions });
   }
 
-  const groupService = new GroupService();
-
   // Get existing group
   const existingGroup = await groupService.getGroup(groupId);
 
@@ -317,36 +231,27 @@ groupRoutes.put('/:id/permissions', requirePermission('groups:update'), async (c
     return notFound(c, 'Group');
   }
 
-  try {
-    const updatedGroup = await groupService.updateGroupPermissions(
-      groupId,
-      result.data.permissions as Permission[],
-      currentUser.uid
-    );
+  // Update permissions - throws AppError on failure (handled by global error handler)
+  const updatedGroup = await groupService.updateGroupPermissions(
+    groupId,
+    result.data.permissions as Permission[],
+    currentUser.uid
+  );
 
-    // Log audit
-    await logAuditAction(
-      c,
-      'GROUP_PERMISSIONS_CHANGED',
-      'groups',
-      groupId,
-      `Updated permissions for group "${updatedGroup.name}"`,
-      {
-        before: { permissions: existingGroup.permissions },
-        after: { permissions: updatedGroup.permissions },
-      }
-    );
-
-    return successResponse(c, updatedGroup);
-  } catch (error) {
-    const message = (error as Error).message;
-
-    if (message === 'GROUP_NOT_FOUND') {
-      return notFound(c, 'Group');
+  // Log audit
+  await logAuditAction(
+    c,
+    'GROUP_PERMISSIONS_CHANGED',
+    'groups',
+    groupId,
+    `Updated permissions for group "${updatedGroup.name}"`,
+    {
+      before: { permissions: existingGroup.permissions },
+      after: { permissions: updatedGroup.permissions },
     }
+  );
 
-    throw error;
-  }
+  return successResponse(c, updatedGroup);
 });
 
 export { groupRoutes };

@@ -1,4 +1,5 @@
 import type { AppSettings, UpdateSettingsInput } from '@admin-dashboard/shared';
+import { NotFoundError } from '../errors';
 import { Collections, convertFirestoreDoc, getDb } from '../lib/firebase-admin';
 
 /**
@@ -48,7 +49,7 @@ export class SettingsService {
       // Verify the group exists
       const groupDoc = await this.db.collection(Collections.GROUPS).doc(input.defaultGroupId).get();
       if (!groupDoc.exists) {
-        throw new Error('GROUP_NOT_FOUND');
+        throw new NotFoundError('Group');
       }
       updates.defaultGroupId = input.defaultGroupId;
 

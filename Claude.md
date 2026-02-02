@@ -144,3 +144,72 @@ bun run build            # Production build
 - **Database**: Firestore
 - **Auth**: Firebase Auth (Google OAuth)
 - **Linting**: Biome (not ESLint/Prettier)
+
+---
+
+## Architecture Patterns
+
+### Backend
+
+#### Config-Driven Settings
+All environment-specific settings are in `src/config/index.ts`:
+```typescript
+import { config } from './config';
+// config.cors.origins - allowed CORS origins
+// config.rateLimit.max - requests per window
+```
+
+Set via environment variables:
+- `CORS_ORIGINS` - comma-separated list of allowed origins
+- `FIREBASE_PROJECT_ID` - Firebase project ID
+
+#### Custom Error Classes
+Use typed errors instead of string messages:
+```typescript
+import { NotFoundError, ForbiddenError } from './errors';
+
+// In services:
+throw new NotFoundError('User');  // 404
+throw new ForbiddenError('Cannot modify super admin');  // 403
+
+// Global error handler catches AppError instances automatically
+```
+
+#### Singleton Services
+Services are instantiated once in `src/services/index.ts`:
+```typescript
+import { userService, groupService } from './services';
+// Don't instantiate new services in routes
+```
+
+#### Cursor-Based Pagination
+Use cursor instead of offset for efficient Firestore queries:
+```typescript
+const { data, meta } = await userService.listUsers({
+  cursor: 'lastDocId',  // Instead of page/offset
+  limit: 20
+});
+// meta.nextCursor for next page
+```
+
+### Frontend
+
+#### Error Boundary
+App is wrapped in ErrorBoundary - catches JS errors and shows recovery UI.
+
+#### API Client Features
+- 30s request timeout with AbortController
+- Automatic retry with exponential backoff (network errors, 5xx)
+- Token refresh on 401 responses
+- Type-safe responses with proper error handling
+
+#### Accessibility
+- Focus trap in mobile menu
+- Escape key closes dialogs
+- ARIA attributes on interactive elements
+- Navigation progress indicator
+
+#### Performance
+- Memoized list row components (React.memo)
+- Debounce cleanup on unmount
+- TanStack Query caching (5min stale time)

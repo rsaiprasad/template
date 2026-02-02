@@ -7,9 +7,12 @@ import type {
   Permission,
   User,
 } from '@/types';
-import { getIdToken } from './firebase';
+import { getIdToken, getIdTokenForced } from './firebase';
 
 const API_BASE_URL = process.env.VITE_API_BASE_URL || '/api';
+const DEFAULT_TIMEOUT = 30000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
 
 /**
  * Custom error class for API errors
@@ -64,18 +67,76 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 /**
- * Generic fetch wrapper with auth
+ * Check if error is a network/timeout error that should be retried
  */
-async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      ...headers,
-      ...options.headers,
-    },
-  });
-  return handleResponse<T>(response);
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof ApiRequestError) {
+    // Don't retry 4xx errors (except 429 Too Many Requests)
+    if (error.status >= 400 && error.status < 500 && error.status !== 429) {
+      return false;
+    }
+    // Retry 5xx errors and 429
+    return true;
+  }
+  // Retry network errors
+  return error instanceof TypeError || (error instanceof Error && error.name === 'AbortError');
+}
+
+/**
+ * Sleep for a given number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Generic fetch wrapper with auth, timeout, retry, and 401 token refresh
+ */
+async function fetchWithAuth<T>(
+  endpoint: string,
+  options: RequestInit & { timeout?: number; _isRetry?: boolean } = {}
+): Promise<T> {
+  const { timeout = DEFAULT_TIMEOUT, _isRetry = false, ...fetchOptions } = options;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...fetchOptions,
+        headers: { ...headers, ...fetchOptions.headers },
+        signal: controller.signal,
+      });
+
+      // Handle 401 - try to refresh token and retry once
+      if (response.status === 401 && !_isRetry) {
+        clearTimeout(timeoutId);
+        // Try to force refresh the token
+        await getIdTokenForced();
+        // Retry the request with refreshed token
+        return fetchWithAuth<T>(endpoint, { ...options, _isRetry: true });
+      }
+
+      clearTimeout(timeoutId);
+      return handleResponse<T>(response);
+    } catch (error) {
+      lastError = error;
+      clearTimeout(timeoutId);
+
+      // Don't retry if it's not a retryable error or if we've exhausted retries
+      if (!isRetryableError(error) || attempt === MAX_RETRIES - 1) {
+        throw error;
+      }
+
+      // Wait before retrying with exponential backoff
+      await sleep(RETRY_DELAY * Math.pow(2, attempt));
+    }
+  }
+
+  throw lastError;
 }
 
 // ===================

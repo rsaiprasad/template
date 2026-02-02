@@ -8,6 +8,18 @@ export type {
   ApiResponse,
 } from '@admin-dashboard/shared';
 
+import type { User, Group } from '@admin-dashboard/shared';
+
+// Extended types for API responses with computed fields
+export interface UserWithGroups extends User {
+  groups?: Array<{ id: string; name: string }>;
+}
+
+export interface GroupWithUsers extends Group {
+  users?: Array<{ id: string; displayName: string; email: string }>;
+  userCount?: number;
+}
+
 // Frontend-specific types
 
 export interface AuthState {

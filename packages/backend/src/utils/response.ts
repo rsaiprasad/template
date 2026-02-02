@@ -57,6 +57,7 @@ export function successResponse<T>(
 
 /**
  * Creates a paginated successful API response
+ * Supports both offset-based and cursor-based pagination
  */
 export function paginatedResponse<T>(
   c: Context,
@@ -65,6 +66,7 @@ export function paginatedResponse<T>(
     page: number;
     limit: number;
     total: number;
+    nextCursor?: string;
   }
 ): Response {
   const hasMore = pagination.page * pagination.limit < pagination.total;
@@ -73,6 +75,7 @@ export function paginatedResponse<T>(
     limit: pagination.limit,
     total: pagination.total,
     hasMore,
+    ...(pagination.nextCursor && { nextCursor: pagination.nextCursor }),
   });
 }
 

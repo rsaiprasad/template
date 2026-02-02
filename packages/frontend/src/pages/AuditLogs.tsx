@@ -26,13 +26,33 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { auditLogApi } from '@/lib/api';
-import { debounce, formatDateTime, formatRelativeTime } from '@/lib/utils';
+import { formatDateTime, formatRelativeTime } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import type { AuditLog } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Clock, FileText, Filter, Search, User } from 'lucide-react';
 import * as React from 'react';
 import { useSearchParams } from 'react-router-dom';
+
+/**
+ * Safe JSON display component that properly escapes user content
+ * Prevents XSS by using React's built-in escaping via textContent
+ */
+function SafeJsonDisplay({ data }: { data: unknown }) {
+  const formattedJson = React.useMemo(() => {
+    try {
+      return JSON.stringify(data, null, 2);
+    } catch {
+      return 'Unable to display data';
+    }
+  }, [data]);
+
+  return (
+    <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-64 whitespace-pre-wrap break-words">
+      <code>{formattedJson}</code>
+    </pre>
+  );
+}
 
 const PAGE_SIZES = [10, 20, 50, 100];
 
@@ -79,6 +99,7 @@ export function AuditLogs() {
 
   // Local state
   const [userIdInput, setUserIdInput] = React.useState(userId);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch audit logs
   const { data, isLoading, error } = useQuery({
@@ -99,10 +120,13 @@ export function AuditLogs() {
       }),
   });
 
-  // Debounced user ID search
-  const debouncedUserIdSearch = React.useMemo(
-    () =>
-      debounce((value: string) => {
+  // Debounced user ID search with proper cleanup
+  const debouncedUserIdSearch = React.useCallback(
+    (value: string) => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(() => {
         const params = new URLSearchParams(searchParams);
         if (value) {
           params.set('userId', value);
@@ -111,9 +135,19 @@ export function AuditLogs() {
         }
         params.set('page', '1');
         setSearchParams(params);
-      }, 300),
+      }, 300);
+    },
     [searchParams, setSearchParams]
   );
+
+  // Cleanup debounce timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   const handleUserIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUserIdInput(e.target.value);
@@ -412,9 +446,7 @@ export function AuditLogs() {
               {selectedLog.changes && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-2">Changes</p>
-                  <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-64">
-                    {JSON.stringify(selectedLog.changes, null, 2)}
-                  </pre>
+                  <SafeJsonDisplay data={selectedLog.changes} />
                 </div>
               )}
             </div>

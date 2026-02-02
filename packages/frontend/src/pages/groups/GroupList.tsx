@@ -34,9 +34,9 @@ import {
 } from '@/components/ui/table';
 import { toastError, toastSuccess } from '@/hooks/useToast';
 import { groupApi } from '@/lib/api';
-import { debounce, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import type { Group } from '@/types';
+import type { GroupWithUsers } from '@/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
@@ -55,6 +55,75 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 const PAGE_SIZES = [10, 20, 50];
 
+// Memoized table row component for better performance
+interface GroupRowProps {
+  group: GroupWithUsers;
+  onDeleteClick: (group: GroupWithUsers) => void;
+}
+
+const GroupRow = React.memo(function GroupRow({ group, onDeleteClick }: GroupRowProps) {
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <Shield className="h-4 w-4 text-primary" />
+          </div>
+          <span className="font-medium">{group.name}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-muted-foreground max-w-[200px] truncate">
+        {group.description || '-'}
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline" className="gap-1">
+          <Users className="h-3 w-3" />
+          {group.users?.length || 0}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <Badge variant="secondary">{group.permissions?.length || 0} permissions</Badge>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{formatDate(group.createdAt)}</TableCell>
+      <TableCell>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Actions</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link to={`/groups/${group.id}`}>
+                <Eye className="mr-2 h-4 w-4" />
+                View
+              </Link>
+            </DropdownMenuItem>
+            <WithPermission permission="groups:write">
+              <DropdownMenuItem asChild>
+                <Link to={`/groups/${group.id}/edit`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </DropdownMenuItem>
+            </WithPermission>
+            <WithPermission permission="groups:delete">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => onDeleteClick(group)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </WithPermission>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+});
+
 export function GroupList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -67,10 +136,11 @@ export function GroupList() {
   // Local state
   const [searchInput, setSearchInput] = React.useState(search);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [groupToDelete, setGroupToDelete] = React.useState<Group | null>(null);
+  const [groupToDelete, setGroupToDelete] = React.useState<GroupWithUsers | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [newGroupName, setNewGroupName] = React.useState('');
   const [newGroupDescription, setNewGroupDescription] = React.useState('');
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch groups
   const { data, isLoading, error } = useQuery({
@@ -107,10 +177,13 @@ export function GroupList() {
     },
   });
 
-  // Debounced search
-  const debouncedSearch = React.useMemo(
-    () =>
-      debounce((value: string) => {
+  // Debounced search with proper cleanup
+  const debouncedSearch = React.useCallback(
+    (value: string) => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(() => {
         const params = new URLSearchParams(searchParams);
         if (value) {
           params.set('search', value);
@@ -119,9 +192,19 @@ export function GroupList() {
         }
         params.set('page', '1');
         setSearchParams(params);
-      }, 300),
+      }, 300);
+    },
     [searchParams, setSearchParams]
   );
+
+  // Cleanup debounce timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchInput(e.target.value);
@@ -141,10 +224,10 @@ export function GroupList() {
     setSearchParams(params);
   };
 
-  const handleDeleteClick = (group: Group) => {
+  const handleDeleteClick = React.useCallback((group: GroupWithUsers) => {
     setGroupToDelete(group);
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
   const confirmDelete = () => {
     if (groupToDelete) {
@@ -243,66 +326,11 @@ export function GroupList() {
               </TableRow>
             ) : (
               data?.data.map((group) => (
-                <TableRow key={group.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                        <Shield className="h-4 w-4 text-primary" />
-                      </div>
-                      <span className="font-medium">{group.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                    {group.description || '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="gap-1">
-                      <Users className="h-3 w-3" />
-                      {(group as Group & { users?: unknown[] }).users?.length || 0}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{group.permissions?.length || 0} permissions</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(group.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link to={`/groups/${group.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </Link>
-                        </DropdownMenuItem>
-                        <WithPermission permission="groups:write">
-                          <DropdownMenuItem asChild>
-                            <Link to={`/groups/${group.id}/edit`}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </Link>
-                          </DropdownMenuItem>
-                        </WithPermission>
-                        <WithPermission permission="groups:delete">
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => handleDeleteClick(group)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </WithPermission>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                <GroupRow
+                  key={group.id}
+                  group={group as GroupWithUsers}
+                  onDeleteClick={handleDeleteClick}
+                />
               ))
             )}
           </TableBody>

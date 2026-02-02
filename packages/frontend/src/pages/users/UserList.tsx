@@ -35,9 +35,9 @@ import {
 } from '@/components/ui/table';
 import { toastError, toastSuccess } from '@/hooks/useToast';
 import { userApi } from '@/lib/api';
-import { debounce, formatDate, getInitials } from '@/lib/utils';
+import { formatDate, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import type { User } from '@/types';
+import type { UserWithGroups } from '@/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
@@ -67,6 +67,69 @@ function getStatusBadgeVariant(status: string) {
   }
 }
 
+// Memoized table row component for better performance
+interface UserRowProps {
+  user: UserWithGroups;
+  onDeleteClick: (user: UserWithGroups) => void;
+}
+
+const UserRow = React.memo(function UserRow({ user, onDeleteClick }: UserRowProps) {
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="flex items-center gap-3">
+          <Avatar>
+            <AvatarImage src={user.photoURL || undefined} />
+            <AvatarFallback>{getInitials(user.displayName || user.email)}</AvatarFallback>
+          </Avatar>
+          <span className="font-medium">{user.displayName || 'No name'}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{user.email}</TableCell>
+      <TableCell>
+        <Badge variant={getStatusBadgeVariant(user.status)}>{user.status}</Badge>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{user.groups?.length || 0} groups</TableCell>
+      <TableCell className="text-muted-foreground">{formatDate(user.createdAt)}</TableCell>
+      <TableCell>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Actions</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link to={`/users/${user.id}`}>
+                <Eye className="mr-2 h-4 w-4" />
+                View
+              </Link>
+            </DropdownMenuItem>
+            <WithPermission permission="users:write">
+              <DropdownMenuItem asChild>
+                <Link to={`/users/${user.id}/edit`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </DropdownMenuItem>
+            </WithPermission>
+            <WithPermission permission="users:delete">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => onDeleteClick(user)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </WithPermission>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+});
+
 export function UserList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -80,7 +143,8 @@ export function UserList() {
   // Local state for search input
   const [searchInput, setSearchInput] = React.useState(search);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [userToDelete, setUserToDelete] = React.useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = React.useState<UserWithGroups | null>(null);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch users
   const { data, isLoading, error } = useQuery({
@@ -102,10 +166,13 @@ export function UserList() {
     },
   });
 
-  // Debounced search
-  const debouncedSearch = React.useMemo(
-    () =>
-      debounce((value: string) => {
+  // Debounced search with proper cleanup
+  const debouncedSearch = React.useCallback(
+    (value: string) => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(() => {
         const params = new URLSearchParams(searchParams);
         if (value) {
           params.set('search', value);
@@ -114,9 +181,19 @@ export function UserList() {
         }
         params.set('page', '1'); // Reset to first page on search
         setSearchParams(params);
-      }, 300),
+      }, 300);
+    },
     [searchParams, setSearchParams]
   );
+
+  // Cleanup debounce timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchInput(e.target.value);
@@ -147,10 +224,10 @@ export function UserList() {
     setSearchParams(params);
   };
 
-  const handleDeleteClick = (user: User) => {
+  const handleDeleteClick = React.useCallback((user: UserWithGroups) => {
     setUserToDelete(user);
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
   const confirmDelete = () => {
     if (userToDelete) {
@@ -256,64 +333,11 @@ export function UserList() {
               </TableRow>
             ) : (
               data?.data.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={user.photoURL || undefined} />
-                        <AvatarFallback>
-                          {getInitials(user.displayName || user.email)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">{user.displayName || 'No name'}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusBadgeVariant(user.status)}>{user.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {(user as User & { groups?: unknown[] }).groups?.length || 0} groups
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(user.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link to={`/users/${user.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </Link>
-                        </DropdownMenuItem>
-                        <WithPermission permission="users:write">
-                          <DropdownMenuItem asChild>
-                            <Link to={`/users/${user.id}/edit`}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </Link>
-                          </DropdownMenuItem>
-                        </WithPermission>
-                        <WithPermission permission="users:delete">
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => handleDeleteClick(user)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </WithPermission>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                <UserRow
+                  key={user.id}
+                  user={user as UserWithGroups}
+                  onDeleteClick={handleDeleteClick}
+                />
               ))
             )}
           </TableBody>

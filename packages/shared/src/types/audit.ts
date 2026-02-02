@@ -14,7 +14,9 @@ export type AuditAction =
   | 'GROUP_CREATED'
   | 'GROUP_UPDATED'
   | 'GROUP_DELETED'
-  | 'GROUP_PERMISSIONS_CHANGED';
+  | 'GROUP_PERMISSIONS_CHANGED'
+  // Settings
+  | 'SETTINGS_UPDATED';
 
 export type AuditResource = 'users' | 'groups' | 'settings' | 'auth';
 

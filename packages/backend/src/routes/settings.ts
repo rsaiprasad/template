@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { AppError } from '../errors';
 import { logAuditAction } from '../middleware/audit';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
-import { GroupService } from '../services/group.service';
-import { SettingsService } from '../services/settings.service';
+import { groupService, settingsService } from '../services';
 import type { AppEnv } from '../types/context';
 import { badRequest, internalError, notFound, successResponse } from '../utils/response';
 
@@ -30,23 +30,15 @@ const updateSettingsSchema = z.object({
  * Get application settings
  */
 settingsRoutes.get('/', requirePermission('settings:read'), async (c) => {
-  const settingsService = new SettingsService();
+  const settings = await settingsService.getSettings();
 
-  try {
-    const settings = await settingsService.getSettings();
+  // Also return the default group details
+  const defaultGroup = await groupService.getGroup(settings.defaultGroupId);
 
-    // Also return the default group details
-    const groupService = new GroupService();
-    const defaultGroup = await groupService.getGroup(settings.defaultGroupId);
-
-    return successResponse(c, {
-      ...settings,
-      defaultGroup: defaultGroup || null,
-    });
-  } catch (error) {
-    console.error('Error fetching settings:', error);
-    return internalError(c, 'Failed to fetch settings');
-  }
+  return successResponse(c, {
+    ...settings,
+    defaultGroup: defaultGroup || null,
+  });
 });
 
 /**
@@ -66,95 +58,80 @@ settingsRoutes.put('/', requirePermission('settings:update'), async (c) => {
 
   // Validate defaultGroupId if provided
   if (result.data.defaultGroupId) {
-    const groupService = new GroupService();
     const group = await groupService.getGroup(result.data.defaultGroupId);
     if (!group) {
       return notFound(c, 'Default group');
     }
   }
 
-  const settingsService = new SettingsService();
+  // Get existing settings for audit
+  const existingSettings = await settingsService.getSettings();
 
-  try {
-    // Get existing settings for audit
-    const existingSettings = await settingsService.getSettings();
+  // Update settings - throws AppError on failure (handled by global error handler)
+  const updatedSettings = await settingsService.updateSettings(result.data, currentUser.uid);
 
-    // Update settings
-    const updatedSettings = await settingsService.updateSettings(result.data, currentUser.uid);
+  // Log audit for each changed field
+  const changes: Record<string, unknown> = {};
+  const before: Record<string, unknown> = {};
 
-    // Log audit for each changed field
-    const changes: Record<string, unknown> = {};
-    const before: Record<string, unknown> = {};
+  if (result.data.appName !== undefined && result.data.appName !== existingSettings.appName) {
+    before.appName = existingSettings.appName;
+    changes.appName = result.data.appName;
+  }
 
-    if (result.data.appName !== undefined && result.data.appName !== existingSettings.appName) {
-      before.appName = existingSettings.appName;
-      changes.appName = result.data.appName;
+  if (
+    result.data.defaultGroupId !== undefined &&
+    result.data.defaultGroupId !== existingSettings.defaultGroupId
+  ) {
+    before.defaultGroupId = existingSettings.defaultGroupId;
+    changes.defaultGroupId = result.data.defaultGroupId;
+  }
+
+  if (result.data.features !== undefined) {
+    const featureChanges: Record<string, boolean> = {};
+    const featureBefore: Record<string, boolean> = {};
+
+    if (
+      result.data.features.auditLogging !== undefined &&
+      result.data.features.auditLogging !== existingSettings.features.auditLogging
+    ) {
+      featureBefore.auditLogging = existingSettings.features.auditLogging;
+      featureChanges.auditLogging = result.data.features.auditLogging;
     }
 
     if (
-      result.data.defaultGroupId !== undefined &&
-      result.data.defaultGroupId !== existingSettings.defaultGroupId
+      result.data.features.userRegistration !== undefined &&
+      result.data.features.userRegistration !== existingSettings.features.userRegistration
     ) {
-      before.defaultGroupId = existingSettings.defaultGroupId;
-      changes.defaultGroupId = result.data.defaultGroupId;
+      featureBefore.userRegistration = existingSettings.features.userRegistration;
+      featureChanges.userRegistration = result.data.features.userRegistration;
     }
 
-    if (result.data.features !== undefined) {
-      const featureChanges: Record<string, boolean> = {};
-      const featureBefore: Record<string, boolean> = {};
-
-      if (
-        result.data.features.auditLogging !== undefined &&
-        result.data.features.auditLogging !== existingSettings.features.auditLogging
-      ) {
-        featureBefore.auditLogging = existingSettings.features.auditLogging;
-        featureChanges.auditLogging = result.data.features.auditLogging;
-      }
-
-      if (
-        result.data.features.userRegistration !== undefined &&
-        result.data.features.userRegistration !== existingSettings.features.userRegistration
-      ) {
-        featureBefore.userRegistration = existingSettings.features.userRegistration;
-        featureChanges.userRegistration = result.data.features.userRegistration;
-      }
-
-      if (Object.keys(featureChanges).length > 0) {
-        before.features = featureBefore;
-        changes.features = featureChanges;
-      }
+    if (Object.keys(featureChanges).length > 0) {
+      before.features = featureBefore;
+      changes.features = featureChanges;
     }
-
-    // Only log if there were actual changes
-    if (Object.keys(changes).length > 0) {
-      await logAuditAction(
-        c,
-        'GROUP_UPDATED', // Using existing audit action type that fits
-        'settings',
-        'app',
-        'Updated application settings',
-        { before, after: changes }
-      );
-    }
-
-    // Return settings with default group details
-    const groupService = new GroupService();
-    const defaultGroup = await groupService.getGroup(updatedSettings.defaultGroupId);
-
-    return successResponse(c, {
-      ...updatedSettings,
-      defaultGroup: defaultGroup || null,
-    });
-  } catch (error) {
-    const message = (error as Error).message;
-
-    if (message === 'GROUP_NOT_FOUND') {
-      return notFound(c, 'Default group');
-    }
-
-    console.error('Error updating settings:', error);
-    return internalError(c, 'Failed to update settings');
   }
+
+  // Only log if there were actual changes
+  if (Object.keys(changes).length > 0) {
+    await logAuditAction(
+      c,
+      'SETTINGS_UPDATED',
+      'settings',
+      'app',
+      'Updated application settings',
+      { before, after: changes }
+    );
+  }
+
+  // Return settings with default group details
+  const defaultGroup = await groupService.getGroup(updatedSettings.defaultGroupId);
+
+  return successResponse(c, {
+    ...updatedSettings,
+    defaultGroup: defaultGroup || null,
+  });
 });
 
 /**
@@ -162,15 +139,8 @@ settingsRoutes.put('/', requirePermission('settings:update'), async (c) => {
  * Get feature flags only
  */
 settingsRoutes.get('/features', requirePermission('settings:read'), async (c) => {
-  const settingsService = new SettingsService();
-
-  try {
-    const settings = await settingsService.getSettings();
-    return successResponse(c, settings.features);
-  } catch (error) {
-    console.error('Error fetching features:', error);
-    return internalError(c, 'Failed to fetch features');
-  }
+  const settings = await settingsService.getSettings();
+  return successResponse(c, settings.features);
 });
 
 /**
@@ -196,43 +166,36 @@ settingsRoutes.put('/features/:feature', requirePermission('settings:update'), a
     return badRequest(c, 'Invalid request body', result.error.errors);
   }
 
-  const settingsService = new SettingsService();
+  // Get existing value for audit
+  const existingSettings = await settingsService.getSettings();
+  const existingValue = existingSettings.features[feature];
 
-  try {
-    // Get existing value for audit
-    const existingSettings = await settingsService.getSettings();
-    const existingValue = existingSettings.features[feature];
+  // Toggle feature - throws AppError on failure (handled by global error handler)
+  const updatedSettings = await settingsService.toggleFeature(
+    feature,
+    result.data.enabled,
+    currentUser.uid
+  );
 
-    // Toggle feature
-    const updatedSettings = await settingsService.toggleFeature(
-      feature,
-      result.data.enabled,
-      currentUser.uid
+  // Log audit if changed
+  if (existingValue !== result.data.enabled) {
+    await logAuditAction(
+      c,
+      'SETTINGS_UPDATED',
+      'settings',
+      'app',
+      `${result.data.enabled ? 'Enabled' : 'Disabled'} feature: ${feature}`,
+      {
+        before: { [feature]: existingValue },
+        after: { [feature]: result.data.enabled },
+      }
     );
-
-    // Log audit if changed
-    if (existingValue !== result.data.enabled) {
-      await logAuditAction(
-        c,
-        'GROUP_UPDATED',
-        'settings',
-        'app',
-        `${result.data.enabled ? 'Enabled' : 'Disabled'} feature: ${feature}`,
-        {
-          before: { [feature]: existingValue },
-          after: { [feature]: result.data.enabled },
-        }
-      );
-    }
-
-    return successResponse(c, {
-      feature,
-      enabled: updatedSettings.features[feature],
-    });
-  } catch (error) {
-    console.error('Error toggling feature:', error);
-    return internalError(c, 'Failed to toggle feature');
   }
+
+  return successResponse(c, {
+    feature,
+    enabled: updatedSettings.features[feature],
+  });
 });
 
 /**
@@ -241,24 +204,16 @@ settingsRoutes.put('/features/:feature', requirePermission('settings:update'), a
  * This is typically called during initial setup
  */
 settingsRoutes.post('/initialize', requirePermission('settings:update'), async (c) => {
-  const groupService = new GroupService();
-  const settingsService = new SettingsService();
+  // Initialize default groups
+  await groupService.initializeDefaultGroups();
 
-  try {
-    // Initialize default groups
-    await groupService.initializeDefaultGroups();
+  // Initialize settings
+  const settings = await settingsService.initializeSettings();
 
-    // Initialize settings
-    const settings = await settingsService.initializeSettings();
-
-    return successResponse(c, {
-      message: 'Initialization complete',
-      settings,
-    });
-  } catch (error) {
-    console.error('Error initializing settings:', error);
-    return internalError(c, 'Failed to initialize settings');
-  }
+  return successResponse(c, {
+    message: 'Initialization complete',
+    settings,
+  });
 });
 
 export { settingsRoutes };

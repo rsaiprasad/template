@@ -6,13 +6,13 @@ import type {
   User,
 } from '@admin-dashboard/shared';
 import { ADMIN_PERMISSIONS, USER_PERMISSIONS } from '@admin-dashboard/shared';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors';
 import {
   Collections,
   convertFirestoreDoc,
   convertFirestoreDocs,
   getDb,
 } from '../lib/firebase-admin';
-import { UserService } from './user.service';
 
 /**
  * Group Service
@@ -20,7 +20,6 @@ import { UserService } from './user.service';
  */
 export class GroupService {
   private db = getDb();
-  private userService = new UserService();
 
   /**
    * Get a group by ID
@@ -58,18 +57,27 @@ export class GroupService {
 
   /**
    * List groups with user counts
+   * Fixed N+1 query by doing a single aggregation query for all group counts
    */
   async listGroupsWithUserCounts(): Promise<(Group & { userCount: number })[]> {
     const groups = await this.listGroups();
 
-    const groupsWithCounts = await Promise.all(
-      groups.map(async (group) => {
-        const userCount = await this.userService.countUsersByGroup(group.id);
-        return { ...group, userCount };
-      })
-    );
+    // Get all users and count by group in a single query
+    // This avoids N+1 queries by fetching all user group counts at once
+    const usersSnapshot = await this.db.collection(Collections.USERS).select('groupId').get();
 
-    return groupsWithCounts;
+    // Count users per group
+    const groupCounts = new Map<string, number>();
+    for (const doc of usersSnapshot.docs) {
+      const groupId = doc.data().groupId as string;
+      groupCounts.set(groupId, (groupCounts.get(groupId) || 0) + 1);
+    }
+
+    // Merge counts with groups
+    return groups.map((group) => ({
+      ...group,
+      userCount: groupCounts.get(group.id) || 0,
+    }));
   }
 
   /**
@@ -79,7 +87,7 @@ export class GroupService {
     // Check if group with same name already exists
     const existingGroup = await this.getGroupByName(input.name);
     if (existingGroup) {
-      throw new Error('GROUP_ALREADY_EXISTS');
+      throw new ConflictError('A group with this name already exists');
     }
 
     const now = new Date();
@@ -110,7 +118,7 @@ export class GroupService {
     const groupDoc = await groupRef.get();
 
     if (!groupDoc.exists) {
-      throw new Error('GROUP_NOT_FOUND');
+      throw new NotFoundError('Group');
     }
 
     const existingGroup = convertFirestoreDoc<Group>(groupDoc)!;
@@ -119,7 +127,7 @@ export class GroupService {
     if (input.name && input.name !== existingGroup.name) {
       const conflictingGroup = await this.getGroupByName(input.name);
       if (conflictingGroup) {
-        throw new Error('GROUP_NAME_CONFLICT');
+        throw new ConflictError('A group with this name already exists');
       }
     }
 
@@ -146,7 +154,7 @@ export class GroupService {
     const groupDoc = await groupRef.get();
 
     if (!groupDoc.exists) {
-      throw new Error('GROUP_NOT_FOUND');
+      throw new NotFoundError('Group');
     }
 
     const existingGroup = convertFirestoreDoc<Group>(groupDoc)!;
@@ -170,25 +178,31 @@ export class GroupService {
     const groupDoc = await groupRef.get();
 
     if (!groupDoc.exists) {
-      throw new Error('GROUP_NOT_FOUND');
+      throw new NotFoundError('Group');
     }
 
     const group = convertFirestoreDoc<Group>(groupDoc)!;
 
     // Prevent deleting system groups
     if (group.isSystem) {
-      throw new Error('CANNOT_DELETE_SYSTEM_GROUP');
+      throw new ForbiddenError('Cannot delete system groups');
     }
 
     // Prevent deleting the default group
     if (group.isDefault) {
-      throw new Error('CANNOT_DELETE_DEFAULT_GROUP');
+      throw new ForbiddenError('Cannot delete the default group');
     }
 
     // Check if group has any users
-    const userCount = await this.userService.countUsersByGroup(groupId);
+    const userCountSnapshot = await this.db
+      .collection(Collections.USERS)
+      .where('groupId', '==', groupId)
+      .count()
+      .get();
+    const userCount = userCountSnapshot.data().count;
+
     if (userCount > 0) {
-      throw new Error('GROUP_HAS_USERS');
+      throw new ValidationError('Cannot delete a group that has users. Please move users to another group first.');
     }
 
     await groupRef.delete();
@@ -201,10 +215,15 @@ export class GroupService {
     // Verify group exists
     const group = await this.getGroup(groupId);
     if (!group) {
-      throw new Error('GROUP_NOT_FOUND');
+      throw new NotFoundError('Group');
     }
 
-    return this.userService.getUsersByGroup(groupId);
+    const snapshot = await this.db
+      .collection(Collections.USERS)
+      .where('groupId', '==', groupId)
+      .get();
+
+    return convertFirestoreDocs<User>(snapshot);
   }
 
   /**
@@ -264,7 +283,7 @@ export class GroupService {
     const groupDoc = await groupRef.get();
 
     if (!groupDoc.exists) {
-      throw new Error('GROUP_NOT_FOUND');
+      throw new NotFoundError('Group');
     }
 
     // Remove default flag from current default group

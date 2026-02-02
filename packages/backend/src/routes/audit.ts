@@ -2,7 +2,7 @@ import type { AuditAction, AuditResource, AuditSearchParams } from '@admin-dashb
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
-import { AuditService } from '../services/audit.service';
+import { auditService } from '../services';
 import type { AppEnv } from '../types/context';
 import { badRequest, notFound, paginatedResponse, successResponse } from '../utils/response';
 
@@ -26,6 +26,7 @@ const VALID_ACTIONS: AuditAction[] = [
   'GROUP_UPDATED',
   'GROUP_DELETED',
   'GROUP_PERMISSIONS_CHANGED',
+  'SETTINGS_UPDATED',
 ];
 
 const VALID_RESOURCES: AuditResource[] = ['users', 'groups', 'settings', 'auth'];
@@ -66,7 +67,6 @@ auditRoutes.get('/', requirePermission('audit:list'), async (c) => {
     return badRequest(c, 'Invalid endDate format. Use ISO 8601 format.');
   }
 
-  const auditService = new AuditService();
   const { logs, total } = await auditService.listAuditLogs(params);
 
   return paginatedResponse(c, logs, {
@@ -93,7 +93,6 @@ auditRoutes.get('/stats', requirePermission('audit:list'), async (c) => {
     return badRequest(c, 'Invalid endDate format. Use ISO 8601 format.');
   }
 
-  const auditService = new AuditService();
   const stats = await auditService.getAuditStats(
     startDate ? new Date(startDate) : undefined,
     endDate ? new Date(endDate) : undefined
@@ -137,7 +136,6 @@ auditRoutes.get('/user/:userId', requirePermission('audit:list'), async (c) => {
   const userId = c.req.param('userId');
   const limit = Math.min(Number.parseInt(c.req.query('limit') || '50'), 100);
 
-  const auditService = new AuditService();
   const logs = await auditService.getAuditLogsForUser(userId, limit);
 
   return successResponse(c, logs);
@@ -157,7 +155,6 @@ auditRoutes.get('/resource/:resource/:resourceId', requirePermission('audit:list
     return badRequest(c, `Invalid resource. Valid resources: ${VALID_RESOURCES.join(', ')}`);
   }
 
-  const auditService = new AuditService();
   const logs = await auditService.getAuditLogsForResource(resource, resourceId, limit);
 
   return successResponse(c, logs);
@@ -169,7 +166,6 @@ auditRoutes.get('/resource/:resource/:resourceId', requirePermission('audit:list
  */
 auditRoutes.get('/:id', requirePermission('audit:read'), async (c) => {
   const logId = c.req.param('id');
-  const auditService = new AuditService();
 
   const log = await auditService.getAuditLog(logId);
 
@@ -186,6 +182,7 @@ auditRoutes.get('/:id', requirePermission('audit:read'), async (c) => {
 function getActionCategory(action: AuditAction): string {
   if (action.startsWith('USER_')) return 'Users';
   if (action.startsWith('GROUP_')) return 'Groups';
+  if (action.startsWith('SETTINGS_')) return 'Settings';
   if (action.startsWith('LOGIN') || action === 'LOGOUT') return 'Authentication';
   return 'Other';
 }
@@ -208,6 +205,7 @@ function getActionDescription(action: AuditAction): string {
     GROUP_UPDATED: 'Group was updated',
     GROUP_DELETED: 'Group was deleted',
     GROUP_PERMISSIONS_CHANGED: 'Group permissions were changed',
+    SETTINGS_UPDATED: 'Application settings were updated',
   };
 
   return descriptions[action] || action;

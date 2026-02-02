@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 // Layout
 import { AppLayout } from '@/components/layout/app-layout';
+import { NavigationProgress } from '@/components/navigation-progress';
 
 import { AuditLogs } from '@/pages/AuditLogs';
 import { Dashboard } from '@/pages/Dashboard';
@@ -36,6 +37,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <NavigationProgress />
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />

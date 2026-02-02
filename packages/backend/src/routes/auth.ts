@@ -4,10 +4,7 @@ import { z } from 'zod';
 import { Collections, convertFirestoreDoc, getAuthAdmin, getDb } from '../lib/firebase-admin';
 import { logAuditAction, loginAuditMiddleware } from '../middleware/audit';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
-import { AuditService } from '../services/audit.service';
-import { GroupService } from '../services/group.service';
-import { SettingsService } from '../services/settings.service';
-import { UserService } from '../services/user.service';
+import { auditService, groupService, settingsService, userService } from '../services';
 import type { AppEnv } from '../types/context';
 import { badRequest, internalError, successResponse, unauthorized } from '../utils/response';
 
@@ -45,7 +42,6 @@ authRoutes.post('/login', loginAuditMiddleware, async (c) => {
       const errorCode = (error as { code?: string }).code;
 
       // Log failed login attempt
-      const auditService = new AuditService();
       await auditService.createAuditLog({
         actorId: 'unknown',
         actorEmail: 'unknown',
@@ -68,16 +64,12 @@ authRoutes.post('/login', loginAuditMiddleware, async (c) => {
     const firebaseUserRecord = await auth.getUser(decodedToken.uid);
 
     // Initialize default groups and settings if needed
-    const groupService = new GroupService();
-    const settingsService = new SettingsService();
-
     await Promise.all([
       groupService.initializeDefaultGroups(),
       settingsService.initializeSettings(),
     ]);
 
     // Create or update user in our database
-    const userService = new UserService();
     const user = await userService.createOrUpdateOnLogin({
       uid: firebaseUserRecord.uid,
       email: firebaseUserRecord.email || '',

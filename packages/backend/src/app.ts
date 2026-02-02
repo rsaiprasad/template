@@ -3,7 +3,10 @@ import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
+import { config } from './config';
+import { AppError } from './errors';
 import { initializeFirebaseAdmin } from './lib/firebase-admin';
+import { rateLimitMiddleware } from './middleware/rate-limit';
 import type { AppEnv } from './types/context';
 import {
   ErrorCodes,
@@ -35,33 +38,26 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-// CORS middleware
+// CORS middleware - uses exact origin matching from config
 app.use(
   '*',
   cors({
     origin: (origin) => {
-      // Allow localhost for development
-      if (origin?.includes('localhost') || origin?.includes('127.0.0.1')) {
-        return origin;
-      }
-      // Allow Firebase hosting domains
-      if (origin?.includes('.web.app') || origin?.includes('.firebaseapp.com')) {
-        return origin;
-      }
-      // Allow custom domains (configure as needed)
-      const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
-      if (allowedOrigins.includes(origin || '')) {
-        return origin;
-      }
-      return null;
+      // If no origin (e.g., server-to-server), return first configured origin
+      if (!origin) return config.cors.origins[0];
+      // Exact match against configured origins
+      return config.cors.origins.includes(origin) ? origin : null;
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
-    exposeHeaders: ['X-Request-ID'],
-    credentials: true,
+    exposeHeaders: ['X-Request-ID', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+    credentials: config.cors.credentials,
     maxAge: 86400, // 24 hours
   })
 );
+
+// Rate limiting middleware - apply before routes
+app.use('*', rateLimitMiddleware());
 
 // Security headers
 app.use('*', secureHeaders());
@@ -98,6 +94,12 @@ app.route('/api/v1', apiV1);
 // Global error handler
 app.onError((err, c) => {
   console.error('Unhandled error:', err);
+
+  // Handle custom AppError instances
+  if (err instanceof AppError) {
+    const status = err.statusCode as 400 | 401 | 403 | 404 | 409 | 500;
+    return errorResponse(c, err.code as typeof ErrorCodes[keyof typeof ErrorCodes], err.message, status);
+  }
 
   // Handle Hono HTTP exceptions
   if (err instanceof HTTPException) {

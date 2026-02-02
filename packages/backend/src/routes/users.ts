@@ -1,11 +1,11 @@
 import type { UserSearchParams } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { AppError } from '../errors';
 import { logAuditAction } from '../middleware/audit';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
-import { GroupService } from '../services/group.service';
-import { UserService } from '../services/user.service';
+import { groupService, userService } from '../services';
 import type { AppEnv } from '../types/context';
 import {
   ErrorCodes,
@@ -39,9 +39,10 @@ const changeGroupSchema = z.object({
 /**
  * GET /api/v1/users
  * List all users with pagination and filtering
+ * Supports cursor-based pagination via 'cursor' query param
  */
 userRoutes.get('/', requirePermission('users:list'), async (c) => {
-  const params: UserSearchParams = {
+  const params: UserSearchParams & { cursor?: string } = {
     page: Number.parseInt(c.req.query('page') || '1'),
     limit: Math.min(Number.parseInt(c.req.query('limit') || '20'), 100),
     status: (c.req.query('status') as 'active' | 'disabled' | 'all') || 'all',
@@ -49,15 +50,16 @@ userRoutes.get('/', requirePermission('users:list'), async (c) => {
     query: c.req.query('query') || undefined,
     sortBy: c.req.query('sortBy') || 'createdAt',
     sortOrder: (c.req.query('sortOrder') as 'asc' | 'desc') || 'desc',
+    cursor: c.req.query('cursor') || undefined,
   };
 
-  const userService = new UserService();
-  const { users, total } = await userService.listUsers(params);
+  const { users, total, nextCursor } = await userService.listUsers(params);
 
   return paginatedResponse(c, users, {
     page: params.page!,
     limit: params.limit!,
     total,
+    ...(nextCursor && { nextCursor }),
   });
 });
 
@@ -67,7 +69,6 @@ userRoutes.get('/', requirePermission('users:list'), async (c) => {
  */
 userRoutes.get('/:id', requirePermission('users:read'), async (c) => {
   const userId = c.req.param('id');
-  const userService = new UserService();
 
   const user = await userService.getUserWithPermissions(userId);
 
@@ -94,8 +95,6 @@ userRoutes.put('/:id', requirePermission('users:update'), async (c) => {
     return badRequest(c, 'Invalid request body', result.error.errors);
   }
 
-  const userService = new UserService();
-
   // Get existing user
   const existingUser = await userService.getUser(userId);
 
@@ -113,7 +112,7 @@ userRoutes.put('/:id', requirePermission('users:update'), async (c) => {
     );
   }
 
-  // Update user
+  // Update user - throws AppError on failure
   const updatedUser = await userService.updateUser(userId, result.data);
 
   // Log audit
@@ -146,8 +145,6 @@ userRoutes.delete('/:id', requirePermission('users:delete'), async (c) => {
     return errorResponse(c, ErrorCodes.CANNOT_DELETE_SELF, 'You cannot delete yourself', 400);
   }
 
-  const userService = new UserService();
-
   // Get user before deletion for audit
   const user = await userService.getUser(userId);
 
@@ -165,38 +162,20 @@ userRoutes.delete('/:id', requirePermission('users:delete'), async (c) => {
     );
   }
 
-  try {
-    await userService.deleteUser(userId);
+  // Delete user - throws AppError on failure (handled by global error handler)
+  await userService.deleteUser(userId);
 
-    // Log audit
-    await logAuditAction(c, 'USER_DELETED', 'users', userId, `Deleted user ${user.email}`, {
-      before: {
-        email: user.email,
-        displayName: user.displayName,
-        groupId: user.groupId,
-      },
-      after: {},
-    });
+  // Log audit
+  await logAuditAction(c, 'USER_DELETED', 'users', userId, `Deleted user ${user.email}`, {
+    before: {
+      email: user.email,
+      displayName: user.displayName,
+      groupId: user.groupId,
+    },
+    after: {},
+  });
 
-    return successResponse(c, { message: 'User deleted successfully' });
-  } catch (error) {
-    const message = (error as Error).message;
-
-    if (message === 'USER_NOT_FOUND') {
-      return notFound(c, 'User');
-    }
-
-    if (message === 'CANNOT_DELETE_SUPER_ADMIN') {
-      return errorResponse(
-        c,
-        ErrorCodes.CANNOT_MODIFY_SUPER_ADMIN,
-        'Cannot delete super administrator accounts',
-        403
-      );
-    }
-
-    throw error;
-  }
+  return successResponse(c, { message: 'User deleted successfully' });
 });
 
 /**
@@ -212,40 +191,16 @@ userRoutes.post('/:id/disable', requirePermission('users:update'), async (c) => 
     return errorResponse(c, ErrorCodes.CANNOT_DISABLE_SELF, 'You cannot disable yourself', 400);
   }
 
-  const userService = new UserService();
+  // Disable user - throws AppError on failure (handled by global error handler)
+  const user = await userService.disableUser(userId, currentUser.uid);
 
-  try {
-    const user = await userService.disableUser(userId, currentUser.uid);
+  // Log audit
+  await logAuditAction(c, 'USER_DISABLED', 'users', userId, `Disabled user ${user.email}`, {
+    before: { status: 'active' },
+    after: { status: 'disabled', disabledBy: currentUser.uid },
+  });
 
-    // Log audit
-    await logAuditAction(c, 'USER_DISABLED', 'users', userId, `Disabled user ${user.email}`, {
-      before: { status: 'active' },
-      after: { status: 'disabled', disabledBy: currentUser.uid },
-    });
-
-    return successResponse(c, user);
-  } catch (error) {
-    const message = (error as Error).message;
-
-    if (message === 'USER_NOT_FOUND') {
-      return notFound(c, 'User');
-    }
-
-    if (message === 'CANNOT_DISABLE_SUPER_ADMIN') {
-      return errorResponse(
-        c,
-        ErrorCodes.CANNOT_MODIFY_SUPER_ADMIN,
-        'Cannot disable super administrator accounts',
-        403
-      );
-    }
-
-    if (message === 'USER_ALREADY_DISABLED') {
-      return badRequest(c, 'User is already disabled');
-    }
-
-    throw error;
-  }
+  return successResponse(c, user);
 });
 
 /**
@@ -254,31 +209,17 @@ userRoutes.post('/:id/disable', requirePermission('users:update'), async (c) => 
  */
 userRoutes.post('/:id/enable', requirePermission('users:update'), async (c) => {
   const userId = c.req.param('id');
-  const userService = new UserService();
 
-  try {
-    const user = await userService.enableUser(userId);
+  // Enable user - throws AppError on failure (handled by global error handler)
+  const user = await userService.enableUser(userId);
 
-    // Log audit
-    await logAuditAction(c, 'USER_ENABLED', 'users', userId, `Enabled user ${user.email}`, {
-      before: { status: 'disabled' },
-      after: { status: 'active' },
-    });
+  // Log audit
+  await logAuditAction(c, 'USER_ENABLED', 'users', userId, `Enabled user ${user.email}`, {
+    before: { status: 'disabled' },
+    after: { status: 'active' },
+  });
 
-    return successResponse(c, user);
-  } catch (error) {
-    const message = (error as Error).message;
-
-    if (message === 'USER_NOT_FOUND') {
-      return notFound(c, 'User');
-    }
-
-    if (message === 'USER_ALREADY_ACTIVE') {
-      return badRequest(c, 'User is already active');
-    }
-
-    throw error;
-  }
+  return successResponse(c, user);
 });
 
 /**
@@ -296,9 +237,6 @@ userRoutes.put('/:id/group', requirePermission('users:update'), async (c) => {
   if (!result.success) {
     return badRequest(c, 'Invalid request body', result.error.errors);
   }
-
-  const userService = new UserService();
-  const groupService = new GroupService();
 
   // Get existing user
   const existingUser = await userService.getUser(userId);
@@ -326,45 +264,23 @@ userRoutes.put('/:id/group', requirePermission('users:update'), async (c) => {
   // Get old group for audit
   const oldGroup = await groupService.getGroup(existingUser.groupId);
 
-  try {
-    const updatedUser = await userService.changeUserGroup(userId, result.data.groupId);
+  // Change user group - throws AppError on failure (handled by global error handler)
+  const updatedUser = await userService.changeUserGroup(userId, result.data.groupId);
 
-    // Log audit
-    await logAuditAction(
-      c,
-      'USER_GROUP_CHANGED',
-      'users',
-      userId,
-      `Changed user ${updatedUser.email} group from "${oldGroup?.name}" to "${newGroup.name}"`,
-      {
-        before: { groupId: existingUser.groupId, groupName: oldGroup?.name },
-        after: { groupId: result.data.groupId, groupName: newGroup.name },
-      }
-    );
-
-    return successResponse(c, updatedUser);
-  } catch (error) {
-    const message = (error as Error).message;
-
-    if (message === 'USER_NOT_FOUND') {
-      return notFound(c, 'User');
+  // Log audit
+  await logAuditAction(
+    c,
+    'USER_GROUP_CHANGED',
+    'users',
+    userId,
+    `Changed user ${updatedUser.email} group from "${oldGroup?.name}" to "${newGroup.name}"`,
+    {
+      before: { groupId: existingUser.groupId, groupName: oldGroup?.name },
+      after: { groupId: result.data.groupId, groupName: newGroup.name },
     }
+  );
 
-    if (message === 'GROUP_NOT_FOUND') {
-      return notFound(c, 'Group');
-    }
-
-    if (message === 'CANNOT_MODIFY_SUPER_ADMIN') {
-      return errorResponse(
-        c,
-        ErrorCodes.CANNOT_MODIFY_SUPER_ADMIN,
-        'Cannot modify super administrator accounts',
-        403
-      );
-    }
-
-    throw error;
-  }
+  return successResponse(c, updatedUser);
 });
 
 export { userRoutes };
