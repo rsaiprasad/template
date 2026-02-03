@@ -36,7 +36,3 @@ enable_google_signin = false
 # oauth_client_id     = "YOUR_CLIENT_ID.apps.googleusercontent.com"
 # oauth_client_secret = "YOUR_CLIENT_SECRET"
 
-# Optional: Create service account key file
-# WARNING: The key will be stored in Terraform state (sensitive)
-# For local development only - use Workload Identity in production
-create_service_account_key = false

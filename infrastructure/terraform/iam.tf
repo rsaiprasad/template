@@ -28,15 +28,3 @@ resource "google_project_iam_member" "dev_firebase" {
   role    = "roles/firebase.sdkAdminServiceAgent"
   member  = "serviceAccount:${google_service_account.dev.email}"
 }
-
-# Service Account Key (optional - stored in Terraform state)
-# For production, use Workload Identity Federation instead
-
-resource "google_service_account_key" "dev" {
-  count = var.create_service_account_key ? 1 : 0
-
-  provider = google-beta
-
-  service_account_id = google_service_account.dev.name
-  key_algorithm      = "KEY_ALG_RSA_2048"
-}

@@ -7,11 +7,6 @@ output "project_id" {
   value       = local.project_id
 }
 
-output "project_number" {
-  description = "GCP Project Number"
-  value       = local.project_number
-}
-
 output "region" {
   description = "GCP Region"
   value       = var.region
@@ -50,12 +45,6 @@ output "firebase_app_id" {
 output "service_account_email" {
   description = "Development Service Account Email"
   value       = google_service_account.dev.email
-}
-
-output "service_account_key" {
-  description = "Development Service Account Key (base64 encoded JSON)"
-  value       = var.create_service_account_key ? google_service_account_key.dev[0].private_key : null
-  sensitive   = true
 }
 
 # Super Admin

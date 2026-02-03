@@ -73,10 +73,3 @@ variable "enable_google_signin" {
   default     = false
 }
 
-# Service Account Configuration
-
-variable "create_service_account_key" {
-  description = "Whether to create a service account key (stored in Terraform state)"
-  type        = bool
-  default     = false
-}

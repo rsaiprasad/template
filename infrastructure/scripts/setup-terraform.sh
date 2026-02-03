@@ -198,21 +198,12 @@ EOF
 EOF
     print_success "Updated $PROJECT_ROOT/firebase/.firebaserc"
 
-    # Generate service account key if requested
-    local sa_key=$(terraform output -raw service_account_key 2>/dev/null || echo "")
-    if [ -n "$sa_key" ] && [ "$sa_key" != "null" ]; then
-        print_info "Generating $PROJECT_ROOT/service-account.json"
-        echo "$sa_key" | base64 -d > "$PROJECT_ROOT/service-account.json"
-        print_success "Created $PROJECT_ROOT/service-account.json"
-        print_warning "Keep this file secure and never commit it to version control!"
-    else
-        print_warning "Service account key not generated via Terraform"
-        echo ""
-        echo "To create a service account key manually:"
-        echo "  gcloud iam service-accounts keys create ./service-account.json \\"
-        echo "    --iam-account=${service_account_email}"
-        echo ""
-    fi
+    # Remind user to create service account key
+    echo ""
+    print_info "Create service account key for local development:"
+    echo "  gcloud iam service-accounts keys create ./service-account.json \\"
+    echo "    --iam-account=${service_account_email}"
+    echo ""
 }
 
 # Print next steps
