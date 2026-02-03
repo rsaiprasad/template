@@ -98,7 +98,7 @@ Authorization: Bearer <token>
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `page` | number | Page number (default: 1) |
-| `pageSize` | number | Items per page (default: 20, max: 100) |
+| `limit` | number | Items per page (default: 20, max: 100) |
 | `search` | string | Search by email or name |
 | `status` | string | Filter by status: `active`, `disabled`, `all` |
 | `groupId` | string | Filter by group |
@@ -513,7 +513,7 @@ Authorization: Bearer <token>
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `page` | number | Page number |
-| `pageSize` | number | Items per page |
+| `limit` | number | Items per page |
 | `action` | string | Filter by action type |
 | `resource` | string | Filter by resource type |
 | `actorId` | string | Filter by actor |
@@ -575,6 +575,139 @@ Authorization: Bearer <token>
       "groups": 100
     }
   }
+}
+```
+
+### Get Audit Actions
+
+Returns list of valid audit action types.
+
+```http
+GET /api/v1/audit/actions
+Authorization: Bearer <token>
+```
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "LOGIN",
+      "category": "Authentication",
+      "description": "User logged in"
+    },
+    {
+      "id": "USER_CREATED",
+      "category": "Users",
+      "description": "New user was created"
+    }
+  ]
+}
+```
+
+### Get Audit Resources
+
+Returns list of valid audit resource types.
+
+```http
+GET /api/v1/audit/resources
+Authorization: Bearer <token>
+```
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "users",
+      "name": "Users"
+    },
+    {
+      "id": "groups",
+      "name": "Groups"
+    },
+    {
+      "id": "settings",
+      "name": "Settings"
+    },
+    {
+      "id": "auth",
+      "name": "Auth"
+    }
+  ]
+}
+```
+
+### Get User Audit Logs
+
+Returns audit logs for a specific user (as actor).
+
+```http
+GET /api/v1/audit/user/:userId
+Authorization: Bearer <token>
+```
+
+**Query Parameters**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `limit` | number | Max items to return (default: 50, max: 100) |
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "log123",
+      "timestamp": "2024-01-01T00:00:00Z",
+      "actorId": "user123",
+      "action": "USER_UPDATED",
+      "resource": "users",
+      "resourceId": "user456"
+    }
+  ]
+}
+```
+
+### Get Resource Audit Logs
+
+Returns audit logs for a specific resource.
+
+```http
+GET /api/v1/audit/resource/:resource/:resourceId
+Authorization: Bearer <token>
+```
+
+**Path Parameters**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `resource` | string | Resource type: `users`, `groups`, `settings`, `auth` |
+| `resourceId` | string | ID of the resource |
+
+**Query Parameters**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `limit` | number | Max items to return (default: 50, max: 100) |
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "log456",
+      "timestamp": "2024-01-01T00:00:00Z",
+      "actorId": "admin123",
+      "action": "USER_UPDATED",
+      "resource": "users",
+      "resourceId": "user123"
+    }
+  ]
 }
 ```
 

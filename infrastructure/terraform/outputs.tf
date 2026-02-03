@@ -70,3 +70,40 @@ output "auth_providers_url" {
   description = "Firebase Auth Providers URL"
   value       = "https://console.firebase.google.com/project/${local.project_id}/authentication/providers"
 }
+
+# Monitoring URLs (only shown when monitoring is enabled)
+
+output "monitoring_dashboard_url" {
+  description = "Cloud Monitoring Dashboard URL"
+  value       = var.monitoring.enabled ? "https://console.cloud.google.com/monitoring?project=${local.project_id}" : null
+}
+
+output "logging_explorer_url" {
+  description = "Cloud Logging Explorer URL"
+  value       = var.monitoring.enabled ? "https://console.cloud.google.com/logs/query?project=${local.project_id}" : null
+}
+
+output "alerting_policies_url" {
+  description = "Cloud Monitoring Alerting Policies URL"
+  value       = var.monitoring.enabled ? "https://console.cloud.google.com/monitoring/alerting?project=${local.project_id}" : null
+}
+
+output "monitoring_config_summary" {
+  description = "Summary of enabled monitoring features"
+  value = {
+    enabled = var.monitoring.enabled
+    audit_logs = var.monitoring.enabled ? {
+      firestore = var.monitoring.audit_logs.enabled && var.monitoring.audit_logs.firestore
+      auth      = var.monitoring.audit_logs.enabled && var.monitoring.audit_logs.auth
+    } : null
+    alerts = var.monitoring.enabled ? {
+      auth_failures    = var.monitoring.alerts.auth_failures.enabled
+      function_errors  = var.monitoring.alerts.function_errors.enabled
+      firestore_errors = var.monitoring.alerts.firestore_errors.enabled
+      high_latency     = var.monitoring.alerts.high_latency.enabled
+      uptime           = var.monitoring.alerts.uptime.enabled && var.monitoring.alerts.uptime.api_domain != null
+    } : null
+    notification_email = var.monitoring.enabled ? coalesce(var.monitoring.notifications.email, var.super_admin_email) : null
+    slack_enabled      = var.monitoring.enabled ? var.monitoring.notifications.slack_webhook != null : null
+  }
+}

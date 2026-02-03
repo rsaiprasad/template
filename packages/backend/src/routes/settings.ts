@@ -49,7 +49,12 @@ settingsRoutes.put('/', requirePermission('settings:update'), async (c) => {
   const currentUser = c.get('user');
 
   // Parse and validate request body
-  const body = await c.req.json();
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return badRequest(c, 'Invalid JSON in request body');
+  }
   const result = updateSettingsSchema.safeParse(body);
 
   if (!result.success) {
@@ -158,7 +163,12 @@ settingsRoutes.put('/features/:feature', requirePermission('settings:update'), a
   }
 
   // Parse request body
-  const body = await c.req.json();
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return badRequest(c, 'Invalid JSON in request body');
+  }
   const schema = z.object({ enabled: z.boolean() });
   const result = schema.safeParse(body);
 

@@ -5,6 +5,7 @@ import {
   signOut as firebaseSignOut,
   onAuthChange,
 } from '@/lib/firebase';
+import { parseDisplayName } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import type { AuthUser } from '@/types';
 import { useCallback, useEffect } from 'react';
@@ -25,10 +26,7 @@ interface UseAuthReturn {
  * Parse Firebase user to app user
  */
 function parseFirebaseUser(firebaseUser: FirebaseUser): Partial<AuthUser> {
-  const displayName = firebaseUser.displayName || '';
-  const nameParts = displayName.split(' ');
-  const firstName = nameParts[0] || '';
-  const lastName = nameParts.slice(1).join(' ') || '';
+  const { firstName, lastName } = parseDisplayName(firebaseUser.displayName);
 
   return {
     uid: firebaseUser.uid,
@@ -65,17 +63,15 @@ export function useAuth(): UseAuthReturn {
       }
       const userData = response.data;
 
+      const backendName = parseDisplayName(userData.displayName);
+      const firebaseName = parseDisplayName(firebaseUser.displayName);
       return {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
         photoURL: firebaseUser.photoURL,
-        firstName:
-          userData.displayName?.split(' ')[0] || parseFirebaseUser(firebaseUser).firstName || '',
-        lastName:
-          userData.displayName?.split(' ').slice(1).join(' ') ||
-          parseFirebaseUser(firebaseUser).lastName ||
-          '',
+        firstName: backendName.firstName || firebaseName.firstName,
+        lastName: backendName.lastName || firebaseName.lastName,
         permissions: (userData as { permissions?: string[] }).permissions || [],
       };
     } catch (err) {
@@ -163,10 +159,11 @@ export function useAuth(): UseAuthReturn {
         throw new Error(response.error.message);
       }
       const userData = response.data;
+      const { firstName, lastName } = parseDisplayName(userData.displayName);
       setUser({
         ...user,
-        firstName: userData.displayName?.split(' ')[0] || user.firstName,
-        lastName: userData.displayName?.split(' ').slice(1).join(' ') || user.lastName,
+        firstName: firstName || user.firstName,
+        lastName: lastName || user.lastName,
         permissions: (userData as { permissions?: string[] }).permissions || user.permissions,
       });
     } catch (err) {

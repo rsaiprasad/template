@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { Collections, convertFirestoreDoc, getAuthAdmin, getDb } from '../lib/firebase-admin';
 import { logAuditAction, loginAuditMiddleware } from '../middleware/audit';
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
+import { authMiddleware, buildAuthUser, optionalAuthMiddleware } from '../middleware/auth';
 import { auditService, groupService, settingsService, userService } from '../services';
 import type { AppEnv } from '../types/context';
 import { badRequest, internalError, successResponse, unauthorized } from '../utils/response';
@@ -23,7 +23,12 @@ const loginSchema = z.object({
 authRoutes.post('/login', loginAuditMiddleware, async (c) => {
   try {
     // Parse request body
-    const body = await c.req.json();
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return badRequest(c, 'Invalid JSON in request body');
+    }
     const result = loginSchema.safeParse(body);
 
     if (!result.success) {
@@ -94,15 +99,7 @@ authRoutes.post('/login', loginAuditMiddleware, async (c) => {
     }
 
     // Set user context for audit logging
-    c.set('user', {
-      uid: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      photoURL: user.photoURL,
-      isSuperAdmin: user.isSuperAdmin,
-      groupId: user.groupId,
-      permissions,
-    });
+    c.set('user', buildAuthUser(user.id, user, permissions));
 
     const userWithPermissions: UserWithPermissions = {
       ...user,

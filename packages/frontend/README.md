@@ -93,7 +93,7 @@ PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 PUBLIC_FIREBASE_APP_ID=your-app-id
 
 # API Configuration
-PUBLIC_API_BASE_URL=http://localhost:5001/your-project/us-central1/api
+PUBLIC_API_BASE_URL=/api
 ```
 
 ### Commands
@@ -249,8 +249,3 @@ The build process:
 3. Processes Tailwind CSS
 4. Copies public assets
 
-## Documentation
-
-- [Component Documentation](./docs/components.md)
-- [State Management](./docs/state-management.md)
-- [API Client Usage](./docs/api-client.md)

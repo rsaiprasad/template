@@ -242,7 +242,7 @@ export class GroupService {
       const adminGroup: Omit<Group, 'id'> = {
         name: 'Administrators',
         description: 'Full access to all system features',
-        permissions: ADMIN_PERMISSIONS as unknown as string[],
+        permissions: [...ADMIN_PERMISSIONS],
         isDefault: false,
         isSystem: true,
         createdAt: now,
@@ -261,7 +261,7 @@ export class GroupService {
       const usersGroup: Omit<Group, 'id'> = {
         name: 'Users',
         description: 'Standard user access',
-        permissions: USER_PERMISSIONS as unknown as string[],
+        permissions: [...USER_PERMISSIONS],
         isDefault: true,
         isSystem: true,
         createdAt: now,

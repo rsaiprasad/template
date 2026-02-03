@@ -26,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { api } from '@/api';
+import { useDebouncedSearch } from '@/hooks/useDebouncedSearch';
 import { formatDateTime, formatRelativeTime } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import type { AuditLog } from '@/api';
@@ -97,9 +98,14 @@ export function AuditLogs() {
   const action = searchParams.get('action') || '';
   const resourceType = searchParams.get('resourceType') || '';
 
-  // Local state
-  const [userIdInput, setUserIdInput] = React.useState(userId);
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Debounced search for userId
+  const {
+    inputValue: userIdInput,
+    handleChange: handleUserIdChange,
+    clear: clearUserIdSearch,
+  } = useDebouncedSearch({
+    paramName: 'userId',
+  });
 
   // Fetch audit logs
   const { data, isLoading, error } = useQuery({
@@ -119,40 +125,6 @@ export function AuditLogs() {
         resourceType: resourceType || undefined,
       }),
   });
-
-  // Debounced user ID search with proper cleanup
-  const debouncedUserIdSearch = React.useCallback(
-    (value: string) => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-      debounceRef.current = setTimeout(() => {
-        const params = new URLSearchParams(searchParams);
-        if (value) {
-          params.set('userId', value);
-        } else {
-          params.delete('userId');
-        }
-        params.set('page', '1');
-        setSearchParams(params);
-      }, 300);
-    },
-    [searchParams, setSearchParams]
-  );
-
-  // Cleanup debounce timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
-
-  const handleUserIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUserIdInput(e.target.value);
-    debouncedUserIdSearch(e.target.value);
-  };
 
   const handleFilterChange = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -179,7 +151,7 @@ export function AuditLogs() {
   };
 
   const clearFilters = () => {
-    setUserIdInput('');
+    clearUserIdSearch();
     setSearchParams(new URLSearchParams());
   };
 

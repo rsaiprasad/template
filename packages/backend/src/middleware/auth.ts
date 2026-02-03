@@ -5,6 +5,25 @@ import type { AppEnv, AuthUser } from '../types/context';
 import { ErrorCodes, errorResponse, unauthorized } from '../utils/response';
 
 /**
+ * Build an AuthUser object from a User record and permissions
+ */
+export function buildAuthUser(
+  uid: string,
+  userRecord: User,
+  permissions: string[]
+): AuthUser {
+  return {
+    uid,
+    email: userRecord.email,
+    displayName: userRecord.displayName,
+    photoURL: userRecord.photoURL,
+    isSuperAdmin: userRecord.isSuperAdmin,
+    groupId: userRecord.groupId,
+    permissions,
+  };
+}
+
+/**
  * Authentication middleware
  * Validates Firebase ID token from Authorization header
  * Extracts user info and attaches to context
@@ -66,18 +85,8 @@ export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
       }
     }
 
-    // Build auth user object
-    const authUser: AuthUser = {
-      uid: decodedToken.uid,
-      email: userRecord.email,
-      displayName: userRecord.displayName,
-      photoURL: userRecord.photoURL,
-      isSuperAdmin: userRecord.isSuperAdmin,
-      groupId: userRecord.groupId,
-      permissions,
-    };
-
-    // Attach user to context
+    // Build auth user object and attach to context
+    const authUser = buildAuthUser(decodedToken.uid, userRecord, permissions);
     c.set('user', authUser);
     c.set('userRecord', userRecord);
 
@@ -140,7 +149,8 @@ export const optionalAuthMiddleware: MiddlewareHandler<AppEnv> = async (c, next)
     if (userDoc.exists) {
       const userRecord = convertFirestoreDoc<User>(userDoc);
 
-      if (userRecord && userRecord.status === 'active') {
+      // Check if user is disabled - don't authenticate disabled users
+      if (userRecord && userRecord.status !== 'disabled') {
         let permissions: string[] = [];
 
         if (!userRecord.isSuperAdmin) {
@@ -151,16 +161,7 @@ export const optionalAuthMiddleware: MiddlewareHandler<AppEnv> = async (c, next)
           }
         }
 
-        const authUser: AuthUser = {
-          uid: decodedToken.uid,
-          email: userRecord.email,
-          displayName: userRecord.displayName,
-          photoURL: userRecord.photoURL,
-          isSuperAdmin: userRecord.isSuperAdmin,
-          groupId: userRecord.groupId,
-          permissions,
-        };
-
+        const authUser = buildAuthUser(decodedToken.uid, userRecord, permissions);
         c.set('user', authUser);
         c.set('userRecord', userRecord);
       }

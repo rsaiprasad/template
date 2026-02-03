@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useDebouncedSearch } from '@/hooks/useDebouncedSearch';
 import { toastError, toastSuccess } from '@/hooks/useToast';
 import { api } from '@/api';
 import { formatDate } from '@/lib/utils';
@@ -133,14 +134,15 @@ export function GroupList() {
   const pageSize = Number.parseInt(searchParams.get('pageSize') || '10', 10);
   const search = searchParams.get('search') || '';
 
+  // Debounced search
+  const { inputValue: searchInput, handleChange: handleSearchChange } = useDebouncedSearch();
+
   // Local state
-  const [searchInput, setSearchInput] = React.useState(search);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [groupToDelete, setGroupToDelete] = React.useState<GroupWithUsers | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [newGroupName, setNewGroupName] = React.useState('');
   const [newGroupDescription, setNewGroupDescription] = React.useState('');
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch groups
   const { data, isLoading, error } = useQuery({
@@ -176,40 +178,6 @@ export function GroupList() {
       toastError('Failed to delete group', error.message);
     },
   });
-
-  // Debounced search with proper cleanup
-  const debouncedSearch = React.useCallback(
-    (value: string) => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-      debounceRef.current = setTimeout(() => {
-        const params = new URLSearchParams(searchParams);
-        if (value) {
-          params.set('search', value);
-        } else {
-          params.delete('search');
-        }
-        params.set('page', '1');
-        setSearchParams(params);
-      }, 300);
-    },
-    [searchParams, setSearchParams]
-  );
-
-  // Cleanup debounce timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(e.target.value);
-    debouncedSearch(e.target.value);
-  };
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams);

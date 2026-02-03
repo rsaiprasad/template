@@ -211,12 +211,30 @@ export function downloadFile(data: string, filename: string, mimeType = 'text/pl
 }
 
 /**
- * Generate a random ID
+ * Generate a random ID using cryptographically secure random values
  */
 export function generateId(length = 8): string {
-  return Math.random()
-    .toString(36)
-    .substring(2, 2 + length);
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, (byte) => byte.toString(36).padStart(2, '0'))
+    .join('')
+    .substring(0, length);
+}
+
+/**
+ * Parse a display name into first name and last name
+ */
+export function parseDisplayName(displayName: string | null | undefined): {
+  firstName: string;
+  lastName: string;
+} {
+  if (!displayName) {
+    return { firstName: '', lastName: '' };
+  }
+  const nameParts = displayName.split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+  return { firstName, lastName };
 }
 
 /**

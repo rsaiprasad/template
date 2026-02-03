@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useDebouncedSearch } from '@/hooks/useDebouncedSearch';
 import { toastError, toastSuccess } from '@/hooks/useToast';
 import { api } from '@/api';
 import { formatDate, getInitials } from '@/lib/utils';
@@ -140,11 +141,12 @@ export function UserList() {
   const search = searchParams.get('search') || '';
   const status = searchParams.get('status') || '';
 
-  // Local state for search input
-  const [searchInput, setSearchInput] = React.useState(search);
+  // Debounced search
+  const { inputValue: searchInput, handleChange: handleSearchChange } = useDebouncedSearch();
+
+  // Local state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [userToDelete, setUserToDelete] = React.useState<UserWithGroups | null>(null);
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch users
   const { data, isLoading, error } = useQuery({
@@ -165,40 +167,6 @@ export function UserList() {
       toastError('Failed to delete user', error.message);
     },
   });
-
-  // Debounced search with proper cleanup
-  const debouncedSearch = React.useCallback(
-    (value: string) => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-      debounceRef.current = setTimeout(() => {
-        const params = new URLSearchParams(searchParams);
-        if (value) {
-          params.set('search', value);
-        } else {
-          params.delete('search');
-        }
-        params.set('page', '1'); // Reset to first page on search
-        setSearchParams(params);
-      }, 300);
-    },
-    [searchParams, setSearchParams]
-  );
-
-  // Cleanup debounce timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(e.target.value);
-    debouncedSearch(e.target.value);
-  };
 
   const handleStatusChange = (value: string) => {
     const params = new URLSearchParams(searchParams);

@@ -88,7 +88,12 @@ userRoutes.put('/:id', requirePermission('users:update'), async (c) => {
   const currentUser = c.get('user');
 
   // Parse and validate request body
-  const body = await c.req.json();
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return badRequest(c, 'Invalid JSON in request body');
+  }
   const result = updateUserSchema.safeParse(body);
 
   if (!result.success) {
@@ -231,7 +236,12 @@ userRoutes.put('/:id/group', requirePermission('users:update'), async (c) => {
   const currentUser = c.get('user');
 
   // Parse and validate request body
-  const body = await c.req.json();
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return badRequest(c, 'Invalid JSON in request body');
+  }
   const result = changeGroupSchema.safeParse(body);
 
   if (!result.success) {

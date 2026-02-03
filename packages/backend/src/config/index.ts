@@ -1,6 +1,8 @@
 export const config = {
   cors: {
-    origins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:4173').split(','),
+    origins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:4173')
+      .split(',')
+      .map((origin) => origin.trim()),
     credentials: true,
   },
   rateLimit: {

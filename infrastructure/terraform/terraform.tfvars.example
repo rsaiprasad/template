@@ -36,3 +36,69 @@ enable_google_signin = false
 # oauth_client_id     = "YOUR_CLIENT_ID.apps.googleusercontent.com"
 # oauth_client_secret = "YOUR_CLIENT_SECRET"
 
+# Monitoring Configuration
+# Enable/disable monitoring features and customize alert thresholds
+monitoring = {
+  enabled = true
+
+  # Audit logging configuration
+  audit_logs = {
+    enabled   = true
+    firestore = true    # Enable Firestore data access logging
+    auth      = true    # Enable Identity Toolkit (Auth) logging
+    log_types = ["ADMIN_READ", "DATA_READ", "DATA_WRITE"]
+  }
+
+  # Notification channels
+  notifications = {
+    # email = "alerts@company.com"  # Override super_admin_email for alerts
+    # slack_webhook = "https://hooks.slack.com/services/..."  # Optional Slack
+  }
+
+  # Alert configurations
+  alerts = {
+    # Authentication failure alerts
+    auth_failures = {
+      enabled   = true
+      threshold = 10      # Number of failures to trigger alert
+      window    = "300s"  # Time window (5 minutes)
+    }
+
+    # Cloud Function error alerts
+    function_errors = {
+      enabled   = true
+      threshold = 5
+      window    = "300s"
+    }
+
+    # Firestore error alerts
+    firestore_errors = {
+      enabled   = true
+      threshold = 5
+      window    = "300s"
+    }
+
+    # High latency request alerts
+    high_latency = {
+      enabled         = true
+      threshold_count = 10       # Number of slow requests to trigger
+      latency_seconds = 5        # Requests slower than this (seconds)
+      window          = "300s"
+    }
+
+    # Uptime monitoring (disabled by default)
+    uptime = {
+      enabled    = false
+      # api_domain = "your-project.web.app"  # Required when enabled
+      # check_path = "/api/v1/health"
+      # period     = "300s"
+      # timeout    = "10s"
+    }
+  }
+}
+
+# Minimal monitoring configuration (just enable with defaults):
+# monitoring = { enabled = true }
+
+# Disable monitoring entirely:
+# monitoring = { enabled = false }

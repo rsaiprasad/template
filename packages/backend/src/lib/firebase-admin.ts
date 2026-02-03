@@ -22,8 +22,9 @@ export function initializeFirebaseAdmin(): App {
     app = initializeApp();
   } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     // Local development with service account file
+    // cert() accepts a file path string directly, no need to cast
     app = initializeApp({
-      credential: cert(process.env.GOOGLE_APPLICATION_CREDENTIALS as unknown as ServiceAccount),
+      credential: cert(process.env.GOOGLE_APPLICATION_CREDENTIALS),
     });
   } else {
     // Fallback: initialize without credentials (for emulator)

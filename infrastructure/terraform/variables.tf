@@ -73,3 +73,65 @@ variable "enable_google_signin" {
   default     = false
 }
 
+# Monitoring Configuration
+
+variable "monitoring" {
+  description = "Monitoring and alerting configuration"
+  type = object({
+    enabled = bool
+
+    # Audit logging configuration
+    audit_logs = optional(object({
+      enabled    = bool
+      firestore  = optional(bool, true)
+      auth       = optional(bool, true)
+      log_types  = optional(list(string), ["ADMIN_READ", "DATA_READ", "DATA_WRITE"])
+    }), { enabled = true })
+
+    # Alert notification settings
+    notifications = optional(object({
+      email         = optional(string)
+      slack_webhook = optional(string)
+    }), {})
+
+    # Individual alert configurations
+    alerts = optional(object({
+      auth_failures = optional(object({
+        enabled   = bool
+        threshold = optional(number, 10)
+        window    = optional(string, "300s")
+      }), { enabled = true })
+
+      function_errors = optional(object({
+        enabled   = bool
+        threshold = optional(number, 5)
+        window    = optional(string, "300s")
+      }), { enabled = true })
+
+      firestore_errors = optional(object({
+        enabled   = bool
+        threshold = optional(number, 5)
+        window    = optional(string, "300s")
+      }), { enabled = true })
+
+      high_latency = optional(object({
+        enabled          = bool
+        threshold_count  = optional(number, 10)
+        latency_seconds  = optional(number, 5)
+        window           = optional(string, "300s")
+      }), { enabled = true })
+
+      uptime = optional(object({
+        enabled      = bool
+        api_domain   = optional(string)
+        check_path   = optional(string, "/api/v1/health")
+        period       = optional(string, "300s")
+        timeout      = optional(string, "10s")
+      }), { enabled = false })
+    }), {})
+  })
+
+  default = {
+    enabled = true
+  }
+}
