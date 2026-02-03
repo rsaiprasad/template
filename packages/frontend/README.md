@@ -85,15 +85,15 @@ cp .env.example .env
 
 ```env
 # Firebase Configuration
-VITE_FIREBASE_API_KEY=your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-VITE_FIREBASE_APP_ID=your-app-id
+PUBLIC_FIREBASE_API_KEY=your-api-key
+PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+PUBLIC_FIREBASE_APP_ID=your-app-id
 
 # API Configuration
-VITE_API_BASE_URL=http://localhost:5001/your-project/us-central1/api
+PUBLIC_API_BASE_URL=http://localhost:5001/your-project/us-central1/api
 ```
 
 ### Commands

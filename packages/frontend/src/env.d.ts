@@ -20,15 +20,15 @@ declare module '*.jpg' {
   export default content;
 }
 
-// Environment variables (VITE_ prefix for compatibility)
+// Environment variables (PUBLIC_ prefix for client-exposed variables)
 declare namespace NodeJS {
   interface ProcessEnv {
-    VITE_API_BASE_URL?: string;
-    VITE_FIREBASE_API_KEY?: string;
-    VITE_FIREBASE_AUTH_DOMAIN?: string;
-    VITE_FIREBASE_PROJECT_ID?: string;
-    VITE_FIREBASE_STORAGE_BUCKET?: string;
-    VITE_FIREBASE_MESSAGING_SENDER_ID?: string;
-    VITE_FIREBASE_APP_ID?: string;
+    PUBLIC_API_BASE_URL?: string;
+    PUBLIC_FIREBASE_API_KEY?: string;
+    PUBLIC_FIREBASE_AUTH_DOMAIN?: string;
+    PUBLIC_FIREBASE_PROJECT_ID?: string;
+    PUBLIC_FIREBASE_STORAGE_BUCKET?: string;
+    PUBLIC_FIREBASE_MESSAGING_SENDER_ID?: string;
+    PUBLIC_FIREBASE_APP_ID?: string;
   }
 }

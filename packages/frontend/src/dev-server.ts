@@ -3,7 +3,7 @@ import { extname, join } from 'node:path';
 import { $ } from 'bun';
 
 const PORT = Number(process.env.PORT) || 5173;
-const API_URL = process.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = process.env.PUBLIC_API_URL || 'http://localhost:5001';
 
 // MIME types for serving files
 const mimeTypes: Record<string, string> = {
@@ -44,10 +44,10 @@ watch(srcDir, { recursive: true }, (_event, filename) => {
 
 // Environment variables to inject
 const envVars = Object.entries(process.env)
-  .filter(([key]) => key.startsWith('VITE_'))
+  .filter(([key]) => key.startsWith('PUBLIC_'))
   .reduce(
     (acc, [key, value]) => {
-      acc[`import.meta.env.${key}`] = JSON.stringify(value);
+      acc[`process.env.${key}`] = JSON.stringify(value);
       return acc;
     },
     {} as Record<string, string>

@@ -92,10 +92,10 @@ cp packages/frontend/.env.example packages/frontend/.env
    Edit `.env` and `packages/frontend/.env`:
    ```env
    # Frontend
-   VITE_FIREBASE_API_KEY=your-api-key
-   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=your-project-id
-   VITE_API_BASE_URL=http://localhost:5001/your-project/us-central1/api
+   PUBLIC_FIREBASE_API_KEY=your-api-key
+   PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+   PUBLIC_API_BASE_URL=http://localhost:5001/your-project/us-central1/api
 
    # Backend
    CORS_ORIGINS=http://localhost:5173,http://localhost:4173

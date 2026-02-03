@@ -9,7 +9,7 @@ import type {
 } from '@/types';
 import { getIdToken, getIdTokenForced } from './firebase';
 
-const API_BASE_URL = process.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = process.env.PUBLIC_API_BASE_URL || '/api';
 const DEFAULT_TIMEOUT = 30000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
