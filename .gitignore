@@ -66,3 +66,16 @@ temp/
 credentials.json
 service-account.json
 *-service-account.json
+
+# Terraform
+infrastructure/terraform/.terraform/
+infrastructure/terraform/*.tfstate
+infrastructure/terraform/*.tfstate.*
+infrastructure/terraform/*.tfvars
+infrastructure/terraform/tfplan
+infrastructure/terraform/.terraform.lock.hcl
+infrastructure/terraform/crash.log
+infrastructure/terraform/override.tf
+infrastructure/terraform/override.tf.json
+infrastructure/terraform/*_override.tf
+infrastructure/terraform/*_override.tf.json

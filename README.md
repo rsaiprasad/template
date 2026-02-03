@@ -104,9 +104,41 @@ bun install
 
 ## Firebase/GCP Setup
 
-Choose either **Automated Setup** (recommended) or **Manual Setup**.
+Choose one of the following setup methods:
 
-### Option 1: Automated Setup (Recommended)
+| Method | Best For | Tools Required |
+|--------|----------|----------------|
+| **Terraform** | Production, Teams, IaC | Terraform, gcloud |
+| **Shell Script** | Quick start, Single dev | Firebase CLI, gcloud, jq |
+| **Manual** | Learning, Custom setup | Firebase CLI, gcloud |
+
+### Option 1: Terraform (Recommended for Production)
+
+Infrastructure as Code approach with state management and reproducibility.
+
+```bash
+# 1. Install Terraform
+brew install terraform  # macOS
+# or download from https://developer.hashicorp.com/terraform/downloads
+
+# 2. Configure variables
+cd infrastructure/terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
+
+# 3. Run setup
+bun run setup:terraform
+```
+
+See [infrastructure/README.md](./infrastructure/README.md) for detailed documentation.
+
+**Advantages:**
+- State tracking (knows what's deployed)
+- Plan before apply (preview changes)
+- Idempotent (safe to run multiple times)
+- Easy multi-environment support
+
+### Option 2: Shell Script (Quick Start)
 
 Run the setup script with your project ID and super admin email:
 
@@ -140,7 +172,7 @@ The script will:
    - Go to [Firebase Console > Usage & Billing](https://console.firebase.google.com/project/_/usage/details)
    - Upgrade to the Blaze (pay-as-you-go) plan
 
-### Option 2: Manual Setup
+### Option 3: Manual Setup
 
 #### Step 1: Authentication
 

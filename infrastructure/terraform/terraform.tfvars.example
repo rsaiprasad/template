@@ -1,0 +1,42 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to version control
+
+# Required: GCP Project ID (must be globally unique)
+project_id = "my-dashboard-project"
+
+# Required: Super admin email address
+super_admin_email = "admin@company.com"
+
+# Optional: Project display name
+project_name = "Admin Dashboard"
+
+# Optional: GCP region (default: us-central1)
+region = "us-central1"
+
+# Optional: Create a new GCP project (default: false = use existing)
+# If true, you must also set billing_account
+create_project = false
+
+# Optional: Billing account ID (required only if create_project = true)
+# billing_account = "XXXXXX-XXXXXX-XXXXXX"
+
+# Optional: Organization ID (for creating projects under an organization)
+# org_id = "123456789"
+
+# Google Sign-In Configuration
+# To enable Google Sign-In:
+# 1. Go to GCP Console > APIs & Services > Credentials
+# 2. Create an OAuth 2.0 Client ID (Web application type)
+# 3. Add authorized redirect URI: https://YOUR_PROJECT.firebaseapp.com/__/auth/handler
+# 4. Copy the Client ID and Secret below
+# 5. Set enable_google_signin = true
+
+enable_google_signin = false
+# oauth_client_id     = "YOUR_CLIENT_ID.apps.googleusercontent.com"
+# oauth_client_secret = "YOUR_CLIENT_SECRET"
+
+# Optional: Create service account key file
+# WARNING: The key will be stored in Terraform state (sensitive)
+# For local development only - use Workload Identity in production
+create_service_account_key = false
