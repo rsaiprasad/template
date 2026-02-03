@@ -62,6 +62,7 @@ The following tools are required to develop and deploy this project:
 | Tool | Purpose | Installation |
 |------|---------|--------------|
 | **Bun** | JavaScript runtime and package manager | [bun.sh](https://bun.sh/) |
+| **Java 11+** | Required for Firebase Emulators (local development) | [Adoptium](https://adoptium.net/) |
 | **Firebase CLI** | Deploy to Firebase Hosting and Cloud Functions | [Firebase CLI Docs](https://firebase.google.com/docs/cli) |
 | **Google Cloud SDK** | Manage GCP resources, APIs, and service accounts | [Cloud SDK Install Guide](https://cloud.google.com/sdk/docs/install) |
 | **jq** | JSON processor (required for setup script) | [jqlang.github.io](https://jqlang.github.io/jq/download/) |
@@ -88,6 +89,14 @@ bun install -g firebase-tools
 - **Ubuntu/Debian:** `sudo apt-get install jq`
 - **Fedora:** `sudo dnf install jq`
 - **Windows:** `choco install jq` or download from [jqlang.github.io](https://jqlang.github.io/jq/download/)
+
+**Java (for Firebase Emulators):**
+- **macOS:** `brew install openjdk@17`
+- **Ubuntu/Debian:** `sudo apt-get install default-jdk`
+- **Fedora:** `sudo dnf install java-17-openjdk`
+- **Windows:** Download from [Adoptium](https://adoptium.net/) or `choco install temurin17`
+
+Verify installation: `java -version`
 
 ### Installation
 

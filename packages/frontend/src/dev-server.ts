@@ -4,6 +4,14 @@ import { $ } from 'bun';
 
 const PORT = Number(process.env.PORT) || 5173;
 const API_URL = process.env.PUBLIC_API_URL || 'http://localhost:5001';
+const FIREBASE_REGION = process.env.PUBLIC_FIREBASE_REGION || 'us-central1';
+
+// For Firebase emulator, we need to prefix the path with project/region/function
+const isEmulator = API_URL.includes('localhost:5001');
+
+// Get project ID - use EMULATOR_PROJECT_ID env var if set, otherwise use PUBLIC_FIREBASE_PROJECT_ID
+const FIREBASE_PROJECT_ID = process.env.EMULATOR_PROJECT_ID || process.env.PUBLIC_FIREBASE_PROJECT_ID || 'demo-project';
+const API_PREFIX = isEmulator ? `/${FIREBASE_PROJECT_ID}/${FIREBASE_REGION}/api` : '';
 
 // MIME types for serving files
 const mimeTypes: Record<string, string> = {
@@ -62,7 +70,7 @@ const server = Bun.serve({
 
     // Proxy API requests
     if (pathname.startsWith('/api/')) {
-      const targetUrl = `${API_URL}${pathname}${url.search}`;
+      const targetUrl = `${API_URL}${API_PREFIX}${pathname}${url.search}`;
       const headers = new Headers(req.headers);
       headers.delete('host');
 
