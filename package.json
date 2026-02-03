@@ -5,6 +5,7 @@
   "type": "module",
   "workspaces": ["packages/*"],
   "scripts": {
+    "setup": "./scripts/setup-firebase.sh",
     "dev": "bun run --filter '*' dev",
     "dev:frontend": "bun run --filter frontend dev",
     "dev:backend": "bun run --filter backend dev",
