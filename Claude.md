@@ -102,6 +102,28 @@ if (!response.success) {
 const user = response.data;
 ```
 
+### Lesson 4: Git Commits Must Be Checked for Sensitive Data
+**Date**: 2026-02-03
+**Mistake**: Nearly committed files containing API keys, project IDs, and email addresses without verification.
+
+**Rule**: Before EVERY git commit:
+1. Run `git diff --cached` to review all staged changes
+2. Search for sensitive patterns:
+   ```bash
+   git diff --cached | grep -iE "(AIza|api.key|apikey|secret|password|token|@gmail|@company)" || echo "Clean"
+   ```
+3. Check for project-specific sensitive data (project IDs, email addresses)
+4. **Report to user**: "I've verified the staged changes contain no sensitive data (API keys, credentials, personal emails, or project IDs)" before requesting commit approval
+5. If any sensitive data is found, fix it BEFORE committing
+
+**What counts as sensitive**:
+- API keys (especially `AIza...` Firebase keys)
+- Service account credentials
+- Email addresses (except example placeholders like `admin@example.com`)
+- Project IDs that aren't placeholders
+- Passwords, tokens, secrets
+- Private URLs or internal hostnames
+
 ---
 
 ## Project Structure
