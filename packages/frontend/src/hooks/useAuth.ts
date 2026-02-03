@@ -2,6 +2,7 @@ import { api } from '@/api';
 import {
   type FirebaseUser,
   signInWithGoogle as firebaseSignInWithGoogle,
+  signInWithEmail as firebaseSignInWithEmail,
   signOut as firebaseSignOut,
   onAuthChange,
 } from '@/lib/firebase';
@@ -18,6 +19,7 @@ interface UseAuthReturn {
   isInitialized: boolean;
   error: string | null;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -132,6 +134,26 @@ export function useAuth(): UseAuthReturn {
     }
   }, [fetchUserData, setUser, setLoading, setError, navigate, location.state]);
 
+  // Sign in with email/password (for emulator testing)
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const firebaseUser = await firebaseSignInWithEmail(email, password);
+      const authUser = await fetchUserData(firebaseUser);
+      setUser(authUser);
+
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to sign in';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchUserData, setUser, setLoading, setError, navigate, location.state]);
+
   // Sign out
   const signOut = useCallback(async () => {
     setLoading(true);
@@ -180,6 +202,7 @@ export function useAuth(): UseAuthReturn {
     isInitialized,
     error,
     signInWithGoogle,
+    signInWithEmail,
     signOut,
     refreshUser,
   };

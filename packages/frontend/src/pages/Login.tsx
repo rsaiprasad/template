@@ -5,10 +5,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 export function Login() {
   const location = useLocation();
-  const { isAuthenticated, isLoading, error, signInWithGoogle } = useAuth();
+  const { isAuthenticated, isLoading, error, signInWithGoogle, signInWithEmail } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [email, setEmail] = useState('admin@test.com');
+  const [password, setPassword] = useState('password123');
 
   // Redirect if already authenticated
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
@@ -21,6 +25,18 @@ export function Login() {
     setIsSigningIn(true);
     try {
       await signInWithGoogle();
+    } catch (err) {
+      console.error('Sign in error:', err);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSigningIn(true);
+    try {
+      await signInWithEmail(email, password);
     } catch (err) {
       console.error('Sign in error:', err);
     } finally {
@@ -88,6 +104,45 @@ export function Login() {
               )}
               Continue with Google
             </Button>
+
+            {/* Dev mode email/password sign-in */}
+            {isDev && (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Dev Mode</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleEmailSignIn} className="space-y-3">
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                  />
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    className="w-full"
+                    disabled={isSigningIn || isLoading}
+                  >
+                    Sign in with Email (Emulator)
+                  </Button>
+                </form>
+              </>
+            )}
 
             <p className="text-center text-xs text-muted-foreground">
               By signing in, you agree to our Terms of Service and Privacy Policy
