@@ -403,7 +403,7 @@ export class AdminDashboardApi {
    * Add permission to group
    */
   async addPermissionToGroup(groupId: string, permissionId: string): Promise<ApiResponse<void>> {
-    return this.fetchWithAuth<ApiResponse<void>>(`/groups/${groupId}/permissions/${permissionId}`, {
+    return this.fetchWithAuth<ApiResponse<void>>(`/groups/${groupId}/permissions/${encodeURIComponent(permissionId)}`, {
       method: 'POST',
     });
   }
@@ -415,7 +415,7 @@ export class AdminDashboardApi {
     groupId: string,
     permissionId: string
   ): Promise<ApiResponse<void>> {
-    return this.fetchWithAuth<ApiResponse<void>>(`/groups/${groupId}/permissions/${permissionId}`, {
+    return this.fetchWithAuth<ApiResponse<void>>(`/groups/${groupId}/permissions/${encodeURIComponent(permissionId)}`, {
       method: 'DELETE',
     });
   }
@@ -468,21 +468,21 @@ export class AdminDashboardApi {
    */
   async listAuditLogs(params?: ListAuditLogsParams): Promise<PaginatedResponse<AuditLog>> {
     const query = params ? buildQueryString(params as Record<string, unknown>) : '';
-    return this.fetchWithAuth<PaginatedResponse<AuditLog>>(`/audit-logs${query}`);
+    return this.fetchWithAuth<PaginatedResponse<AuditLog>>(`/audit${query}`);
   }
 
   /**
    * Get a single audit log by ID
    */
   async getAuditLog(id: string): Promise<ApiResponse<AuditLog>> {
-    return this.fetchWithAuth<ApiResponse<AuditLog>>(`/audit-logs/${id}`);
+    return this.fetchWithAuth<ApiResponse<AuditLog>>(`/audit/${id}`);
   }
 
   /**
    * Get audit log statistics
    */
   async getAuditStats(): Promise<ApiResponse<AuditStats>> {
-    return this.fetchWithAuth<ApiResponse<AuditStats>>('/audit-logs/stats');
+    return this.fetchWithAuth<ApiResponse<AuditStats>>('/audit/stats');
   }
 
   // ==========================================================================

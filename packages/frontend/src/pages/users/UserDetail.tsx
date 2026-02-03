@@ -272,7 +272,7 @@ export function UserDetail() {
                     )}
                   />
 
-                  <WithPermission permission="users:write">
+                  <WithPermission permission="users:update">
                     <div className="flex justify-end">
                       <Button type="submit" isLoading={updateMutation.isPending}>
                         <Save className="mr-2 h-4 w-4" />
@@ -303,7 +303,7 @@ export function UserDetail() {
                   {user.groups.map((group: UserGroup) => (
                     <Badge key={group.id} variant="secondary" className="flex items-center gap-1">
                       {group.name}
-                      <WithPermission permission="users:write">
+                      <WithPermission permission="users:update">
                         <button
                           onClick={() => removeGroupMutation.mutate(group.id)}
                           className="ml-1 rounded-full hover:bg-destructive/20"
@@ -319,7 +319,7 @@ export function UserDetail() {
                 <p className="text-sm text-muted-foreground">Not a member of any groups</p>
               )}
 
-              <WithPermission permission="users:write">
+              <WithPermission permission="users:update">
                 <SeparatorComponent />
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Add to group</p>

@@ -23,37 +23,67 @@ interface UsePermissionsReturn {
 export function usePermissions(): UsePermissionsReturn {
   const authState = useAuthStore();
   const permissions = authState.user?.permissions ?? [];
+  const isSuperAdmin = authState.user?.isSuperAdmin ?? false;
 
   // Memoize permission checks to avoid recalculating on every render
   const checkPermission = useCallback(
-    (permission: string) => hasPermission(authState, permission),
-    [authState]
+    (permission: string) => {
+      // Super admins bypass all permission checks
+      if (isSuperAdmin) return true;
+      return hasPermission(authState, permission);
+    },
+    [authState, isSuperAdmin]
   );
 
   const checkAnyPermission = useCallback(
-    (perms: string[]) => hasAnyPermission(authState, perms),
-    [authState]
+    (perms: string[]) => {
+      // Super admins bypass all permission checks
+      if (isSuperAdmin) return true;
+      return hasAnyPermission(authState, perms);
+    },
+    [authState, isSuperAdmin]
   );
 
   const checkAllPermissions = useCallback(
-    (perms: string[]) => hasAllPermissions(authState, perms),
-    [authState]
+    (perms: string[]) => {
+      // Super admins bypass all permission checks
+      if (isSuperAdmin) return true;
+      return hasAllPermissions(authState, perms);
+    },
+    [authState, isSuperAdmin]
   );
 
-  // Common permission checks
+  // Common permission checks - super admins are always considered admins
   const isAdmin = useMemo(
-    () => checkPermission('admin:*') || checkPermission('*'),
-    [checkPermission]
+    () => isSuperAdmin || checkPermission('admin:*') || checkPermission('*'),
+    [isSuperAdmin, checkPermission]
   );
 
   const canManageUsers = useMemo(
-    () => isAdmin || checkAnyPermission(['users:read', 'users:write', 'users:delete', 'users:*']),
+    () =>
+      isAdmin ||
+      checkAnyPermission([
+        'users:list',
+        'users:read',
+        'users:create',
+        'users:update',
+        'users:delete',
+        'users:*',
+      ]),
     [isAdmin, checkAnyPermission]
   );
 
   const canManageGroups = useMemo(
     () =>
-      isAdmin || checkAnyPermission(['groups:read', 'groups:write', 'groups:delete', 'groups:*']),
+      isAdmin ||
+      checkAnyPermission([
+        'groups:list',
+        'groups:read',
+        'groups:create',
+        'groups:update',
+        'groups:delete',
+        'groups:*',
+      ]),
     [isAdmin, checkAnyPermission]
   );
 

@@ -107,7 +107,7 @@ const UserRow = React.memo(function UserRow({ user, onDeleteClick }: UserRowProp
                 View
               </Link>
             </DropdownMenuItem>
-            <WithPermission permission="users:write">
+            <WithPermission permission="users:update">
               <DropdownMenuItem asChild>
                 <Link to={`/users/${user.id}/edit`}>
                   <Pencil className="mr-2 h-4 w-4" />
@@ -203,7 +203,7 @@ export function UserList() {
     }
   };
 
-  const totalPages = data ? Math.ceil(data.meta.total / pageSize) : 0;
+  const totalPages = data?.meta?.total ? Math.ceil(data.meta.total / pageSize) : 0;
 
   return (
     <div className="space-y-6">
@@ -213,7 +213,7 @@ export function UserList() {
           <h1 className="text-2xl font-bold tracking-tight">Users</h1>
           <p className="text-muted-foreground">Manage user accounts and their permissions.</p>
         </div>
-        <WithPermission permission="users:write">
+        <WithPermission permission="users:create">
           <Button asChild>
             <Link to="/users/new">
               <Plus className="mr-2 h-4 w-4" />
@@ -313,7 +313,7 @@ export function UserList() {
       </div>
 
       {/* Pagination */}
-      {data && data.meta.total > 0 && (
+      {data?.meta?.total && data.meta.total > 0 && (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Showing</span>

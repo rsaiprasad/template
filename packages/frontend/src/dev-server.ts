@@ -95,6 +95,7 @@ const server = Bun.serve({
 
     // Proxy API requests
     if (pathname.startsWith('/api/')) {
+      // Use the decoded pathname directly - Hono on the backend will match it correctly
       const targetUrl = `${API_URL}${API_PREFIX}${pathname}${url.search}`;
       const headers = new Headers(req.headers);
       headers.delete('host');

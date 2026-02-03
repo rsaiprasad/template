@@ -101,7 +101,7 @@ const GroupRow = React.memo(function GroupRow({ group, onDeleteClick }: GroupRow
                 View
               </Link>
             </DropdownMenuItem>
-            <WithPermission permission="groups:write">
+            <WithPermission permission="groups:update">
               <DropdownMenuItem asChild>
                 <Link to={`/groups/${group.id}/edit`}>
                   <Pencil className="mr-2 h-4 w-4" />
@@ -212,7 +212,7 @@ export function GroupList() {
     }
   };
 
-  const totalPages = data ? Math.ceil(data.meta.total / pageSize) : 0;
+  const totalPages = data?.meta?.total ? Math.ceil(data.meta.total / pageSize) : 0;
 
   return (
     <div className="space-y-6">
@@ -222,7 +222,7 @@ export function GroupList() {
           <h1 className="text-2xl font-bold tracking-tight">Groups</h1>
           <p className="text-muted-foreground">Manage permission groups and their members.</p>
         </div>
-        <WithPermission permission="groups:write">
+        <WithPermission permission="groups:create">
           <Button onClick={() => setCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Create Group
@@ -306,7 +306,7 @@ export function GroupList() {
       </div>
 
       {/* Pagination */}
-      {data && data.meta.total > 0 && (
+      {data?.meta?.total && data.meta.total > 0 && (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Showing</span>

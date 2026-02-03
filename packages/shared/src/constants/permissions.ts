@@ -1,4 +1,4 @@
-import type { Permission, PermissionDefinition } from '../types/permission';
+import type { Permission, PermissionDefinition, PermissionResource } from '../types/permission';
 
 export const PERMISSIONS: Record<Permission, PermissionDefinition> = {
   // Users
@@ -114,7 +114,52 @@ export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
 
 export const ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSIONS;
 
+// Minimal permissions for regular users - can only read their own info
 export const USER_PERMISSIONS: Permission[] = ['users:read'];
+
+// Permission groupings by resource
+export const USERS_PERMISSIONS: Permission[] = [
+  'users:create',
+  'users:read',
+  'users:update',
+  'users:delete',
+  'users:list',
+];
+
+export const GROUPS_PERMISSIONS: Permission[] = [
+  'groups:create',
+  'groups:read',
+  'groups:update',
+  'groups:delete',
+  'groups:list',
+];
+
+export const SETTINGS_PERMISSIONS: Permission[] = [
+  'settings:create',
+  'settings:read',
+  'settings:update',
+  'settings:delete',
+  'settings:list',
+];
+
+export const AUDIT_PERMISSIONS: Permission[] = [
+  'audit:create',
+  'audit:read',
+  'audit:update',
+  'audit:delete',
+  'audit:list',
+];
+
+// All resources for iterating
+export const PERMISSION_RESOURCES: PermissionResource[] = ['users', 'groups', 'settings', 'audit'];
+
+// Resource to permissions mapping
+export const PERMISSIONS_BY_RESOURCE: Record<PermissionResource, Permission[]> = {
+  users: USERS_PERMISSIONS,
+  groups: GROUPS_PERMISSIONS,
+  settings: SETTINGS_PERMISSIONS,
+  audit: AUDIT_PERMISSIONS,
+};
 
 export const getPermissionsByResource = (resource: string): Permission[] => {
   return ALL_PERMISSIONS.filter((p) => p.startsWith(`${resource}:`));

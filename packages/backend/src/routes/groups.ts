@@ -269,4 +269,104 @@ groupRoutes.put('/:id/permissions', requirePermission('groups:update'), async (c
   return successResponse(c, updatedGroup);
 });
 
+/**
+ * POST /api/v1/groups/:id/permissions/:permissionId
+ * Add a single permission to a group
+ */
+groupRoutes.post('/:id/permissions/:permissionId', requirePermission('groups:update'), async (c) => {
+  const groupId = c.req.param('id');
+  const permissionId = c.req.param('permissionId') as Permission;
+  const currentUser = c.get('user');
+
+  // Validate the permission
+  if (!ALL_PERMISSIONS.includes(permissionId)) {
+    return badRequest(c, 'Invalid permission', { permission: permissionId });
+  }
+
+  // Get existing group
+  const existingGroup = await groupService.getGroup(groupId);
+
+  if (!existingGroup) {
+    return notFound(c, 'Group');
+  }
+
+  // Check if permission already exists
+  if (existingGroup.permissions.includes(permissionId)) {
+    return successResponse(c, existingGroup);
+  }
+
+  // Add the permission
+  const newPermissions = [...existingGroup.permissions, permissionId];
+  const updatedGroup = await groupService.updateGroupPermissions(
+    groupId,
+    newPermissions,
+    currentUser.uid
+  );
+
+  // Log audit
+  await logAuditAction(
+    c,
+    'GROUP_PERMISSIONS_CHANGED',
+    'groups',
+    groupId,
+    `Added permission "${permissionId}" to group "${updatedGroup.name}"`,
+    {
+      before: { permissions: existingGroup.permissions },
+      after: { permissions: updatedGroup.permissions },
+    }
+  );
+
+  return successResponse(c, updatedGroup);
+});
+
+/**
+ * DELETE /api/v1/groups/:id/permissions/:permissionId
+ * Remove a single permission from a group
+ */
+groupRoutes.delete('/:id/permissions/:permissionId', requirePermission('groups:update'), async (c) => {
+  const groupId = c.req.param('id');
+  const permissionId = c.req.param('permissionId') as Permission;
+  const currentUser = c.get('user');
+
+  // Validate the permission
+  if (!ALL_PERMISSIONS.includes(permissionId)) {
+    return badRequest(c, 'Invalid permission', { permission: permissionId });
+  }
+
+  // Get existing group
+  const existingGroup = await groupService.getGroup(groupId);
+
+  if (!existingGroup) {
+    return notFound(c, 'Group');
+  }
+
+  // Check if permission exists
+  if (!existingGroup.permissions.includes(permissionId)) {
+    return successResponse(c, existingGroup);
+  }
+
+  // Remove the permission
+  const newPermissions = existingGroup.permissions.filter((p) => p !== permissionId);
+  const updatedGroup = await groupService.updateGroupPermissions(
+    groupId,
+    newPermissions,
+    currentUser.uid
+  );
+
+  // Log audit
+  await logAuditAction(
+    c,
+    'GROUP_PERMISSIONS_CHANGED',
+    'groups',
+    groupId,
+    `Removed permission "${permissionId}" from group "${updatedGroup.name}"`,
+    {
+      before: { permissions: existingGroup.permissions },
+      after: { permissions: updatedGroup.permissions },
+    }
+  );
+
+  return successResponse(c, updatedGroup);
+});
+
 export { groupRoutes };

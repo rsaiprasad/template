@@ -37,6 +37,9 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   permissions: string[];
+  isSuperAdmin?: boolean;
+  groupId?: string;
+  groupName?: string;
 }
 
 export interface ThemeState {

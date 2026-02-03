@@ -88,7 +88,7 @@ export function Dashboard() {
         <WithPermission permission="users:read">
           <StatCard
             title="Total Users"
-            value={usersData?.meta.total ?? 0}
+            value={usersData?.meta?.total ?? 0}
             description="Active users in the system"
             icon={Users}
             isLoading={usersLoading}
@@ -99,7 +99,7 @@ export function Dashboard() {
         <WithPermission permission="groups:read">
           <StatCard
             title="Groups"
-            value={groupsData?.meta.total ?? 0}
+            value={groupsData?.meta?.total ?? 0}
             description="Permission groups"
             icon={Shield}
             isLoading={groupsLoading}
@@ -110,7 +110,7 @@ export function Dashboard() {
         <WithPermission permission="audit:read">
           <StatCard
             title="Recent Activity"
-            value={auditLogsData?.meta.total ?? 0}
+            value={auditLogsData?.meta?.total ?? 0}
             description="Audit log entries"
             icon={FileText}
             isLoading={auditLogsLoading}

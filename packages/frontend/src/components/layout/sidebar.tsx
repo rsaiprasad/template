@@ -30,19 +30,19 @@ const navItems: NavItem[] = [
     title: 'Users',
     href: '/users',
     icon: Users,
-    permission: 'users:read',
+    permission: 'users:list',
   },
   {
     title: 'Groups',
     href: '/groups',
     icon: Shield,
-    permission: 'groups:read',
+    permission: 'groups:list',
   },
   {
     title: 'Audit Logs',
     href: '/audit-logs',
     icon: FileText,
-    permission: 'audit:read',
+    permission: 'audit:list',
   },
   {
     title: 'Settings',

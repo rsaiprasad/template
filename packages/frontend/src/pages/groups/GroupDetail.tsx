@@ -92,9 +92,12 @@ export function GroupDetail() {
   });
 
   const group = groupData?.success ? (groupData.data as GroupWithUsers) : undefined;
-  const allPermissions: PermissionDisplayInfo[] = (
-    permissionsData?.success ? permissionsData.data : []
-  ).map((p: Permission) => parsePermission(p));
+  // The permissions API returns { permissions: [...], byResource: {...}, total: N }
+  const permissionsResponse = permissionsData?.success ? permissionsData.data : null;
+  const permissionsList = (permissionsResponse as { permissions?: Array<{ id: string }> })?.permissions || [];
+  const allPermissions: PermissionDisplayInfo[] = Array.isArray(permissionsList)
+    ? permissionsList.map((p) => parsePermission(typeof p === 'string' ? p : p.id))
+    : [];
 
   // Form setup
   const form = useForm<GroupFormData>({
@@ -267,7 +270,7 @@ export function GroupDetail() {
                     )}
                   />
 
-                  <WithPermission permission="groups:write">
+                  <WithPermission permission="groups:update">
                     <div className="flex justify-end">
                       <Button type="submit" isLoading={updateMutation.isPending}>
                         <Save className="mr-2 h-4 w-4" />
@@ -308,7 +311,7 @@ export function GroupDetail() {
                             )}
                           </div>
                           <WithPermission
-                            permission="groups:write"
+                            permission="groups:update"
                             fallback={
                               hasPermission(permission.id) ? (
                                 <Check className="h-4 w-4 text-green-500" />

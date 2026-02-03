@@ -67,6 +67,12 @@ export function useAuth(): UseAuthReturn {
 
       const backendName = parseDisplayName(userData.displayName);
       const firebaseName = parseDisplayName(firebaseUser.displayName);
+      const typedUserData = userData as {
+        permissions?: string[];
+        isSuperAdmin?: boolean;
+        groupId?: string;
+        groupName?: string;
+      };
       return {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
@@ -74,7 +80,10 @@ export function useAuth(): UseAuthReturn {
         photoURL: firebaseUser.photoURL,
         firstName: backendName.firstName || firebaseName.firstName,
         lastName: backendName.lastName || firebaseName.lastName,
-        permissions: (userData as { permissions?: string[] }).permissions || [],
+        permissions: typedUserData.permissions || [],
+        isSuperAdmin: typedUserData.isSuperAdmin ?? false,
+        groupId: typedUserData.groupId,
+        groupName: typedUserData.groupName,
       };
     } catch (err) {
       // If backend is unavailable, use basic Firebase user data
@@ -182,11 +191,20 @@ export function useAuth(): UseAuthReturn {
       }
       const userData = response.data;
       const { firstName, lastName } = parseDisplayName(userData.displayName);
+      const typedUserData = userData as {
+        permissions?: string[];
+        isSuperAdmin?: boolean;
+        groupId?: string;
+        groupName?: string;
+      };
       setUser({
         ...user,
         firstName: firstName || user.firstName,
         lastName: lastName || user.lastName,
-        permissions: (userData as { permissions?: string[] }).permissions || user.permissions,
+        permissions: typedUserData.permissions || user.permissions,
+        isSuperAdmin: typedUserData.isSuperAdmin ?? user.isSuperAdmin,
+        groupId: typedUserData.groupId ?? user.groupId,
+        groupName: typedUserData.groupName ?? user.groupName,
       });
     } catch (err) {
       console.error('Failed to refresh user:', err);
