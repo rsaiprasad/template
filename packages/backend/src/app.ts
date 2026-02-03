@@ -1,3 +1,4 @@
+import { swaggerUI } from '@hono/swagger-ui';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
@@ -7,6 +8,7 @@ import { config } from './config';
 import { AppError } from './errors';
 import { initializeFirebaseAdmin } from './lib/firebase-admin';
 import { rateLimitMiddleware } from './middleware/rate-limit';
+import { createOpenAPIApp } from './openapi';
 import type { AppEnv } from './types/context';
 import {
   ErrorCodes,
@@ -88,6 +90,13 @@ apiV1.route('/groups', groupRoutes);
 apiV1.route('/permissions', permissionRoutes);
 apiV1.route('/settings', settingsRoutes);
 apiV1.route('/audit', auditRoutes);
+
+// Mount OpenAPI documentation
+const openApiApp = createOpenAPIApp();
+apiV1.route('/', openApiApp);
+
+// Swagger UI at /swagger endpoint
+apiV1.get('/swagger', swaggerUI({ url: '/api/v1/doc' }));
 
 app.route('/api/v1', apiV1);
 

@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
 import { toastError, toastSuccess } from '@/hooks/useToast';
-import { userApi } from '@/lib/api';
+import { api } from '@/api';
 import { getInitials } from '@/lib/utils';
 import { selectTheme, useThemeStore } from '@/stores/theme-store';
 import { queryKeys } from '@/types';
@@ -68,7 +68,7 @@ export function Settings() {
   const updateProfileMutation = useMutation({
     mutationFn: (data: ProfileFormData) => {
       if (!user?.uid) throw new Error('User not found');
-      return userApi.updateUser(user.uid, { displayName: data.displayName });
+      return api.updateUser(user.uid, { displayName: data.displayName });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.currentUser });

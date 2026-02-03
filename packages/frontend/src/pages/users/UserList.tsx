@@ -34,7 +34,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toastError, toastSuccess } from '@/hooks/useToast';
-import { userApi } from '@/lib/api';
+import { api } from '@/api';
 import { formatDate, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import type { UserWithGroups } from '@/types';
@@ -149,12 +149,12 @@ export function UserList() {
   // Fetch users
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.users.list({ page, pageSize, search, status }),
-    queryFn: () => userApi.listUsers({ page, pageSize, search, status: status || undefined }),
+    queryFn: () => api.listUsers({ page, pageSize, search, status: status || undefined }),
   });
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (userId: string) => userApi.deleteUser(userId),
+    mutationFn: (userId: string) => api.deleteUser(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       toastSuccess('User deleted', 'The user has been successfully deleted.');

@@ -33,7 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toastError, toastSuccess } from '@/hooks/useToast';
-import { groupApi } from '@/lib/api';
+import { api } from '@/api';
 import { formatDate } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import type { GroupWithUsers } from '@/types';
@@ -145,12 +145,12 @@ export function GroupList() {
   // Fetch groups
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.groups.list({ page, pageSize, search }),
-    queryFn: () => groupApi.listGroups({ page, pageSize, search }),
+    queryFn: () => api.listGroups({ page, pageSize, search }),
   });
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; description?: string }) => groupApi.createGroup(data),
+    mutationFn: (data: { name: string; description?: string }) => api.createGroup(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
       toastSuccess('Group created', 'The group has been successfully created.');
@@ -165,7 +165,7 @@ export function GroupList() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (groupId: string) => groupApi.deleteGroup(groupId),
+    mutationFn: (groupId: string) => api.deleteGroup(groupId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
       toastSuccess('Group deleted', 'The group has been successfully deleted.');

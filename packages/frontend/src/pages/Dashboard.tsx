@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import { auditLogApi, groupApi, userApi } from '@/lib/api';
+import { api } from '@/api';
 import { formatRelativeTime, getFirstName } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import { useQuery } from '@tanstack/react-query';
@@ -55,19 +55,19 @@ export function Dashboard() {
   // Fetch stats
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: queryKeys.users.list({ pageSize: 1 }),
-    queryFn: () => userApi.listUsers({ pageSize: 1 }),
+    queryFn: () => api.listUsers({ pageSize: 1 }),
     enabled: canManageUsers,
   });
 
   const { data: groupsData, isLoading: groupsLoading } = useQuery({
     queryKey: queryKeys.groups.list({ pageSize: 1 }),
-    queryFn: () => groupApi.listGroups({ pageSize: 1 }),
+    queryFn: () => api.listGroups({ pageSize: 1 }),
     enabled: canManageGroups,
   });
 
   const { data: auditLogsData, isLoading: auditLogsLoading } = useQuery({
     queryKey: queryKeys.auditLogs.list({ pageSize: 5 }),
-    queryFn: () => auditLogApi.listAuditLogs({ pageSize: 5 }),
+    queryFn: () => api.listAuditLogs({ pageSize: 5 }),
     enabled: canViewAuditLogs,
   });
 

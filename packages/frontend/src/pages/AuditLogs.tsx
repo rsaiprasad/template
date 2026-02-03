@@ -25,10 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { auditLogApi } from '@/lib/api';
+import { api } from '@/api';
 import { formatDateTime, formatRelativeTime } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import type { AuditLog } from '@/types';
+import type { AuditLog } from '@/api';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Clock, FileText, Filter, Search, User } from 'lucide-react';
 import * as React from 'react';
@@ -111,7 +111,7 @@ export function AuditLogs() {
       resourceType: resourceType || undefined,
     }),
     queryFn: () =>
-      auditLogApi.listAuditLogs({
+      api.listAuditLogs({
         page,
         pageSize,
         userId: userId || undefined,

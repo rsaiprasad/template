@@ -1,4 +1,4 @@
-import { userApi } from '@/lib/api';
+import { api } from '@/api';
 import {
   type FirebaseUser,
   signInWithGoogle as firebaseSignInWithGoogle,
@@ -59,7 +59,7 @@ export function useAuth(): UseAuthReturn {
   // Fetch full user data from backend
   const fetchUserData = useCallback(async (firebaseUser: FirebaseUser): Promise<AuthUser> => {
     try {
-      const response = await userApi.getCurrentUser();
+      const response = await api.getMe();
       if (!response.success) {
         throw new Error(response.error.message);
       }
@@ -158,7 +158,7 @@ export function useAuth(): UseAuthReturn {
 
     setLoading(true);
     try {
-      const response = await userApi.getCurrentUser();
+      const response = await api.getMe();
       if (!response.success) {
         throw new Error(response.error.message);
       }

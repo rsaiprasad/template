@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { toastError, toastSuccess } from '@/hooks/useToast';
-import { groupApi, permissionApi } from '@/lib/api';
+import { api } from '@/api';
 import { formatDateTime, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import type { Group, Permission } from '@/types';
@@ -81,14 +81,14 @@ export function GroupDetail() {
   // Fetch group data
   const { data: groupData, isLoading: groupLoading } = useQuery({
     queryKey: queryKeys.groups.detail(id!),
-    queryFn: () => groupApi.getGroup(id!),
+    queryFn: () => api.getGroup(id!),
     enabled: !!id,
   });
 
   // Fetch all permissions
   const { data: permissionsData } = useQuery({
     queryKey: queryKeys.permissions.list(),
-    queryFn: () => permissionApi.listPermissions(),
+    queryFn: () => api.listPermissions(),
   });
 
   const group = groupData?.success ? (groupData.data as GroupWithUsers) : undefined;
@@ -117,7 +117,7 @@ export function GroupDetail() {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: (data: GroupFormData) => groupApi.updateGroup(id!, data),
+    mutationFn: (data: GroupFormData) => api.updateGroup(id!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(id!) });
@@ -130,7 +130,7 @@ export function GroupDetail() {
 
   // Permission mutations
   const addPermissionMutation = useMutation({
-    mutationFn: (permissionId: string) => groupApi.addPermissionToGroup(id!, permissionId),
+    mutationFn: (permissionId: string) => api.addPermissionToGroup(id!, permissionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(id!) });
     },
@@ -140,7 +140,7 @@ export function GroupDetail() {
   });
 
   const removePermissionMutation = useMutation({
-    mutationFn: (permissionId: string) => groupApi.removePermissionFromGroup(id!, permissionId),
+    mutationFn: (permissionId: string) => api.removePermissionFromGroup(id!, permissionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(id!) });
     },

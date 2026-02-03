@@ -22,10 +22,10 @@ import {
 } from '@/components/ui/select';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
 import { toastError, toastSuccess } from '@/hooks/useToast';
-import { groupApi, userApi } from '@/lib/api';
+import { api } from '@/api';
 import { formatDateTime, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import type { Group, User } from '@/types';
+import type { Group, User } from '@/api';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Calendar, Mail, Save, Shield, User as UserIcon, X } from 'lucide-react';
@@ -71,14 +71,14 @@ export function UserDetail() {
   // Fetch user data
   const { data: userData, isLoading: userLoading } = useQuery({
     queryKey: queryKeys.users.detail(id!),
-    queryFn: () => userApi.getUser(id!),
+    queryFn: () => api.getUser(id!),
     enabled: !isNew && !!id,
   });
 
   // Fetch available groups
   const { data: groupsData } = useQuery({
     queryKey: queryKeys.groups.list({}),
-    queryFn: () => groupApi.listGroups({ pageSize: 100 }),
+    queryFn: () => api.listGroups({ pageSize: 100 }),
   });
 
   const user = userData?.success ? (userData.data as UserWithGroups) : undefined;
@@ -109,7 +109,7 @@ export function UserDetail() {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: (data: UserFormData) => userApi.updateUser(id!, data),
+    mutationFn: (data: UserFormData) => api.updateUser(id!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id!) });
@@ -126,14 +126,14 @@ export function UserDetail() {
 
   // Add/remove group mutations
   const addGroupMutation = useMutation({
-    mutationFn: (groupId: string) => userApi.addUserToGroup(id!, groupId),
+    mutationFn: (groupId: string) => api.addUserToGroup(id!, groupId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id!) });
     },
   });
 
   const removeGroupMutation = useMutation({
-    mutationFn: (groupId: string) => userApi.removeUserFromGroup(id!, groupId),
+    mutationFn: (groupId: string) => api.removeUserFromGroup(id!, groupId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id!) });
     },
