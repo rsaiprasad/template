@@ -19,6 +19,15 @@ const result = await Bun.build({
   sourcemap: 'external',
   define: {
     'process.env.NODE_ENV': '"production"',
+    'process.env.PUBLIC_API_BASE_URL': '""',
+    'process.env.PUBLIC_FIREBASE_API_KEY': '""',
+    'process.env.PUBLIC_FIREBASE_AUTH_DOMAIN': '""',
+    'process.env.PUBLIC_FIREBASE_PROJECT_ID': '""',
+    'process.env.PUBLIC_FIREBASE_STORAGE_BUCKET': '""',
+    'process.env.PUBLIC_FIREBASE_MESSAGING_SENDER_ID': '""',
+    'process.env.PUBLIC_FIREBASE_APP_ID': '""',
+    'process.env': '{}',
+    'process': '{"env":{}}',
   },
   loader: {
     '.tsx': 'tsx',

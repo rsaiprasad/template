@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, RouterProvider, createBrowserRouter } from 'react-router-dom';
 
 // Layout
 import { AppLayout } from '@/components/layout/app-layout';
@@ -33,91 +33,122 @@ const queryClient = new QueryClient({
   },
 });
 
+// Root layout that wraps all routes
+function RootLayout() {
+  return (
+    <>
+      <NavigationProgress />
+      <Outlet />
+      <Toaster />
+    </>
+  );
+}
+
+// Protected layout wrapper
+function ProtectedLayout() {
+  return (
+    <RequireAuth>
+      <AppLayout />
+    </RequireAuth>
+  );
+}
+
+// Create router with data router API
+const router = createBrowserRouter([
+  {
+    element: <RootLayout />,
+    children: [
+      // Public routes
+      {
+        path: '/login',
+        element: <Login />,
+      },
+      // Protected routes
+      {
+        element: <ProtectedLayout />,
+        children: [
+          // Dashboard
+          {
+            index: true,
+            element: <Dashboard />,
+          },
+          // Users
+          {
+            path: 'users',
+            element: (
+              <RequirePermission permission="users:read">
+                <UserList />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'users/:id',
+            element: (
+              <RequirePermission permission="users:read">
+                <UserDetail />
+              </RequirePermission>
+            ),
+          },
+          // Groups
+          {
+            path: 'groups',
+            element: (
+              <RequirePermission permission="groups:read">
+                <GroupList />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'groups/:id',
+            element: (
+              <RequirePermission permission="groups:read">
+                <GroupDetail />
+              </RequirePermission>
+            ),
+          },
+          // Audit Logs
+          {
+            path: 'audit-logs',
+            element: (
+              <RequirePermission permission="audit:read">
+                <AuditLogs />
+              </RequirePermission>
+            ),
+          },
+          // Settings - accessible to all authenticated users
+          {
+            path: 'settings',
+            element: <Settings />,
+          },
+          // Error pages
+          {
+            path: 'forbidden',
+            element: <Forbidden />,
+          },
+          {
+            path: '404',
+            element: <NotFound />,
+          },
+          // Catch-all redirect to 404
+          {
+            path: '*',
+            element: <NotFound />,
+          },
+        ],
+      },
+      // Redirect unknown routes to 404
+      {
+        path: '*',
+        element: <Navigate to="/404" replace />,
+      },
+    ],
+  },
+]);
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <NavigationProgress />
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-
-          {/* Protected routes */}
-          <Route
-            element={
-              <RequireAuth>
-                <AppLayout />
-              </RequireAuth>
-            }
-          >
-            {/* Dashboard */}
-            <Route index element={<Dashboard />} />
-
-            {/* Users */}
-            <Route
-              path="users"
-              element={
-                <RequirePermission permission="users:read">
-                  <UserList />
-                </RequirePermission>
-              }
-            />
-            <Route
-              path="users/:id"
-              element={
-                <RequirePermission permission="users:read">
-                  <UserDetail />
-                </RequirePermission>
-              }
-            />
-
-            {/* Groups */}
-            <Route
-              path="groups"
-              element={
-                <RequirePermission permission="groups:read">
-                  <GroupList />
-                </RequirePermission>
-              }
-            />
-            <Route
-              path="groups/:id"
-              element={
-                <RequirePermission permission="groups:read">
-                  <GroupDetail />
-                </RequirePermission>
-              }
-            />
-
-            {/* Audit Logs */}
-            <Route
-              path="audit-logs"
-              element={
-                <RequirePermission permission="audit:read">
-                  <AuditLogs />
-                </RequirePermission>
-              }
-            />
-
-            {/* Settings - accessible to all authenticated users */}
-            <Route path="settings" element={<Settings />} />
-
-            {/* Error pages */}
-            <Route path="forbidden" element={<Forbidden />} />
-            <Route path="404" element={<NotFound />} />
-
-            {/* Catch-all redirect to 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Route>
-
-          {/* Redirect root to dashboard if trying to access unknown route */}
-          <Route path="*" element={<Navigate to="/404" replace />} />
-        </Routes>
-
-        {/* Toast notifications */}
-        <Toaster />
-      </BrowserRouter>
-
+      <RouterProvider router={router} />
       {/* React Query Devtools - only in development */}
       {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>

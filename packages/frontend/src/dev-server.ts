@@ -6,20 +6,13 @@ const PORT = Number(process.env.PORT) || 5173;
 const API_URL = process.env.PUBLIC_API_URL || 'http://localhost:5001';
 const FIREBASE_REGION = process.env.PUBLIC_FIREBASE_REGION || 'us-central1';
 
-// For Firebase emulator, we need to prefix the path with project/region/function
 const isEmulator = API_URL.includes('localhost:5001');
-
-// Get project ID - use EMULATOR_PROJECT_ID env var if set, otherwise use PUBLIC_FIREBASE_PROJECT_ID
 const FIREBASE_PROJECT_ID = process.env.EMULATOR_PROJECT_ID || process.env.PUBLIC_FIREBASE_PROJECT_ID || 'demo-project';
 const API_PREFIX = isEmulator ? `/${FIREBASE_PROJECT_ID}/${FIREBASE_REGION}/api` : '';
 
-// MIME types for serving files
 const mimeTypes: Record<string, string> = {
   '.html': 'text/html',
   '.js': 'text/javascript',
-  '.jsx': 'text/javascript',
-  '.ts': 'text/javascript',
-  '.tsx': 'text/javascript',
   '.css': 'text/css',
   '.json': 'application/json',
   '.png': 'image/png',
@@ -32,23 +25,6 @@ const mimeTypes: Record<string, string> = {
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',
 };
-await $`bunx tailwindcss -i ./src/index.css -o ./src/generated.css`.quiet();
-
-// Watch for CSS changes and rebuild
-const srcDir = join(import.meta.dir, '.');
-let cssRebuildTimeout: ReturnType<typeof setTimeout> | null = null;
-
-watch(srcDir, { recursive: true }, (_event, filename) => {
-  if (
-    filename &&
-    (filename.endsWith('.css') || filename.endsWith('.tsx') || filename.endsWith('.ts'))
-  ) {
-    if (cssRebuildTimeout) clearTimeout(cssRebuildTimeout);
-    cssRebuildTimeout = setTimeout(async () => {
-      await $`bunx tailwindcss -i ./src/index.css -o ./src/generated.css`.quiet();
-    }, 100);
-  }
-});
 
 // Environment variables to inject
 const envVars = Object.entries(process.env)
@@ -61,7 +37,56 @@ const envVars = Object.entries(process.env)
     {} as Record<string, string>
   );
 
-// Server instance for hot reloading and API proxying
+// Build output directory
+const buildDir = './.dev-build';
+
+// Bundle the app
+async function bundle() {
+  await $`bunx tailwindcss -i ./src/index.css -o ${buildDir}/styles.css`.quiet();
+
+  const result = await Bun.build({
+    entrypoints: ['./src/main.tsx'],
+    outdir: buildDir,
+    target: 'browser',
+    format: 'esm',
+    splitting: false,
+    minify: false,
+    sourcemap: 'inline',
+    define: {
+      'process.env.NODE_ENV': '"development"',
+      ...envVars,
+    },
+  });
+
+  if (!result.success) {
+    console.error('Build failed:');
+    for (const log of result.logs) {
+      console.error(log);
+    }
+    return false;
+  }
+  return true;
+}
+
+// Initial build
+console.log('Building...');
+await bundle();
+
+// Watch for changes
+const srcDir = join(import.meta.dir, '.');
+let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
+
+watch(srcDir, { recursive: true }, (_event, filename) => {
+  if (filename && !filename.includes('.dev-build') && !filename.includes('generated.css')) {
+    if (rebuildTimeout) clearTimeout(rebuildTimeout);
+    rebuildTimeout = setTimeout(async () => {
+      console.log('Rebuilding...');
+      await bundle();
+    }, 100);
+  }
+});
+
+// Server
 const server = Bun.serve({
   port: PORT,
   async fetch(req) {
@@ -94,9 +119,19 @@ const server = Bun.serve({
       }
     }
 
-    // Serve generated CSS
-    if (pathname === '/src/generated.css') {
-      const file = Bun.file('./src/generated.css');
+    // Serve built JS
+    if (pathname === '/main.js') {
+      const file = Bun.file(`${buildDir}/main.js`);
+      if (await file.exists()) {
+        return new Response(file, {
+          headers: { 'Content-Type': 'text/javascript' },
+        });
+      }
+    }
+
+    // Serve built CSS
+    if (pathname === '/styles.css') {
+      const file = Bun.file(`${buildDir}/styles.css`);
       if (await file.exists()) {
         return new Response(file, {
           headers: { 'Content-Type': 'text/css' },
@@ -104,72 +139,8 @@ const server = Bun.serve({
       }
     }
 
-    // Handle source files with Bun transpiler
-    if (
-      pathname.startsWith('/src/') &&
-      (pathname.endsWith('.tsx') ||
-        pathname.endsWith('.ts') ||
-        pathname.endsWith('.jsx') ||
-        pathname.endsWith('.js'))
-    ) {
-      const filePath = `.${pathname}`;
-      const file = Bun.file(filePath);
-
-      if (await file.exists()) {
-        const transpiler = new Bun.Transpiler({
-          loader: pathname.endsWith('.tsx')
-            ? 'tsx'
-            : pathname.endsWith('.ts')
-              ? 'ts'
-              : pathname.endsWith('.jsx')
-                ? 'jsx'
-                : 'js',
-          define: {
-            'process.env.NODE_ENV': '"development"',
-            ...envVars,
-          },
-        });
-
-        try {
-          const source = await file.text();
-          const result = transpiler.transformSync(source);
-
-          return new Response(result, {
-            headers: { 'Content-Type': 'text/javascript' },
-          });
-        } catch (error) {
-          console.error('Transpile error:', error);
-          return new Response(`console.error(${JSON.stringify(String(error))})`, {
-            headers: { 'Content-Type': 'text/javascript' },
-            status: 500,
-          });
-        }
-      }
-    }
-
-    // Handle node_modules (for dependencies)
-    if (pathname.startsWith('/node_modules/') || pathname.startsWith('/@admin-dashboard/')) {
-      let modulePath = pathname;
-      if (pathname.startsWith('/@admin-dashboard/')) {
-        // Handle workspace packages
-        // Extract package path parts - package name (e.g., shared) is ignored since we hardcode the path
-        const rest = pathname.split('/').slice(2).join('/');
-        modulePath = `../shared/src/${rest || 'index.ts'}`;
-      } else {
-        modulePath = `.${pathname}`;
-      }
-
-      const file = Bun.file(modulePath);
-      if (await file.exists()) {
-        const ext = extname(modulePath);
-        return new Response(file, {
-          headers: { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' },
-        });
-      }
-    }
-
     // Serve static files from public
-    if (pathname !== '/' && !pathname.startsWith('/src/')) {
+    if (pathname !== '/') {
       const publicFile = Bun.file(`./public${pathname}`);
       if (await publicFile.exists()) {
         const ext = extname(pathname);
@@ -182,29 +153,20 @@ const server = Bun.serve({
     // Serve index.html for SPA routing
     const indexHtml = await Bun.file('./index.html').text();
 
-    // Inject hot reload script and CSS link
-    const injectedHtml = indexHtml.replace(
-      '</head>',
-      `  <link rel="stylesheet" href="/src/generated.css">
+    // Update script references for dev build
+    const devHtml = indexHtml
+      .replace('/src/main.tsx', '/main.js')
+      .replace(
+        '</head>',
+        `  <link rel="stylesheet" href="/styles.css">
     <script>
       // Simple hot reload via polling
-      let lastCheck = Date.now();
-      setInterval(async () => {
-        try {
-          const res = await fetch('/__dev_ping');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.restart && data.restart > lastCheck) {
-              location.reload();
-            }
-          }
-        } catch {}
-      }, 1000);
+      setInterval(() => fetch('/__ping').catch(() => location.reload()), 2000);
     </script>
   </head>`
-    );
+      );
 
-    return new Response(injectedHtml, {
+    return new Response(devHtml, {
       headers: { 'Content-Type': 'text/html' },
     });
   },
