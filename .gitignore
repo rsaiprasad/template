@@ -8,6 +8,7 @@ dist/
 build/
 .next/
 out/
+.dev-build/
 
 # Firebase
 .firebase/
@@ -38,6 +39,7 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
+.playwright-mcp/
 
 # Logs
 logs/
