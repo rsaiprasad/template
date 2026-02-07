@@ -126,17 +126,32 @@ const user = response.data;
 
 ---
 
+## Project Requirements
+
+**See [Business Requirements Document](./docs/BRD.md)** for complete project requirements including:
+- Functional requirements (authentication, user management, groups, permissions, audit)
+- Non-functional requirements (performance, security, scalability)
+- Data models and API specifications
+- Implementation status checklist
+
 ## Project Structure
 
 ```
 admin-dashboard-template/
+├── docs/
+│   └── BRD.md             # Business Requirements Document
 ├── packages/
-│   ├── frontend/     # React + Bun bundler
-│   ├── backend/      # Hono REST API
-│   └── shared/       # Shared types & utilities
-├── firebase/         # Firebase configuration
-├── biome.json        # Linting/formatting
-└── Claude.md         # This file
+│   ├── frontend/          # React + Bun bundler
+│   │   ├── src/api/       # Generated OpenAPI client
+│   │   └── docs/          # Frontend documentation
+│   ├── backend/           # Hono REST API (OpenAPI 3.1)
+│   │   ├── openapi.json   # Generated OpenAPI spec
+│   │   └── docs/          # Backend & API documentation
+│   └── shared/            # Shared types & utilities
+├── firebase/              # Firebase configuration
+├── biome.json             # Linting/formatting
+├── README.md              # Project overview
+└── Claude.md              # This file
 ```
 
 ## Commands

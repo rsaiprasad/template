@@ -27,6 +27,9 @@ A production-ready, fully-typed admin dashboard template built with modern techn
 
 ```
 admin-dashboard-template/
+├── docs/
+│   └── BRD.md             # Business Requirements Document
+│
 ├── packages/
 │   ├── frontend/          # React SPA
 │   │   ├── src/
@@ -620,6 +623,7 @@ bun run generate:openapi
 
 ## Documentation
 
+- [Business Requirements Document](./docs/BRD.md) - Complete project requirements and specifications
 - [Frontend Documentation](./packages/frontend/docs/README.md)
 - [Backend Documentation](./packages/backend/docs/README.md)
 - [API Reference](./packages/backend/docs/api-reference.md)
