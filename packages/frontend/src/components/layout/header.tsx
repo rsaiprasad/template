@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
 import { getInitials } from '@/lib/utils';
-import { LogOut, Menu, Settings, User } from 'lucide-react';
+import { LogOut, Menu, Settings, ShieldCheck, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface HeaderProps {
@@ -53,12 +53,22 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
                   {user?.displayName ? getInitials(user.displayName) : 'U'}
                 </AvatarFallback>
               </Avatar>
+              {user?.isSuperAdmin && (
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background">
+                  <ShieldCheck className="h-3 w-3" />
+                </span>
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
+                  {user?.isSuperAdmin && (
+                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                  )}
+                </div>
                 <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
               </div>
             </DropdownMenuLabel>
