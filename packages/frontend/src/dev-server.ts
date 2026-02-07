@@ -1,13 +1,24 @@
-import { watch } from 'node:fs';
-import { extname, join } from 'node:path';
+import { readFileSync, watch } from 'node:fs';
+import { extname, join, resolve } from 'node:path';
 import { $ } from 'bun';
 
 const PORT = Number(process.env.PORT) || 5173;
 const API_URL = process.env.PUBLIC_API_URL || 'http://localhost:5001';
 const FIREBASE_REGION = process.env.PUBLIC_FIREBASE_REGION || 'us-central1';
 
+function getFirebaseProjectId(): string {
+  try {
+    const firebaserc = JSON.parse(
+      readFileSync(resolve(import.meta.dir, '../../../firebase/.firebaserc'), 'utf-8')
+    );
+    return firebaserc.projects?.default || 'demo-project';
+  } catch {
+    return 'demo-project';
+  }
+}
+
 const isEmulator = API_URL.includes('localhost:5001');
-const FIREBASE_PROJECT_ID = process.env.EMULATOR_PROJECT_ID || process.env.PUBLIC_FIREBASE_PROJECT_ID || 'demo-project';
+const FIREBASE_PROJECT_ID = getFirebaseProjectId();
 const API_PREFIX = isEmulator ? `/${FIREBASE_PROJECT_ID}/${FIREBASE_REGION}/api` : '';
 
 const mimeTypes: Record<string, string> = {

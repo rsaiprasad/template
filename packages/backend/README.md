@@ -97,7 +97,6 @@ cp .env.example .env
 
 ```env
 # Firebase
-FIREBASE_PROJECT_ID=your-project-id
 GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
 
 # CORS (comma-separated origins)
@@ -109,6 +108,8 @@ SUPER_ADMIN_EMAIL=admin@example.com
 # Environment
 NODE_ENV=development
 ```
+
+> **Note:** The Firebase project ID is defined in `firebase/.firebaserc` (single source of truth). The Firebase Admin SDK auto-detects the project from the service account credentials or emulator environment.
 
 ### Commands
 
@@ -224,7 +225,6 @@ import { config } from './config';
 
 config.cors.origins     // Allowed CORS origins
 config.rateLimit.max    // Requests per window
-config.firebase.projectId
 ```
 
 ## Security

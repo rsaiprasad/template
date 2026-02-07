@@ -393,9 +393,6 @@ export const config = {
     max: 100,
     authMax: 10,
   },
-  firebase: {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-  },
 };
 ```
 
@@ -404,9 +401,10 @@ export const config = {
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `CORS_ORIGINS` | Allowed origins (comma-separated) | `http://localhost:5173` |
-| `FIREBASE_PROJECT_ID` | Firebase project ID | - |
 | `SUPER_ADMIN_EMAIL` | Super admin email | - |
 | `NODE_ENV` | Environment | `development` |
+
+> **Note:** The Firebase project ID is defined in `firebase/.firebaserc` (single source of truth). The Firebase Admin SDK auto-detects the project from the service account credentials or emulator environment.
 
 ---
 

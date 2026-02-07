@@ -48,8 +48,8 @@ kill_existing() {
 
 # Get the Firebase project ID for the emulator
 cd "$PROJECT_ROOT/firebase"
-export EMULATOR_PROJECT_ID=$(firebase use 2>/dev/null | tail -1)
-echo -e "${BLUE}Using Firebase project: ${EMULATOR_PROJECT_ID}${NC}"
+PROJECT_ID=$(firebase use 2>/dev/null | tail -1)
+echo -e "${BLUE}Using Firebase project: ${PROJECT_ID}${NC}"
 
 # Build backend if dist doesn't exist
 if [ ! -f "$PROJECT_ROOT/packages/backend/dist/index.js" ]; then
@@ -111,7 +111,7 @@ if [ "$SKIP_EMULATORS" = false ]; then
     echo -e "${BLUE}Waiting for emulators...${NC}"
     for i in {1..60}; do
         # Check if the api function is loaded by calling the health endpoint
-        RESPONSE=$(curl -s "http://localhost:5001/${EMULATOR_PROJECT_ID}/us-central1/api/api/v1/health" 2>/dev/null || echo "")
+        RESPONSE=$(curl -s "http://localhost:5001/${PROJECT_ID}/us-central1/api/api/v1/health" 2>/dev/null || echo "")
         if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
             break
         fi
@@ -124,7 +124,7 @@ if [ "$SKIP_EMULATORS" = false ]; then
     done
 
     # Verify function is loaded
-    RESPONSE=$(curl -s "http://localhost:5001/${EMULATOR_PROJECT_ID}/us-central1/api/api/v1/health" 2>/dev/null || echo "")
+    RESPONSE=$(curl -s "http://localhost:5001/${PROJECT_ID}/us-central1/api/api/v1/health" 2>/dev/null || echo "")
     if ! echo "$RESPONSE" | grep -q '"status":"healthy"'; then
         echo -e "${YELLOW}Warning: Functions may still be loading...${NC}"
     fi
@@ -132,7 +132,7 @@ if [ "$SKIP_EMULATORS" = false ]; then
     echo -e "${GREEN}Emulators ready!${NC}"
 else
     # Verify existing emulators are actually healthy
-    RESPONSE=$(curl -s "http://localhost:5001/${EMULATOR_PROJECT_ID}/us-central1/api/api/v1/health" 2>/dev/null || echo "")
+    RESPONSE=$(curl -s "http://localhost:5001/${PROJECT_ID}/us-central1/api/api/v1/health" 2>/dev/null || echo "")
     if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
         echo -e "${GREEN}Existing emulators are healthy!${NC}"
     else
@@ -155,7 +155,7 @@ echo -e "${GREEN}============================================${NC}"
 echo ""
 echo "  Frontend:     http://localhost:5173"
 echo "  Emulator UI:  http://localhost:4000"
-echo "  API:          http://localhost:5001/${EMULATOR_PROJECT_ID}/us-central1/api"
+echo "  API:          http://localhost:5001/${PROJECT_ID}/us-central1/api"
 echo ""
 echo "Press Ctrl+C to stop all services"
 

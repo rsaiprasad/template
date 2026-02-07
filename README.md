@@ -268,14 +268,7 @@ Create `.env` in the project root (for backend):
 
 ```env
 # Firebase Admin (Backend)
-FIREBASE_PROJECT_ID=my-dashboard-app
 GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
-
-# Super Admin Email
-SUPER_ADMIN_EMAIL=admin@company.com
-
-# Environment
-NODE_ENV=development
 
 # Super Admin Email
 SUPER_ADMIN_EMAIL=admin@company.com
@@ -456,10 +449,11 @@ firebase deploy --only functions
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `FIREBASE_PROJECT_ID` | Firebase project ID | `my-dashboard-app` |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account | `./service-account.json` |
 | `SUPER_ADMIN_EMAIL` | Super admin email | `admin@company.com` |
 | `NODE_ENV` | Environment | `development` |
+
+> **Note:** The Firebase project ID is defined in `firebase/.firebaserc` (single source of truth). The Firebase Admin SDK auto-detects the project from the service account credentials or emulator environment.
 
 ### Frontend `.env` (`packages/frontend/.env`)
 

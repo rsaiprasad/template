@@ -10,8 +10,5 @@ export const config = {
     max: 100, // requests per window
     authMax: 10, // auth endpoints
   },
-  firebase: {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-  },
   superAdminEmail: process.env.SUPER_ADMIN_EMAIL?.toLowerCase() || '',
 };

@@ -226,7 +226,7 @@ import { config } from './config';
 
 Set via environment variables:
 - `CORS_ORIGINS` - comma-separated list of allowed origins
-- `FIREBASE_PROJECT_ID` - Firebase project ID
+- Firebase project ID is read from `firebase/.firebaserc` (single source of truth)
 
 #### Custom Error Classes
 Use typed errors instead of string messages:

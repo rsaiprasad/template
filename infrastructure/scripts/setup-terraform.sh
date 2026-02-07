@@ -158,7 +158,6 @@ generate_env() {
     print_info "Generating $PROJECT_ROOT/.env"
     cat > "$PROJECT_ROOT/.env" << EOF
 # Firebase Admin (Backend)
-FIREBASE_PROJECT_ID=${project_id}
 GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
 
 # Super Admin Email (first user with this email becomes super admin)
