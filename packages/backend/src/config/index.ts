@@ -13,4 +13,5 @@ export const config = {
   firebase: {
     projectId: process.env.FIREBASE_PROJECT_ID,
   },
+  superAdminEmail: process.env.SUPER_ADMIN_EMAIL?.toLowerCase() || '',
 };

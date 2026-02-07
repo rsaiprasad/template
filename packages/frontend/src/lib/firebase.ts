@@ -7,7 +7,6 @@ import {
   getAuth,
   onAuthStateChanged,
   signInWithPopup,
-  signInWithEmailAndPassword,
   connectAuthEmulator,
 } from 'firebase/auth';
 
@@ -64,19 +63,6 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
     return result.user;
   } catch (error) {
     console.error('Error signing in with Google:', error);
-    throw error;
-  }
-}
-
-/**
- * Sign in with email and password (for emulator testing)
- */
-export async function signInWithEmail(email: string, password: string): Promise<FirebaseUser> {
-  try {
-    const result = await signInWithEmailAndPassword(firebaseAuth, email, password);
-    return result.user;
-  } catch (error) {
-    console.error('Error signing in with email:', error);
     throw error;
   }
 }

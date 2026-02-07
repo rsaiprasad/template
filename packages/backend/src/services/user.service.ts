@@ -6,6 +6,7 @@ import type {
   UserSearchParams,
   UserWithPermissions,
 } from '@admin-dashboard/shared';
+import { config } from '../config';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors';
 import {
   Collections,
@@ -247,17 +248,16 @@ export class UserService {
     const settingsDoc = await this.db.collection(Collections.SETTINGS).doc('app').get();
     const defaultGroupId = settingsDoc.exists ? settingsDoc.data()?.defaultGroupId : 'users';
 
-    // Check if this is the first user - make them super admin
-    const usersCount = await this.db.collection(Collections.USERS).count().get();
-    const isFirstUser = usersCount.data().count === 0;
+    // Check if this user's email matches the configured super admin email
+    const isSuperAdmin = !!(config.superAdminEmail && firebaseUser.email.toLowerCase() === config.superAdminEmail);
 
     // Create new user
     const newUser: Omit<User, 'id'> = {
       email: firebaseUser.email.toLowerCase(),
       displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0] || 'User',
       photoURL: firebaseUser.photoURL,
-      groupId: isFirstUser ? 'admin' : defaultGroupId,
-      isSuperAdmin: isFirstUser,
+      groupId: isSuperAdmin ? 'admin' : defaultGroupId,
+      isSuperAdmin,
       status: 'active',
       createdAt: now,
       updatedAt: now,
