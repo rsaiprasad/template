@@ -59,9 +59,7 @@ function getStatusBadgeVariant(status: string) {
   switch (status) {
     case 'active':
       return 'success';
-    case 'inactive':
-      return 'secondary';
-    case 'suspended':
+    case 'disabled':
       return 'destructive';
     default:
       return 'outline';
@@ -241,8 +239,7 @@ export function UserList() {
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-            <SelectItem value="suspended">Suspended</SelectItem>
+            <SelectItem value="disabled">Disabled</SelectItem>
           </SelectContent>
         </Select>
       </div>

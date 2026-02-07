@@ -5,7 +5,7 @@ import { AppError } from '../errors';
 import { logAuditAction } from '../middleware/audit';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
-import { groupService, userService } from '../services';
+import { groupService, settingsService, userService } from '../services';
 import type { AppEnv } from '../types/context';
 import {
   ErrorCodes,
@@ -287,6 +287,93 @@ userRoutes.put('/:id/group', requirePermission('users:update'), async (c) => {
     {
       before: { groupId: existingUser.groupId, groupName: oldGroup?.name },
       after: { groupId: result.data.groupId, groupName: newGroup.name },
+    }
+  );
+
+  return successResponse(c, updatedUser);
+});
+
+/**
+ * POST /api/v1/users/:userId/groups/:groupId
+ * Add user to group (changes user's group)
+ */
+userRoutes.post(':userId/groups/:groupId', requirePermission('users:update'), async (c) => {
+  const userId = c.req.param('userId');
+  const groupId = c.req.param('groupId');
+  const currentUser = c.get('user');
+
+  const existingUser = await userService.getUser(userId);
+  if (!existingUser) {
+    return notFound(c, 'User');
+  }
+
+  if (existingUser.isSuperAdmin && !currentUser.isSuperAdmin) {
+    return errorResponse(c, ErrorCodes.CANNOT_MODIFY_SUPER_ADMIN, 'Cannot modify super administrator accounts', 403);
+  }
+
+  const newGroup = await groupService.getGroup(groupId);
+  if (!newGroup) {
+    return notFound(c, 'Group');
+  }
+
+  const oldGroup = await groupService.getGroup(existingUser.groupId);
+  const updatedUser = await userService.changeUserGroup(userId, groupId);
+
+  await logAuditAction(
+    c,
+    'USER_GROUP_CHANGED',
+    'users',
+    userId,
+    `Changed user ${updatedUser.email} group from "${oldGroup?.name}" to "${newGroup.name}"`,
+    {
+      before: { groupId: existingUser.groupId, groupName: oldGroup?.name },
+      after: { groupId, groupName: newGroup.name },
+    }
+  );
+
+  return successResponse(c, updatedUser);
+});
+
+/**
+ * DELETE /api/v1/users/:userId/groups/:groupId
+ * Remove user from group (resets to default group)
+ */
+userRoutes.delete(':userId/groups/:groupId', requirePermission('users:update'), async (c) => {
+  const userId = c.req.param('userId');
+  const groupId = c.req.param('groupId');
+  const currentUser = c.get('user');
+
+  const existingUser = await userService.getUser(userId);
+  if (!existingUser) {
+    return notFound(c, 'User');
+  }
+
+  if (existingUser.isSuperAdmin && !currentUser.isSuperAdmin) {
+    return errorResponse(c, ErrorCodes.CANNOT_MODIFY_SUPER_ADMIN, 'Cannot modify super administrator accounts', 403);
+  }
+
+  // Only remove if user is actually in this group
+  if (existingUser.groupId !== groupId) {
+    return badRequest(c, 'User is not in this group');
+  }
+
+  // Reset to default group
+  const settings = await settingsService.getSettings();
+  const defaultGroupId = settings.defaultGroupId || 'users';
+
+  const oldGroup = await groupService.getGroup(groupId);
+  const updatedUser = await userService.changeUserGroup(userId, defaultGroupId);
+  const newGroup = await groupService.getGroup(defaultGroupId);
+
+  await logAuditAction(
+    c,
+    'USER_GROUP_CHANGED',
+    'users',
+    userId,
+    `Removed user ${updatedUser.email} from group "${oldGroup?.name}", reset to default "${newGroup?.name}"`,
+    {
+      before: { groupId, groupName: oldGroup?.name },
+      after: { groupId: defaultGroupId, groupName: newGroup?.name },
     }
   );
 

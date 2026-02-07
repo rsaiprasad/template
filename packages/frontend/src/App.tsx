@@ -78,7 +78,7 @@ const router = createBrowserRouter([
           {
             path: 'users',
             element: (
-              <RequirePermission permission="users:read">
+              <RequirePermission permission="users:list">
                 <UserList />
               </RequirePermission>
             ),
@@ -95,7 +95,7 @@ const router = createBrowserRouter([
           {
             path: 'groups',
             element: (
-              <RequirePermission permission="groups:read">
+              <RequirePermission permission="groups:list">
                 <GroupList />
               </RequirePermission>
             ),
@@ -112,7 +112,7 @@ const router = createBrowserRouter([
           {
             path: 'audit-logs',
             element: (
-              <RequirePermission permission="audit:read">
+              <RequirePermission permission="audit:list">
                 <AuditLogs />
               </RequirePermission>
             ),
