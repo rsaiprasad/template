@@ -1,5 +1,33 @@
 # Claude.md - Project Guidelines & Lessons Learned
 
+## Session Start Checklist
+
+**At the start of every session, read the BRD for full application context:**
+- **BRD**: `BRD-Admin-Dashboard-Template.md` (root) — the authoritative requirements document
+- **Shared permissions**: `packages/shared/src/constants/permissions.ts` — single source of truth for all permissions
+- **Shared types**: `packages/shared/src/types/` — type definitions used across backend and frontend
+
+## Application Context
+
+This is an **Admin Dashboard Template** — a reusable foundation for B2C/B2B SaaS apps. Key architecture decisions:
+
+### Permission System
+- **Permissions are defined in code** (`packages/shared/src/constants/permissions.ts`), not in a database
+- **Groups are stored in Firestore** with assigned permission strings from the shared file
+- **Super Admin** is determined by `SUPER_ADMIN_EMAIL` env var (not first login) and bypasses all permission checks
+- When developers build on this template, they add new `resource:action` entries to the shared permissions file — these auto-appear in the Group Management UI
+- Backend enforces permissions via middleware (`requirePermission`); frontend conditionally renders via `user.permissions` array
+
+### Auth
+- Google OAuth only (no email/password) — even in dev mode with emulators
+- Firebase Auth emulator shows a Google sign-in popup for test users
+
+### Admin Screens
+- **User Management** (`/users`): list users, group assignments, disable/enable/delete
+- **Group Management** (`/groups`): create/edit/delete groups, assign permissions, set default group
+
+---
+
 ## Workflow Orchestration
 
 ### 1. Plan Mode Default

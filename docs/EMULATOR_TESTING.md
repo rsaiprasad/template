@@ -109,11 +109,11 @@ cd firebase && firebase emulators:start
 1. In the Authentication emulator tab, click **Add user**
 2. Fill in the user details:
    - **Email**: Enter a test email (e.g., `admin@test.com`)
-   - **Password**: Enter a password (e.g., `password123`)
    - **Display name**: (Optional) Enter a name
-   - **Phone number**: (Optional)
    - **Photo URL**: (Optional)
 3. Click **Save**
+
+Alternatively, use the **Google Sign-In** button on the login page — the emulator will show a popup where you can create or select a test user directly.
 
 ### Creating Users with Different Roles
 
@@ -126,7 +126,7 @@ For testing permissions, create multiple users with different email patterns:
 | Viewer        | `viewer@test.com`        | Read-only access                  |
 | New User      | `newuser@test.com`       | No permissions (default state)    |
 
-**Note**: The super admin is determined by the `SUPER_ADMIN_EMAIL` environment variable in the root `.env` file. The first user with this email to sign in becomes the super admin.
+**Note**: The super admin is determined by the `SUPER_ADMIN_EMAIL` environment variable in the root `.env` file. The user whose email matches this value is automatically granted super admin privileges on login.
 
 ---
 
@@ -144,17 +144,6 @@ When using Google Sign-In with emulators:
 1. Click **Continue with Google** on the login page
 2. The emulator will show a popup to select or create a test user
 3. You can create a new user on the fly or select an existing emulator user
-
-### Email/Password Sign-In (For Automated Tests)
-
-The application supports email/password authentication for testing purposes. The `signInWithEmail` function is available in the `useAuth` hook:
-
-```typescript
-const { signInWithEmail } = useAuth();
-await signInWithEmail('admin@test.com', 'password123');
-```
-
-This is primarily used for automated E2E tests but can be useful for manual testing as well.
 
 ---
 
@@ -309,7 +298,7 @@ export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 **Issue**: User created in emulator but can't sign in
 
 **Solution**:
-1. Ensure the user has a password set (for email/password auth)
+1. Use Google Sign-In (the emulator will show a popup to select/create a test user)
 2. Check the emulator UI to verify the user exists
 3. Clear browser storage and try again
 

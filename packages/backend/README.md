@@ -103,7 +103,7 @@ GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
 # CORS (comma-separated origins)
 CORS_ORIGINS=http://localhost:5173,http://localhost:4173
 
-# Super Admin (first user with this email becomes super admin)
+# Super Admin (user with this email is granted super admin on login)
 SUPER_ADMIN_EMAIL=admin@example.com
 
 # Environment
@@ -255,9 +255,51 @@ CORS_ORIGINS=https://app.example.com,https://admin.example.com
 ### Super Admin
 
 The super admin:
+- Is determined by the `SUPER_ADMIN_EMAIL` environment variable (not first login)
 - Cannot be deleted or demoted
-- Bypasses all permission checks
-- First user with `SUPER_ADMIN_EMAIL` is auto-promoted
+- Bypasses all permission checks (has all permissions automatically)
+
+### Adding New Permissions (Developer Guide)
+
+When building on this template, you'll add permissions for your new features. Permissions are defined in code (shared package) and enforced at runtime.
+
+#### 1. Define permissions in the shared package
+
+Edit `packages/shared/src/constants/permissions.ts`:
+
+```typescript
+// Add entries to the PERMISSIONS record
+'orders:create': { resource: 'orders', action: 'create', description: 'Create new orders' },
+'orders:read':   { resource: 'orders', action: 'read',   description: 'View order details' },
+'orders:update': { resource: 'orders', action: 'update', description: 'Update orders' },
+'orders:delete': { resource: 'orders', action: 'delete', description: 'Delete orders' },
+'orders:list':   { resource: 'orders', action: 'list',   description: 'View list of orders' },
+```
+
+Update the `Permission` and `PermissionResource` types in `packages/shared/src/types/permission.ts` to include the new resource.
+
+#### 2. Protect your backend routes
+
+Use the `requirePermission` middleware on your route handlers:
+
+```typescript
+import { requirePermission } from '../middleware/permissions';
+
+// In your route setup:
+app.get('/api/v1/orders', requirePermission('orders:list'), listOrdersHandler);
+app.post('/api/v1/orders', requirePermission('orders:create'), createOrderHandler);
+app.get('/api/v1/orders/:id', requirePermission('orders:read'), getOrderHandler);
+app.put('/api/v1/orders/:id', requirePermission('orders:update'), updateOrderHandler);
+app.delete('/api/v1/orders/:id', requirePermission('orders:delete'), deleteOrderHandler);
+```
+
+#### 3. How it works at runtime
+
+- The auth middleware verifies the Firebase ID token and loads the user from Firestore
+- The permission middleware reads the user's group, looks up the group's permissions, and checks if the required permission is included
+- Super Admin (`isSuperAdmin: true`) bypasses all permission checks
+- If the check fails, a `403 Forbidden` response is returned
+- Admins assign permissions to groups via the Group Management UI — new permissions automatically appear there
 
 ## Database
 
