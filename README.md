@@ -113,20 +113,38 @@ For Firebase/GCP project setup, see [Deployment Guide](./docs/DEPLOYMENT.md).
 
 ## Using This Template
 
-**Create a new project:**
+### 1. Create a New Project
+
+Fork or clone this repo, then rename it for your project:
 
 ```bash
 ./scripts/init-project.sh my-saas-app @mycompany
 bun install && bun run build
 ```
 
-**Pull template updates** into your project:
+This replaces all references to `admin-dashboard-template` and `@admin-dashboard` with your project name and npm scope across all source files, package.json files, and config.
+
+### 2. Set Up Infrastructure
+
+Follow the [Deployment Guide](./docs/DEPLOYMENT.md) to provision Firebase/GCP. Three options:
+
+- **Option A** (fastest): `./scripts/setup-firebase.sh <project-id> <email>`
+- **Option B** (IaC): Terraform in `infrastructure/terraform/`
+- **Option C** (manual): Step-by-step in the deployment docs
+
+### 3. Pull Template Updates
+
+When the template gets new features or fixes in `core/` paths, sync them into your project:
 
 ```bash
-./scripts/sync-template.sh https://github.com/your-org/admin-dashboard-template.git
+./scripts/sync-template.sh
 ```
 
-**Extend with new features** — see [docs/EXTENDING.md](./docs/EXTENDING.md) for adding permissions, routes, services, and pages.
+This fetches changes from the template repo, diffs only the `core/` paths (your custom code is untouched), and suggests merge commands. See [docs/UPGRADING.md](./docs/UPGRADING.md) for the full process.
+
+### 4. Extend
+
+Add your own permissions, routes, services, and pages — see [docs/EXTENDING.md](./docs/EXTENDING.md).
 
 ## Documentation
 

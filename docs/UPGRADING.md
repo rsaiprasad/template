@@ -21,8 +21,10 @@ The template separates code into **core** (template-owned) and **customizable** 
 ### 1. Run the Sync Script
 
 ```bash
-./scripts/sync-template.sh https://github.com/your-org/admin-dashboard-template.git
+./scripts/sync-template.sh
 ```
+
+The template URL is pre-configured. You can also pass a URL explicitly: `./scripts/sync-template.sh <url>`
 
 This will:
 - Add the template repo as a git remote (`template-upstream`)

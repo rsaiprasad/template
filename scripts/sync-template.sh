@@ -17,7 +17,7 @@ set -euo pipefail
 
 TEMPLATE_REMOTE="template-upstream"
 TEMPLATE_BRANCH="main"
-DEFAULT_TEMPLATE_URL=""  # Set this to your template repo URL
+DEFAULT_TEMPLATE_URL="https://github.com/rsaiprasad/template.git"
 
 TEMPLATE_URL="${1:-$DEFAULT_TEMPLATE_URL}"
 
