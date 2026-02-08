@@ -129,6 +129,7 @@ export function UserDetail() {
     mutationFn: (groupId: string) => api.addUserToGroup(id!, groupId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     },
   });
 
@@ -136,6 +137,7 @@ export function UserDetail() {
     mutationFn: (groupId: string) => api.removeUserFromGroup(id!, groupId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     },
   });
 

@@ -82,7 +82,7 @@ check_tfvars() {
     if [ ! -f "$TERRAFORM_DIR/terraform.tfvars" ]; then
         print_warning "terraform.tfvars not found"
         print_info "Creating from template..."
-        cp "$TERRAFORM_DIR/terraform.tfvars.example" "$TERRAFORM_DIR/terraform.tfvars"
+        /bin/cp "$TERRAFORM_DIR/terraform.tfvars.example" "$TERRAFORM_DIR/terraform.tfvars"
         echo ""
         print_error "Please edit $TERRAFORM_DIR/terraform.tfvars with your values"
         echo ""

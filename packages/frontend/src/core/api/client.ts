@@ -173,6 +173,10 @@ export class AdminDashboardApi {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+    // Only retry idempotent methods (GET, HEAD, OPTIONS, PUT)
+    const method = (fetchOptions.method || 'GET').toUpperCase();
+    const isMethodRetryable = ['GET', 'HEAD', 'OPTIONS', 'PUT'].includes(method);
+
     let lastError: unknown;
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -199,8 +203,8 @@ export class AdminDashboardApi {
         lastError = error;
         clearTimeout(timeoutId);
 
-        // Don't retry if it's not a retryable error or if we've exhausted retries
-        if (!isRetryableError(error) || attempt === MAX_RETRIES - 1) {
+        // Don't retry non-idempotent methods (POST, DELETE, PATCH) or non-retryable errors
+        if (!isMethodRetryable || !isRetryableError(error) || attempt === MAX_RETRIES - 1) {
           throw error;
         }
 

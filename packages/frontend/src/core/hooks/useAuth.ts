@@ -3,13 +3,13 @@ import {
   type FirebaseUser,
   signInWithGoogle as firebaseSignInWithGoogle,
   signOut as firebaseSignOut,
-  onAuthChange,
 } from '@/lib/firebase';
 import { parseDisplayName } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import type { AuthUser } from '@/types';
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface UseAuthReturn {
   user: AuthUser | null;
@@ -41,6 +41,7 @@ function parseFirebaseUser(firebaseUser: FirebaseUser): Partial<AuthUser> {
 export function useAuth(): UseAuthReturn {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const {
     user,
     isAuthenticated,
@@ -49,7 +50,6 @@ export function useAuth(): UseAuthReturn {
     error,
     setUser,
     setLoading,
-    setInitialized,
     setError,
     clearAuth,
   } = useAuthStore();
@@ -107,25 +107,8 @@ export function useAuth(): UseAuthReturn {
     }
   }, [ensureBackendUser]);
 
-  // Initialize auth state on mount
-  useEffect(() => {
-    const unsubscribe = onAuthChange(async (firebaseUser) => {
-      if (firebaseUser) {
-        setLoading(true);
-        try {
-          const authUser = await fetchUserData(firebaseUser);
-          setUser(authUser);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to initialize auth');
-        }
-      } else {
-        clearAuth();
-      }
-      setInitialized(true);
-    });
-
-    return () => unsubscribe();
-  }, [fetchUserData, setUser, setLoading, setInitialized, setError, clearAuth]);
+  // Auth state initialization is handled by AuthInitializer (single listener).
+  // This hook only exposes auth actions and state — no duplicate listener.
 
   // Sign in with Google
   const signInWithGoogle = useCallback(async () => {
@@ -154,6 +137,8 @@ export function useAuth(): UseAuthReturn {
     try {
       await firebaseSignOut();
       clearAuth();
+      // Clear all cached query data to prevent leaking previous user's data
+      queryClient.clear();
       navigate('/login', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to sign out';
@@ -162,7 +147,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false);
     }
-  }, [clearAuth, setLoading, setError, navigate]);
+  }, [clearAuth, setLoading, setError, navigate, queryClient]);
 
   // Refresh user data
   const refreshUser = useCallback(async () => {

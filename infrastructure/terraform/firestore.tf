@@ -12,8 +12,8 @@ resource "google_firestore_database" "default" {
   concurrency_mode            = "PESSIMISTIC"
   app_engine_integration_mode = "DISABLED"
 
-  # Prevent accidental deletion
-  deletion_policy = "DELETE"
+  # ABANDON prevents data loss on terraform destroy; use DELETE only for dev/test
+  deletion_policy = "ABANDON"
 
   depends_on = [
     google_firebase_project.default,

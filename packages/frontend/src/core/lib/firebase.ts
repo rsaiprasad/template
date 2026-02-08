@@ -20,6 +20,13 @@ const firebaseConfig = {
   appId: process.env.PUBLIC_FIREBASE_APP_ID || '',
 };
 
+// Warn if config looks incomplete (empty strings mean env vars are missing)
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.warn(
+    'Firebase configuration is incomplete. Check PUBLIC_FIREBASE_* environment variables.'
+  );
+}
+
 // Initialize Firebase only if not already initialized
 let app: FirebaseApp;
 let auth: Auth;

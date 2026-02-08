@@ -82,8 +82,9 @@ groupRoutes.post('/', requirePermission('groups:create'), async (c) => {
     }
   }
 
-  // Create group - throws AppError on failure (handled by global error handler)
-  const group = await groupService.createGroup(result.data, currentUser.uid);
+  // Create group - permissions are validated above, safe to cast
+  const input = { ...result.data, permissions: result.data.permissions as Permission[] | undefined };
+  const group = await groupService.createGroup(input, currentUser.uid);
 
   // Log audit
   await logAuditAction(c, 'GROUP_CREATED', 'groups', group.id, `Created group "${group.name}"`, {

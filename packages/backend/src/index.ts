@@ -31,7 +31,9 @@ export const api = onRequest(
       }
     }
 
-    const body = ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body);
+    // Firebase Functions v2 already parses JSON bodies, so pass req.body directly
+    // (JSON.stringify would double-encode the body, breaking all write operations)
+    const body = ['GET', 'HEAD'].includes(req.method) ? undefined : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
 
     const request = new Request(url, {
       method: req.method,

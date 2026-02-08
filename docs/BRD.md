@@ -284,9 +284,9 @@ SO THAT I can control what members can do
 | FR-PERM-04 | Permission denied returns 403 status | Must Have |
 | FR-PERM-05 | Super Admin bypasses all permission checks | Must Have |
 | FR-PERM-06 | All available permissions are defined in a shared TypeScript file | Must Have |
-| FR-PERM-07 | Permission Management screen shows all defined permissions | Must Have |
+| FR-PERM-07 | Group Management screen shows all defined permissions (assigned per group) | Must Have |
 | FR-PERM-08 | Developers can extend permissions by adding entries to the shared file | Must Have |
-| FR-PERM-09 | New permissions auto-appear in Permission Management UI | Must Have |
+| FR-PERM-09 | New permissions auto-appear in Group Management UI | Must Have |
 
 #### Permission Architecture
 
@@ -311,7 +311,7 @@ export const PERMISSIONS: Record<Permission, PermissionDefinition> = {
 };
 ```
 
-**For developers building on this template**: To add permissions for a new feature (e.g., "orders"), add entries to this file. They will automatically appear in the Permission Management UI for admins to assign to groups. See [Section 16.3](#163-template-customization-points) for a step-by-step guide.
+**For developers building on this template**: To add permissions for a new feature (e.g., "orders"), add entries to this file. They will automatically appear in the Group Management UI for admins to assign to groups. See [Section 16.3](#163-template-customization-points) for a step-by-step guide.
 
 #### Permission Structure
 

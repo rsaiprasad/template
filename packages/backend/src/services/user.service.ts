@@ -440,33 +440,39 @@ export class UserService {
    * Change a user's group
    */
   async changeUserGroup(userId: string, newGroupId: string): Promise<User> {
-    // Verify the new group exists
-    const groupDoc = await this.db.collection(Collections.GROUPS).doc(newGroupId).get();
-    if (!groupDoc.exists) {
-      throw new NotFoundError('Group');
-    }
+    // Use a transaction to prevent race conditions (e.g., group deleted between check and update)
+    return this.db.runTransaction(async (transaction) => {
+      const groupRef = this.db.collection(Collections.GROUPS).doc(newGroupId);
+      const userRef = this.db.collection(Collections.USERS).doc(userId);
 
-    const userRef = this.db.collection(Collections.USERS).doc(userId);
-    const userDoc = await userRef.get();
+      const [groupDoc, userDoc] = await Promise.all([
+        transaction.get(groupRef),
+        transaction.get(userRef),
+      ]);
 
-    if (!userDoc.exists) {
-      throw new NotFoundError('User');
-    }
+      if (!groupDoc.exists) {
+        throw new NotFoundError('Group');
+      }
 
-    const user = convertFirestoreDoc<User>(userDoc)!;
+      if (!userDoc.exists) {
+        throw new NotFoundError('User');
+      }
 
-    if (user.isSuperAdmin) {
-      throw new ForbiddenError('Cannot modify super administrator accounts');
-    }
+      const user = convertFirestoreDoc<User>(userDoc)!;
 
-    const updates: Partial<User> = {
-      groupId: newGroupId,
-      updatedAt: new Date(),
-    };
+      if (user.isSuperAdmin) {
+        throw new ForbiddenError('Cannot modify super administrator accounts');
+      }
 
-    await userRef.update(updates);
+      const updates: Partial<User> = {
+        groupId: newGroupId,
+        updatedAt: new Date(),
+      };
 
-    return { ...user, ...updates };
+      transaction.update(userRef, updates);
+
+      return { ...user, ...updates };
+    });
   }
 
   /**

@@ -4,7 +4,7 @@
 # Since esbuild bundles all non-external code at build time, devDependencies aren't needed.
 set -e
 PKG="packages/backend/package.json"
-cp "$PKG" "${PKG}.bak"
+/bin/cp "$PKG" "${PKG}.bak"
 node -e "
 const fs = require('fs');
 const pkg = JSON.parse(fs.readFileSync('$PKG', 'utf-8'));

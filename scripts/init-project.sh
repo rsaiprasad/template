@@ -51,19 +51,9 @@ echo "  Scope:   $OLD_SCOPE → $NPM_SCOPE"
 echo ""
 
 # Find all files to update (exclude node_modules, dist, .git, binary files)
-FILES=$(find . \
-  -not -path '*/node_modules/*' \
-  -not -path '*/.git/*' \
-  -not -path '*/dist/*' \
-  -not -path '*/scripts/init-project.sh' \
-  -type f \
-  \( -name '*.ts' -o -name '*.tsx' -o -name '*.json' -o -name '*.md' \
-     -o -name '*.js' -o -name '*.mjs' -o -name '*.sh' -o -name '*.yaml' \
-     -o -name '*.yml' -o -name '*.toml' -o -name '*.env*' -o -name '.firebaserc' \) \
-  2>/dev/null || true)
-
 COUNT=0
-for FILE in $FILES; do
+while IFS= read -r FILE; do
+  [ -z "$FILE" ] && continue
   if grep -q "$OLD_SCOPE\|$OLD_PROJECT" "$FILE" 2>/dev/null; then
     # Use portable sed syntax (works on both macOS and Linux)
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -75,7 +65,16 @@ for FILE in $FILES; do
     fi
     COUNT=$((COUNT + 1))
   fi
-done
+done < <(find . \
+  -not -path '*/node_modules/*' \
+  -not -path '*/.git/*' \
+  -not -path '*/dist/*' \
+  -not -path '*/scripts/init-project.sh' \
+  -type f \
+  \( -name '*.ts' -o -name '*.tsx' -o -name '*.json' -o -name '*.md' \
+     -o -name '*.js' -o -name '*.mjs' -o -name '*.sh' -o -name '*.yaml' \
+     -o -name '*.yml' -o -name '*.toml' -o -name '*.env*' -o -name '.firebaserc' \) \
+  2>/dev/null || true)
 
 echo "Updated $COUNT files."
 echo ""

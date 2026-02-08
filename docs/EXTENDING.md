@@ -184,11 +184,15 @@ Add methods to the API client or create a new API module in `packages/frontend/s
 
 ## Customizing the Auth Flow
 
-The auth flow lives in `core/` but can be extended:
+The auth flow lives in `core/` and is normally updated via the template sync process.
+For most use cases, extend auth **without editing core files**:
 
 - **Add custom claims**: Extend the `AuthUser` type in `packages/frontend/src/types/index.ts`
-- **Add login methods**: Modify `packages/frontend/src/core/hooks/useAuth.ts` (note: this is core, so be cautious)
-- **Add post-login logic**: Add to the login route in `packages/backend/src/routes/auth.ts`
+- **Add post-login logic**: Add to the login route in `packages/backend/src/routes/auth.ts` (customizable)
+
+**Advanced (breaks future template sync for modified files):**
+
+- **Add login methods**: Modify `packages/frontend/src/core/hooks/useAuth.ts`. Because this is a core file, future template updates to this file will require manual merging. Only do this if you need a fundamentally different auth flow (e.g., adding email/password alongside Google OAuth).
 
 ## Customizing the UI Theme
 

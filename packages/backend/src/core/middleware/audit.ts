@@ -61,8 +61,8 @@ export function auditLog(
         userAgent: c.get('userAgent'),
       });
     } catch (error) {
-      // Don't fail the request if audit logging fails
-      console.error('Failed to create audit log:', error);
+      // Don't fail the request, but log with full context for monitoring/alerting
+      console.error('AUDIT_FAILURE:', { action, resource, userId: user.uid, error });
     }
   };
 }
@@ -109,7 +109,7 @@ export function createAuditLogger(
           userAgent: c.get('userAgent'),
         });
       } catch (error) {
-        console.error('Failed to create audit log:', error);
+        console.error('AUDIT_FAILURE:', { action, resource, userId: user?.uid, error });
       }
     },
   };
@@ -148,7 +148,7 @@ export async function logAuditAction(
       userAgent: c.get('userAgent'),
     });
   } catch (error) {
-    console.error('Failed to create audit log:', error);
+    console.error('AUDIT_FAILURE:', { action, resource, userId: user?.uid, error });
   }
 }
 

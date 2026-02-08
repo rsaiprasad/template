@@ -88,13 +88,21 @@ Everything outside `core/` is yours to customize: routes, services, pages, compo
 | **jq** | [jqlang.github.io](https://jqlang.github.io/jq/download/) |
 
 ```bash
-git clone <repository-url>
-cd admin-dashboard-template
+# Clone or use "Use this template" on GitHub
+git clone https://github.com/rsaiprasad/template.git my-project
+cd my-project
+
+# Rename for your project
+./scripts/init-project.sh my-saas-app @mycompany
+
+# Install and start (emulators + dev servers)
 bun install
-bun run dev          # Start dev servers
+bun run dev:full     # Start emulators + frontend + backend
 ```
 
-For Firebase/GCP project setup, see [Deployment Guide](./docs/DEPLOYMENT.md).
+> **Note:** `bun run dev:full` starts Firebase emulators alongside dev servers.
+> Use `bun run dev` if you only want frontend + backend without emulators.
+> Firebase/GCP project setup is required for production — see [Deployment Guide](./docs/DEPLOYMENT.md).
 
 ## Commands
 
@@ -109,7 +117,8 @@ For Firebase/GCP project setup, see [Deployment Guide](./docs/DEPLOYMENT.md).
 | `bun run deploy` | Deploy to Firebase (default project) |
 | `bun run deploy:staging` | Deploy to staging |
 | `bun run deploy:prod` | Deploy to production |
-| `bun run emulators` | Start Firebase emulators |
+| `bun run dev:full` | Start emulators + dev servers together |
+| `bun run emulators` | Start Firebase emulators only |
 
 ## Using This Template
 

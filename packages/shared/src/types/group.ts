@@ -1,8 +1,10 @@
+import type { Permission } from '../core/types/permission';
+
 export interface Group {
   id: string;
   name: string;
   description: string;
-  permissions: string[];
+  permissions: Permission[];
   isDefault: boolean;
   isSystem: boolean;
   createdAt: Date;
@@ -14,13 +16,13 @@ export interface Group {
 export interface CreateGroupInput {
   name: string;
   description: string;
-  permissions?: string[];
+  permissions?: Permission[];
 }
 
 export interface UpdateGroupInput {
   name?: string;
   description?: string;
-  permissions?: string[];
+  permissions?: Permission[];
 }
 
 export const DEFAULT_GROUPS = {

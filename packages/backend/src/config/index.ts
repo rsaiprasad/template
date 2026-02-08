@@ -1,3 +1,8 @@
+const superAdminEmail = process.env.SUPER_ADMIN_EMAIL?.toLowerCase() || '';
+if (!superAdminEmail) {
+  console.warn('WARNING: SUPER_ADMIN_EMAIL is not set. No user will have super admin privileges.');
+}
+
 export const config = {
   cors: {
     origins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:4173')
@@ -10,5 +15,5 @@ export const config = {
     max: 100, // requests per window
     authMax: 10, // auth endpoints
   },
-  superAdminEmail: process.env.SUPER_ADMIN_EMAIL?.toLowerCase() || '',
+  superAdminEmail,
 };

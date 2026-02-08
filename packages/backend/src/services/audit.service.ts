@@ -151,17 +151,25 @@ export class AuditService {
     byAction: Record<string, number>;
     byResource: Record<string, number>;
   }> {
-    let query: FirebaseFirestore.Query = this.db.collection(Collections.AUDIT_LOGS);
+    let baseQuery: FirebaseFirestore.Query = this.db.collection(Collections.AUDIT_LOGS);
 
     if (startDate) {
-      query = query.where('timestamp', '>=', startDate);
+      baseQuery = baseQuery.where('timestamp', '>=', startDate);
     }
 
     if (endDate) {
-      query = query.where('timestamp', '<=', endDate);
+      baseQuery = baseQuery.where('timestamp', '<=', endDate);
     }
 
-    const snapshot = await query.get();
+    // Use count() for efficient total (no document fetches)
+    const countSnapshot = await baseQuery.count().get();
+    const totalLogs = countSnapshot.data().count;
+
+    // Cap the breakdown query to prevent OOM on large datasets
+    const snapshot = await baseQuery
+      .orderBy('timestamp', 'desc')
+      .limit(10000)
+      .get();
     const logs = convertFirestoreDocs<AuditLog>(snapshot);
 
     const byAction: Record<string, number> = {};
@@ -173,7 +181,7 @@ export class AuditService {
     }
 
     return {
-      totalLogs: logs.length,
+      totalLogs,
       byAction,
       byResource,
     };

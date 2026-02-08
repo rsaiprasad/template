@@ -20,14 +20,31 @@ setInterval(() => {
 }, 60 * 1000); // Clean up every minute
 
 /**
- * Get rate limit key based on IP and path
+ * Get rate limit key based on user identity (preferred) or IP, plus path.
+ * Extracts user ID from the JWT payload without full verification for speed.
+ * Falls back to IP-based keying for unauthenticated requests.
  */
 function getRateLimitKey(c: Context): string {
-  const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
-    || c.req.header('x-real-ip')
-    || 'unknown';
   const path = c.req.path;
-  return `${ip}:${path}`;
+
+  // Try to extract user ID from JWT for per-user rate limiting
+  const authHeader = c.req.header('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const parts = authHeader.slice(7).split('.');
+      const payload = JSON.parse(atob(parts[1] || ''));
+      const uid = payload.sub || payload.user_id;
+      if (uid) return `user:${uid}:${path}`;
+    } catch {
+      // Malformed token — fall through to IP-based key
+    }
+  }
+
+  const ip =
+    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ||
+    c.req.header('x-real-ip') ||
+    'unknown';
+  return `ip:${ip}:${path}`;
 }
 
 /**

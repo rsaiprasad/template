@@ -96,7 +96,7 @@ export function GroupDetail() {
   const permissionsResponse = permissionsData?.success ? permissionsData.data : null;
   const permissionsList = (permissionsResponse as { permissions?: Array<{ id: string }> })?.permissions || [];
   const allPermissions: PermissionDisplayInfo[] = Array.isArray(permissionsList)
-    ? permissionsList.map((p) => parsePermission(typeof p === 'string' ? p : p.id))
+    ? permissionsList.map((p) => parsePermission((typeof p === 'string' ? p : p.id) as Permission))
     : [];
 
   // Form setup
@@ -157,7 +157,7 @@ export function GroupDetail() {
   };
 
   const hasPermission = (permissionId: string) => {
-    return group?.permissions?.includes(permissionId) ?? false;
+    return group?.permissions?.includes(permissionId as Permission) ?? false;
   };
 
   const handlePermissionToggle = (permission: PermissionDisplayInfo, enabled: boolean) => {

@@ -11,7 +11,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && getUserData().groupId == 'admin';
+      return isAuthenticated() && (getUserData().groupId == 'admin' || getUserData().isSuperAdmin == true);
     }
 
     function isSuperAdmin() {

@@ -78,7 +78,11 @@ export const useAuthStore = create<AuthStore>()(
       name: 'auth-storage',
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
-        user: state.user,
+        // Strip permissions and isSuperAdmin from persistence — they are
+        // always fetched fresh from the backend on init via AuthInitializer
+        user: state.user
+          ? { ...state.user, permissions: [], isSuperAdmin: false }
+          : null,
         isAuthenticated: state.isAuthenticated,
       }),
     }
@@ -94,6 +98,8 @@ export const selectPermissions = (state: AuthStore) => state.user?.permissions ?
 
 // Helper to check if user has a specific permission
 export const hasPermission = (state: AuthStore, permission: string): boolean => {
+  // Super admins bypass all permission checks
+  if (state.user?.isSuperAdmin) return true;
   const permissions = state.user?.permissions ?? [];
   // Check for exact match or wildcard
   return permissions.some((p) => {
@@ -108,11 +114,13 @@ export const hasPermission = (state: AuthStore, permission: string): boolean => 
 
 // Helper to check if user has any of the specified permissions
 export const hasAnyPermission = (state: AuthStore, permissions: string[]): boolean => {
+  if (state.user?.isSuperAdmin) return true;
   return permissions.some((permission) => hasPermission(state, permission));
 };
 
 // Helper to check if user has all of the specified permissions
 export const hasAllPermissions = (state: AuthStore, permissions: string[]): boolean => {
+  if (state.user?.isSuperAdmin) return true;
   return permissions.every((permission) => hasPermission(state, permission));
 };
 
