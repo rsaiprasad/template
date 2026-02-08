@@ -32,6 +32,8 @@ dist-ssr
 
 # Testing
 /coverage
+/test-results
+/e2e/test-results
 /playwright-report
 /playwright/.cache
 

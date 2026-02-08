@@ -102,7 +102,7 @@ test.describe('UI Components and Styling', () => {
 
         // Take screenshot for visual verification
         await page.screenshot({
-          path: `./test-results/screenshots/login-${viewport.name.toLowerCase().replace(' ', '-')}.png`,
+          path: `./e2e/test-results/screenshots/login-${viewport.name.toLowerCase().replace(' ', '-')}.png`,
         });
       });
     }

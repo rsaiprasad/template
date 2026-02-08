@@ -31,8 +31,8 @@ async function manualTest() {
     console.log(`   ✓ Theme toggle visible: ${themeToggle}`);
 
     // Take screenshot
-    await page.screenshot({ path: './test-results/01-login-page.png' });
-    console.log('   📸 Screenshot saved: 01-login-page.png\n');
+    await page.screenshot({ path: './e2e/test-results/01-login-page.png' });
+    console.log('   📸 Screenshot saved: e2e/test-results/01-login-page.png\n');
 
     // Test 2: Theme Toggle
     console.log('📍 Test 2: Testing theme toggle...');
@@ -49,8 +49,8 @@ async function manualTest() {
     const htmlAfter = await page.locator('html').getAttribute('class');
     console.log(`   After toggle class: "${htmlAfter || 'none'}"`);
 
-    await page.screenshot({ path: './test-results/02-theme-toggled.png' });
-    console.log('   📸 Screenshot saved: 02-theme-toggled.png\n');
+    await page.screenshot({ path: './e2e/test-results/02-theme-toggled.png' });
+    console.log('   📸 Screenshot saved: e2e/test-results/02-theme-toggled.png\n');
 
     // Test 3: Protected Routes Redirect
     console.log('📍 Test 3: Testing protected route redirects...');
@@ -76,8 +76,8 @@ async function manualTest() {
     console.log(`   ✓ Mobile heading visible: ${mobileHeading}`);
     console.log(`   ✓ Mobile button visible: ${mobileButton}`);
 
-    await page.screenshot({ path: './test-results/03-mobile-view.png' });
-    console.log('   📸 Screenshot saved: 03-mobile-view.png\n');
+    await page.screenshot({ path: './e2e/test-results/03-mobile-view.png' });
+    console.log('   📸 Screenshot saved: e2e/test-results/03-mobile-view.png\n');
 
     // Test 5: Check UI Elements Detail
     console.log('📍 Test 5: Checking UI elements in detail...');
@@ -105,8 +105,8 @@ async function manualTest() {
     const terms = await page.locator('text=By signing in').isVisible();
     console.log(`   ✓ Terms text visible: ${terms}`);
 
-    await page.screenshot({ path: './test-results/04-ui-elements.png', fullPage: true });
-    console.log('   📸 Screenshot saved: 04-ui-elements.png\n');
+    await page.screenshot({ path: './e2e/test-results/04-ui-elements.png', fullPage: true });
+    console.log('   📸 Screenshot saved: e2e/test-results/04-ui-elements.png\n');
 
     // Test 6: API Health Check
     console.log('📍 Test 6: Testing API health endpoint...');
@@ -118,14 +118,14 @@ async function manualTest() {
     console.log('═══════════════════════════════════════════');
     console.log('✅ All manual tests completed successfully!');
     console.log('═══════════════════════════════════════════');
-    console.log('\nScreenshots saved in: ./test-results/');
+    console.log('\nScreenshots saved in: ./e2e/test-results/');
     console.log('\nKeeping browser open for 10 seconds for visual inspection...');
 
     await page.waitForTimeout(10000);
 
   } catch (error) {
     console.error('❌ Test failed:', error);
-    await page.screenshot({ path: './test-results/error-screenshot.png' });
+    await page.screenshot({ path: './e2e/test-results/error-screenshot.png' });
   } finally {
     await browser.close();
     console.log('\n🏁 Browser closed. Test complete.');
