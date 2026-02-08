@@ -60,20 +60,14 @@ export function useAuth(): UseAuthReturn {
     await api.login(idToken);
   }, []);
 
-  // Fetch full user data from backend
+  // Fetch full user data from backend, registering the user if needed
   const fetchUserData = useCallback(async (firebaseUser: FirebaseUser): Promise<AuthUser> => {
+    // Ensure the user document exists in Firestore (creates on first login,
+    // updates lastLoginAt on subsequent logins). This is idempotent.
+    await ensureBackendUser(firebaseUser);
+
     try {
-      let response = await api.getMe();
-
-      // If user not registered, call login to create the Firestore document
-      if (!response.success && response.error?.message?.includes('not registered')) {
-        await ensureBackendUser(firebaseUser);
-        response = await api.getMe();
-      }
-
-      if (!response.success) {
-        throw new Error(response.error.message);
-      }
+      const response = await api.getMe();
       const userData = response.data;
 
       const backendName = parseDisplayName(userData.displayName);
@@ -139,11 +133,6 @@ export function useAuth(): UseAuthReturn {
     setError(null);
     try {
       const firebaseUser = await firebaseSignInWithGoogle();
-
-      // Call the login endpoint to create/update the user in Firestore
-      const idToken = await firebaseUser.getIdToken();
-      await api.login(idToken);
-
       const authUser = await fetchUserData(firebaseUser);
       setUser(authUser);
 

@@ -46,9 +46,11 @@ kill_existing() {
     sleep 2
 }
 
-# Get the Firebase project ID for the emulator
+# Get the Firebase project ID from .firebaserc (single source of truth).
+# We read the file directly instead of `firebase use` because `firebase use`
+# validates against real projects, but demo-* projects only exist in the emulator.
 cd "$PROJECT_ROOT/firebase"
-PROJECT_ID=$(firebase use 2>/dev/null | tail -1)
+PROJECT_ID=$(node -e "console.log(require('./.firebaserc').projects.default)" 2>/dev/null || echo "demo-project")
 echo -e "${BLUE}Using Firebase project: ${PROJECT_ID}${NC}"
 
 # Build backend if dist doesn't exist
@@ -114,7 +116,7 @@ if [ "$SKIP_EMULATORS" = false ]; then
     NODE_BIN="$(mise which node 2>/dev/null || echo node)"
     echo -e "${BLUE}Starting Firebase Emulators (node=$NODE_BIN)...${NC}"
     cd "$PROJECT_ROOT/firebase"
-    "$NODE_BIN" "$FIREBASE_BIN" emulators:start &
+    "$NODE_BIN" "$FIREBASE_BIN" emulators:start --project "$PROJECT_ID" &
     EMU_PID=$!
 
     # Wait for emulators and functions to be ready
