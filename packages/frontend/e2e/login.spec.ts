@@ -46,12 +46,17 @@ test.describe('Login Page', () => {
     const html = page.locator('html');
 
     // Get initial theme state
-    const initialClass = await html.getAttribute('class');
+    const initialClass = (await html.getAttribute('class')) || '';
 
-    // Click theme toggle
+    // ThemeToggle is a dropdown menu — click to open, then select opposite theme
     await themeToggle.click();
+    if (initialClass.includes('dark')) {
+      await page.getByRole('menuitem', { name: /light/i }).click();
+    } else {
+      await page.getByRole('menuitem', { name: /dark/i }).click();
+    }
 
-    // Verify theme changed (class should be different)
+    // Verify theme changed
     const newClass = await html.getAttribute('class');
     expect(newClass).not.toBe(initialClass);
   });
@@ -67,14 +72,17 @@ test.describe('Login Page', () => {
   });
 
   test('should show loading state when signing in', async ({ page }) => {
-    const googleButton = page.getByRole('button', { name: /continue with google/i });
+    page.on('popup', (popup) => popup.close());
 
-    // Click the button
+    const googleButton = page.getByRole('button', { name: /continue with google/i });
+    await expect(googleButton).toBeEnabled();
+
     await googleButton.click();
 
-    // Check for loading state (button should show loading text or be disabled)
-    // Note: In real scenario, this would trigger Google auth popup
-    await expect(googleButton).toContainText(/signing in|continue with google/i);
+    // Button should enter loading state: text changes to "Signing in..." and becomes disabled
+    const loadingButton = page.getByRole('button', { name: /signing in/i });
+    await expect(loadingButton).toBeVisible();
+    await expect(loadingButton).toBeDisabled();
   });
 });
 
@@ -119,10 +127,9 @@ test.describe('Error Pages', () => {
   test('should display 404 page for unknown routes', async ({ page }) => {
     await page.goto('/unknown-route-that-does-not-exist');
 
-    // Should redirect to login first (since protected), then 404
-    // Or show 404 directly for truly non-existent routes
-    const url = page.url();
-    expect(url).toMatch(/login|404/);
+    // Client-side router redirects unknown routes → /404 → /login (protected)
+    // Use auto-retrying assertion to wait for the redirect chain
+    await expect(page).toHaveURL(/login|404/);
   });
 
   test('should show 404 page content when accessed directly', async ({ page }) => {

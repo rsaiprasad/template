@@ -70,6 +70,9 @@ credentials.json
 service-account.json
 *-service-account.json
 
+# Review findings
+LOW_PRIORITY_FINDINGS.md
+
 # Terraform
 infrastructure/terraform/.terraform/
 infrastructure/terraform/*.tfstate

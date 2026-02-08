@@ -59,6 +59,7 @@ export function Login() {
             )}
 
             <Button
+              type="button"
               variant="outline"
               className="w-full h-12 text-base"
               onClick={handleGoogleSignIn}

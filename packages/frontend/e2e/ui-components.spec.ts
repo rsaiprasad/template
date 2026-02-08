@@ -137,18 +137,15 @@ test.describe('UI Components and Styling', () => {
   test.describe('Loading States', () => {
     test('should show loading indicator in button when clicked', async ({ page }) => {
       await page.goto('/login');
+      page.on('popup', (popup) => popup.close());
 
       const googleButton = page.getByRole('button', { name: /continue with google/i });
-
-      // Click button
       await googleButton.click();
 
-      // Button should either show loading text or have loading state
-      // (depending on Firebase popup behavior)
-      await page.waitForTimeout(500);
-
-      // The button should still exist (not disappear)
-      await expect(googleButton).toBeVisible();
+      // Button should show loading state with spinner and "Signing in..." text
+      const loadingButton = page.getByRole('button', { name: /signing in/i });
+      await expect(loadingButton).toBeVisible();
+      await expect(loadingButton.locator('.animate-spin')).toBeVisible();
     });
   });
 });
