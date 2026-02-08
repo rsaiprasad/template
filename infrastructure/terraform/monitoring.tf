@@ -21,7 +21,7 @@ resource "google_project_service" "logging" {
 
   depends_on = [
     google_project.new,
-    google_project_service.firebase,
+    google_project_service.bootstrap,
   ]
 }
 
@@ -36,7 +36,7 @@ resource "google_project_service" "monitoring" {
 
   depends_on = [
     google_project.new,
-    google_project_service.firebase,
+    google_project_service.bootstrap,
   ]
 }
 

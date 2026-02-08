@@ -8,6 +8,7 @@ resource "google_project" "new" {
   project_id      = var.project_id
   billing_account = var.billing_account
   org_id          = var.org_id
+  deletion_policy = "DELETE"
 
   labels = {
     "firebase" = "enabled"
@@ -23,6 +24,6 @@ resource "google_firebase_project" "default" {
 
   depends_on = [
     google_project.new,
-    google_project_service.firebase,
+    google_project_service.bootstrap,
   ]
 }

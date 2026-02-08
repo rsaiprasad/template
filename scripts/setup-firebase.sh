@@ -246,6 +246,26 @@ setup_web_app() {
     print_success "Firebase configuration retrieved"
 }
 
+# Verify default Firebase Hosting site exists (may be missing on existing GCP projects)
+setup_hosting_site() {
+    local project_id="$1"
+
+    print_header "Verifying Firebase Hosting Site"
+
+    # Check if default hosting site exists
+    if firebase hosting:sites:list --project="$project_id" --json 2>/dev/null | jq -e '.result.sites | length > 0' > /dev/null 2>&1; then
+        print_success "Firebase Hosting site exists"
+    else
+        print_info "Default hosting site not found. Creating..."
+        if firebase hosting:sites:create "$project_id" --project="$project_id" 2>/dev/null; then
+            print_success "Created hosting site: $project_id"
+        else
+            print_warning "Could not create hosting site (it may already exist under a different name)"
+            print_info "You can verify at: https://console.firebase.google.com/project/${project_id}/hosting"
+        fi
+    fi
+}
+
 # Create service account for local development
 setup_service_account() {
     local project_id="$1"
@@ -485,6 +505,7 @@ main() {
     enable_apis "$project_id"
     setup_firestore "$project_id" "$region"
     setup_web_app "$project_id"
+    setup_hosting_site "$project_id"
     setup_service_account "$project_id"
     generate_env_files "$project_id" "$super_admin_email" "$region"
     update_firebaserc "$project_id"

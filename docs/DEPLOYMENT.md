@@ -224,13 +224,15 @@ firebase deploy --only firestore
 ## Verify Deployment
 
 ```bash
-# Health check
+# Health check (use the Hosting URL, not the direct Cloud Run URL)
 curl https://your-project-id.web.app/api/v1/health
 # Should return: {"success":true,"data":{"status":"healthy",...}}
 
 # Open the app
 open https://your-project-id.web.app
 ```
+
+> **Note:** Always access the API through the Firebase Hosting URL (`your-project-id.web.app/api/...`), not the direct Cloud Run URL (`api-xxx.a.run.app`). Cloud Functions 2nd Gen runs on Cloud Run which requires authentication for direct access. Firebase Hosting rewrites handle this automatically via internal auth.
 
 1. Sign in with the email you set as `SUPER_ADMIN_EMAIL`
 2. You should have full admin access (all menus visible)
