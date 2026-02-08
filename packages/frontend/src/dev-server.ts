@@ -9,7 +9,7 @@ const FIREBASE_REGION = process.env.PUBLIC_FIREBASE_REGION || 'us-central1';
 function getFirebaseProjectId(): string {
   try {
     const firebaserc = JSON.parse(
-      readFileSync(resolve(import.meta.dir, '../../../firebase/.firebaserc'), 'utf-8')
+      readFileSync(resolve(import.meta.dir, '../../../.firebaserc'), 'utf-8')
     );
     return firebaserc.projects?.default || 'demo-project';
   } catch {

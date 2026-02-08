@@ -25,10 +25,10 @@
     "format": "biome format --write .",
     "typecheck": "bun run --filter '*' typecheck",
     "clean": "rm -rf node_modules packages/*/node_modules packages/*/dist",
-    "deploy": "cd firebase && firebase deploy",
-    "deploy:staging": "cd firebase && firebase deploy --project staging",
-    "deploy:prod": "cd firebase && firebase deploy --project production",
-    "emulators": "cd firebase && firebase emulators:start"
+    "deploy": "firebase deploy",
+    "deploy:staging": "firebase deploy --project staging",
+    "deploy:prod": "firebase deploy --project production",
+    "emulators": "firebase emulators:start"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",

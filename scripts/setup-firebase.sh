@@ -156,7 +156,7 @@ setup_project() {
 
     # Set as default project (must run from firebase directory)
     print_info "Setting '$project_id' as the default project"
-    (cd "${PROJECT_ROOT}/firebase" && firebase use "$project_id" --add)
+    (cd "${PROJECT_ROOT}" && firebase use "$project_id" --add)
 
     # Also set for gcloud
     gcloud config set project "$project_id"
@@ -351,7 +351,7 @@ update_firebaserc() {
 
     print_header "Updating Firebase Configuration"
 
-    local firebaserc="${PROJECT_ROOT}/firebase/.firebaserc"
+    local firebaserc="${PROJECT_ROOT}/.firebaserc"
 
     print_info "Updating $firebaserc"
 
@@ -373,7 +373,7 @@ deploy_firestore_config() {
 
     print_header "Deploying Firestore Rules and Indexes"
 
-    cd "${PROJECT_ROOT}/firebase"
+    cd "${PROJECT_ROOT}"
 
     print_info "Deploying Firestore security rules..."
     if firebase deploy --only firestore:rules --project="$project_id"; then

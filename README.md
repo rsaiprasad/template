@@ -62,6 +62,9 @@ admin-dashboard-template/
 │   ├── dev.sh             # Start dev environment
 │   └── setup-firebase.sh  # Firebase setup
 │
+├── firebase.json          # Firebase config (hosting, functions, emulators)
+├── .firebaserc            # Firebase project aliases
+├── firebase/              # Firestore rules & indexes
 ├── template.json          # Template version & core/customizable paths
 ├── TEMPLATE_CHANGELOG.md  # Template version history
 ├── Claude.md              # AI assistant guidelines

@@ -10,7 +10,7 @@
 | `SUPER_ADMIN_EMAIL` | Email that receives super admin on first login | `admin@company.com` |
 | `NODE_ENV` | Environment (`development` / `production`) | `development` |
 
-> **Note:** The Firebase project ID is defined in `firebase/.firebaserc` (single source of truth). The Firebase Admin SDK auto-detects the project from the service account credentials or emulator environment.
+> **Note:** The Firebase project ID is defined in `.firebaserc` (single source of truth). The Firebase Admin SDK auto-detects the project from the service account credentials or emulator environment.
 
 ### Frontend `.env` (`packages/frontend/.env`)
 
@@ -46,7 +46,7 @@ Default limits (configured in backend):
 
 ## Firebase Project ID
 
-The project ID is set in `firebase/.firebaserc` and is the single source of truth:
+The project ID is set in `.firebaserc` and is the single source of truth:
 
 ```json
 {

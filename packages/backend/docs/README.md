@@ -404,7 +404,7 @@ export const config = {
 | `SUPER_ADMIN_EMAIL` | Super admin email | - |
 | `NODE_ENV` | Environment | `development` |
 
-> **Note:** The Firebase project ID is defined in `firebase/.firebaserc` (single source of truth). The Firebase Admin SDK auto-detects the project from the service account credentials or emulator environment.
+> **Note:** The Firebase project ID is defined in `.firebaserc` (single source of truth). The Firebase Admin SDK auto-detects the project from the service account credentials or emulator environment.
 
 ---
 

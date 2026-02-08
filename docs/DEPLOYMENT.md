@@ -53,7 +53,7 @@ The script will:
 4. Create a Firebase Web App and retrieve SDK config
 5. Create a dev service account with key
 6. Generate `.env` files (root + frontend)
-7. Update `firebase/.firebaserc`
+7. Update `.firebaserc`
 8. Deploy Firestore rules and indexes
 
 After the script completes, follow the **Manual Steps** below, then jump to **Build & Deploy**.
@@ -141,7 +141,7 @@ firebase apps:sdkconfig WEB --project=your-project-id
 
 ### 7. Configure Environment
 
-Update `firebase/.firebaserc`:
+Update `.firebaserc`:
 ```json
 {
   "projects": {
@@ -197,8 +197,7 @@ bun install
 # Build all packages (backend + frontend)
 bun run build
 
-# Deploy everything from the firebase directory
-cd firebase
+# Deploy everything
 firebase deploy --project=your-project-id
 ```
 
@@ -210,8 +209,6 @@ This deploys:
 ### Deploy Individually
 
 ```bash
-cd firebase
-
 # Frontend only
 firebase deploy --only hosting
 
@@ -344,7 +341,7 @@ firebase deploy --only functions
 
 Check that Firestore rules are deployed:
 ```bash
-cd firebase && firebase deploy --only firestore:rules
+firebase deploy --only firestore:rules
 ```
 
 ### "Sign-in failed" or auth errors

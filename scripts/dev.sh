@@ -49,7 +49,7 @@ kill_existing() {
 # Get the Firebase project ID from .firebaserc (single source of truth).
 # We read the file directly instead of `firebase use` because `firebase use`
 # validates against real projects, but demo-* projects only exist in the emulator.
-cd "$PROJECT_ROOT/firebase"
+cd "$PROJECT_ROOT"
 PROJECT_ID=$(node -e "console.log(require('./.firebaserc').projects.default)" 2>/dev/null || echo "demo-project")
 echo -e "${BLUE}Using Firebase project: ${PROJECT_ID}${NC}"
 
@@ -115,7 +115,7 @@ if [ "$SKIP_EMULATORS" = false ]; then
     # firebase-tools' retry logic depends on Node-specific error codes.
     NODE_BIN="$(mise which node 2>/dev/null || echo node)"
     echo -e "${BLUE}Starting Firebase Emulators (node=$NODE_BIN)...${NC}"
-    cd "$PROJECT_ROOT/firebase"
+    cd "$PROJECT_ROOT"
     "$NODE_BIN" "$FIREBASE_BIN" emulators:start --project "$PROJECT_ID" &
     EMU_PID=$!
 

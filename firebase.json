@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "../packages/frontend/dist",
+    "public": "packages/frontend/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
@@ -34,13 +34,13 @@
     ]
   },
   "functions": {
-    "source": "../packages/backend",
+    "source": "packages/backend",
     "runtime": "nodejs20",
     "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log", "*.local"]
   },
   "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "rules": "firebase/firestore.rules",
+    "indexes": "firebase/firestore.indexes.json"
   },
   "emulators": {
     "auth": {

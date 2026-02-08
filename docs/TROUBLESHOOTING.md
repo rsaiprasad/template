@@ -49,7 +49,7 @@ If it doesn't exist, enable billing first.
 Check that Firestore rules are deployed:
 
 ```bash
-cd firebase && firebase deploy --only firestore:rules
+firebase deploy --only firestore:rules
 ```
 
 ## Authentication

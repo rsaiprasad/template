@@ -185,8 +185,8 @@ EOF
     print_success "Created $PROJECT_ROOT/packages/frontend/.env"
 
     # Update .firebaserc
-    print_info "Updating $PROJECT_ROOT/firebase/.firebaserc"
-    cat > "$PROJECT_ROOT/firebase/.firebaserc" << EOF
+    print_info "Updating $PROJECT_ROOT/.firebaserc"
+    cat > "$PROJECT_ROOT/.firebaserc" << EOF
 {
   "projects": {
     "default": "${project_id}",
@@ -195,7 +195,7 @@ EOF
   }
 }
 EOF
-    print_success "Updated $PROJECT_ROOT/firebase/.firebaserc"
+    print_success "Updated $PROJECT_ROOT/.firebaserc"
 
     # Remind user to create service account key
     echo ""

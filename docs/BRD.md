@@ -581,11 +581,11 @@ admin-dashboard-template/
 │           │   └── permissions.ts
 │           └── utils/           # Re-export shim for core/utils
 │
+├── firebase.json                    # Firebase config (project root)
+├── .firebaserc                      # Firebase project config (project root)
 ├── firebase/
-│   ├── firebase.json            # Firebase config
 │   ├── firestore.rules          # Security rules
-│   ├── firestore.indexes.json   # Firestore indexes
-│   └── .firebaserc              # Firebase project config
+│   └── firestore.indexes.json   # Firestore indexes
 │
 ├── scripts/
 │   ├── init-project.sh          # Rename template for new project

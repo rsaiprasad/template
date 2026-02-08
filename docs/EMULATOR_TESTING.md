@@ -27,7 +27,7 @@ This guide covers how to run the Firebase Auth emulator and perform manual end-t
    bun install
    ```
 
-2. **Firebase Project ID** — configured in `firebase/.firebaserc`:
+2. **Firebase Project ID** — configured in `.firebaserc`:
 
    The project ships with a `demo-` prefixed project ID (`demo-ccvpool-test`) by default.
    This is the recommended setup for local development:
@@ -43,7 +43,7 @@ This guide covers how to run the Firebase Auth emulator and perform manual end-t
      [Firebase Console](https://console.firebase.google.com/) and be authenticated
      (`firebase login`) for this to work.
 
-   To change the project ID, edit `firebase/.firebaserc`:
+   To change the project ID, edit `.firebaserc`:
    ```json
    {
      "projects": {
@@ -113,7 +113,7 @@ bun run emulators
 
 Or directly (the `--project` flag must match `.firebaserc`):
 ```bash
-cd firebase && firebase emulators:start --project demo-ccvpool-test
+firebase emulators:start --project demo-ccvpool-test
 ```
 
 ### Emulator Ports
@@ -307,7 +307,7 @@ When using Google Sign-In with emulators:
    ```bash
    lsof -i :9099
    ```
-2. Kill the process or change the port in `firebase/firebase.json`
+2. Kill the process or change the port in `firebase.json`
 
 **Issue**: `Error: JAVA_HOME is not set`
 
