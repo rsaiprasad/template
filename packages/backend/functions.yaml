@@ -1,0 +1,14 @@
+specVersion: v1alpha1
+requiredAPIs: []
+endpoints:
+  api:
+    platform: gcfv2
+    region:
+      - us-central1
+    entryPoint: api
+    labels: {}
+    httpsTrigger: {}
+    availableMemoryMb: 256
+    timeoutSeconds: 60
+    minInstances: 0
+    maxInstances: 100

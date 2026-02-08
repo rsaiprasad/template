@@ -54,10 +54,23 @@ export function useAuth(): UseAuthReturn {
     clearAuth,
   } = useAuthStore();
 
+  // Ensure user exists in backend (call login endpoint if needed)
+  const ensureBackendUser = useCallback(async (firebaseUser: FirebaseUser): Promise<void> => {
+    const idToken = await firebaseUser.getIdToken();
+    await api.login(idToken);
+  }, []);
+
   // Fetch full user data from backend
   const fetchUserData = useCallback(async (firebaseUser: FirebaseUser): Promise<AuthUser> => {
     try {
-      const response = await api.getMe();
+      let response = await api.getMe();
+
+      // If user not registered, call login to create the Firestore document
+      if (!response.success && response.error?.message?.includes('not registered')) {
+        await ensureBackendUser(firebaseUser);
+        response = await api.getMe();
+      }
+
       if (!response.success) {
         throw new Error(response.error.message);
       }
@@ -98,7 +111,7 @@ export function useAuth(): UseAuthReturn {
         permissions: [],
       };
     }
-  }, []);
+  }, [ensureBackendUser]);
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -126,6 +139,11 @@ export function useAuth(): UseAuthReturn {
     setError(null);
     try {
       const firebaseUser = await firebaseSignInWithGoogle();
+
+      // Call the login endpoint to create/update the user in Firestore
+      const idToken = await firebaseUser.getIdToken();
+      await api.login(idToken);
+
       const authUser = await fetchUserData(firebaseUser);
       setUser(authUser);
 

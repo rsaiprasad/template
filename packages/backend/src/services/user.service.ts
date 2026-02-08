@@ -222,6 +222,7 @@ export class UserService {
 
     if (userDoc.exists) {
       // Update existing user's last login time and potentially photo/name from provider
+      const existingUser = userDoc.data() as User;
       const updates: Partial<User> = {
         lastLoginAt: now,
         updatedAt: now,
@@ -229,7 +230,6 @@ export class UserService {
 
       // Update display name and photo if they changed from the auth provider
       if (firebaseUser.displayName) {
-        const existingUser = userDoc.data() as User;
         if (!existingUser.displayName || existingUser.displayName === existingUser.email) {
           updates.displayName = firebaseUser.displayName;
         }
@@ -237,6 +237,15 @@ export class UserService {
 
       if (firebaseUser.photoURL) {
         updates.photoURL = firebaseUser.photoURL;
+      }
+
+      // Enforce super admin status based on SUPER_ADMIN_EMAIL env var on every login
+      const shouldBeSuperAdmin = !!(config.superAdminEmail && firebaseUser.email.toLowerCase() === config.superAdminEmail);
+      if (shouldBeSuperAdmin !== existingUser.isSuperAdmin) {
+        updates.isSuperAdmin = shouldBeSuperAdmin;
+        if (shouldBeSuperAdmin) {
+          updates.groupId = 'admin';
+        }
       }
 
       await userRef.update(updates);

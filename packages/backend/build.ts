@@ -5,7 +5,7 @@ await esbuild.build({
   bundle: true,
   platform: 'node',
   target: 'node20',
-  format: 'esm',
+  format: 'cjs',
   outfile: 'dist/index.js',
   sourcemap: true,
   external: [
@@ -15,10 +15,6 @@ await esbuild.build({
     'firebase-functions',
     'firebase-functions/*',
   ],
-  banner: {
-    // Required for ESM compatibility with some packages
-    js: `import { createRequire } from 'module';const require = createRequire(import.meta.url);`,
-  },
 });
 
 console.log('Build complete: dist/index.js');

@@ -102,9 +102,19 @@ EMU_PID=""
 
 if [ "$SKIP_EMULATORS" = false ]; then
     # Start emulators in background
-    echo -e "${BLUE}Starting Firebase Emulators...${NC}"
+    # Firebase CLI must run on Node, not Bun. Bun reports connection errors as
+    # "ConnectionRefused" while Node uses "ECONNREFUSED". The emulator's worker
+    # retry logic only checks for the Node error code, so under Bun the emulator
+    # gives up on function workers before they finish starting.
+    FIREBASE_BIN="$(realpath "$(which firebase)")"
+    # bun run creates a fake 'node' shim at /tmp/bun-node-*/node that is
+    # actually bun in disguise. Use mise to get the real Node.js binary so
+    # the emulator's worker processes use Node (not bun) — required because
+    # firebase-tools' retry logic depends on Node-specific error codes.
+    NODE_BIN="$(mise which node 2>/dev/null || echo node)"
+    echo -e "${BLUE}Starting Firebase Emulators (node=$NODE_BIN)...${NC}"
     cd "$PROJECT_ROOT/firebase"
-    firebase emulators:start &
+    "$NODE_BIN" "$FIREBASE_BIN" emulators:start &
     EMU_PID=$!
 
     # Wait for emulators and functions to be ready
