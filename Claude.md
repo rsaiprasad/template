@@ -3,7 +3,7 @@
 ## Session Start Checklist
 
 **At the start of every session, read the BRD for full application context:**
-- **BRD**: `BRD-Admin-Dashboard-Template.md` (root) — the authoritative requirements document
+- **BRD**: `docs/BRD.md` — the authoritative requirements document
 - **Shared permissions**: `packages/shared/src/constants/permissions.ts` — single source of truth for all permissions
 - **Shared types**: `packages/shared/src/types/` — type definitions used across backend and frontend
 
@@ -53,6 +53,15 @@ This is an **Admin Dashboard Template** — a reusable foundation for B2C/B2B Sa
 - Diff behavior between main and your changes when relevant
 - Ask yourself: "Would a staff engineer approve this?"
 - Run tests, check logs, demonstrate correctness
+
+### 5. End-to-End Verification After Structural Changes
+After completing any non-trivial implementation (especially restructuring, refactoring, or multi-file changes), kick off **two parallel subagents** before marking the work as done:
+
+1. **E2E test subagent** — Start `bun run dev:full`, wait for emulators + servers, then use Playwright (browser MCP tools) to verify the app works end-to-end: sign in, navigate admin menus (Users, Groups, Audit Logs), verify pages load without errors, check browser console for runtime errors.
+
+2. **Documentation update subagent** — Review all documentation files (`Claude.md`, `README.md`, `docs/*.md`, `TEMPLATE_CHANGELOG.md`) to ensure they accurately reflect the current state of the codebase. Fix any stale references, outdated paths, or missing information.
+
+Both subagents run in parallel. Don't mark the task complete until both pass.
 
 ### 5. Demand Elegance (Balanced)
 - For non-trivial changes: pause and ask "is there a more elegant way?"
@@ -164,21 +173,33 @@ const user = response.data;
 
 ## Project Structure
 
+Each package has a `core/` directory (template infrastructure — don't edit) and domain code (freely customizable).
+
 ```
 admin-dashboard-template/
 ├── docs/
-│   └── BRD.md             # Business Requirements Document
+│   ├── BRD.md             # Business Requirements Document
+│   ├── EXTENDING.md       # How to add features
+│   └── UPGRADING.md       # How to pull template updates
 ├── packages/
-│   ├── frontend/          # React + Bun bundler
-│   │   ├── src/api/       # Generated OpenAPI client
-│   │   └── docs/          # Frontend documentation
-│   ├── backend/           # Hono REST API (OpenAPI 3.1)
-│   │   ├── openapi.json   # Generated OpenAPI spec
-│   │   └── docs/          # Backend & API documentation
-│   └── shared/            # Shared types & utilities
-├── firebase/              # Firebase configuration
-├── biome.json             # Linting/formatting
-├── README.md              # Project overview
+│   ├── shared/src/
+│   │   ├── core/          # API types, permission types, utils (template infra)
+│   │   ├── types/         # Domain types: user, group, audit, settings
+│   │   └── constants/     # Permission definitions
+│   ├── backend/src/
+│   │   ├── core/          # Middleware, Firebase, errors, response helpers (template infra)
+│   │   ├── routes/        # API route handlers
+│   │   ├── services/      # Business logic
+│   │   └── config/        # App configuration
+│   └── frontend/src/
+│       ├── core/          # Auth hooks, permission gates, API client (template infra)
+│       ├── pages/         # Page components
+│       ├── components/    # UI components
+│       └── stores/        # State stores
+├── scripts/
+│   ├── init-project.sh    # Rename template for new project
+│   └── sync-template.sh   # Pull upstream template updates
+├── template.json          # Core vs. customizable path manifest
 └── Claude.md              # This file
 ```
 
@@ -231,7 +252,7 @@ Set via environment variables:
 #### Custom Error Classes
 Use typed errors instead of string messages:
 ```typescript
-import { NotFoundError, ForbiddenError } from './errors';
+import { NotFoundError, ForbiddenError } from '../core/errors';
 
 // In services:
 throw new NotFoundError('User');  // 404

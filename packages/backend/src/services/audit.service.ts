@@ -4,7 +4,7 @@ import {
   convertFirestoreDoc,
   convertFirestoreDocs,
   getDb,
-} from '../lib/firebase-admin';
+} from '../core/lib/firebase-admin';
 
 /**
  * Audit Service

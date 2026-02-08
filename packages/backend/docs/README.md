@@ -177,7 +177,7 @@ Authorization: Bearer <firebase-id-token>
 The backend validates Firebase ID tokens:
 
 ```typescript
-// middleware/auth.ts
+// core/middleware/auth.ts
 const decodedToken = await auth.verifyIdToken(token, true);
 ```
 
@@ -218,7 +218,7 @@ users:delete
 
 ```typescript
 // In routes
-import { requirePermission } from './middleware/permissions';
+import { requirePermission } from '../core/middleware/permissions';
 
 app.get('/users', requirePermission('users:list'), handler);
 ```
@@ -286,7 +286,7 @@ export const groupService = new GroupService();
 ### Custom Error Classes
 
 ```typescript
-// errors/index.ts
+// core/errors/index.ts
 export class AppError extends Error {
   constructor(
     message: string,
@@ -367,7 +367,7 @@ interface AuditLog {
 ### Logging in Routes
 
 ```typescript
-import { logAuditAction } from './middleware/audit';
+import { logAuditAction } from '../core/middleware/audit';
 
 await logAuditAction(c, 'USER_UPDATED', 'users', userId, 'Updated user profile', {
   before: { displayName: oldName },

@@ -7,14 +7,14 @@ import type {
   UserWithPermissions,
 } from '@admin-dashboard/shared';
 import { config } from '../config';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../core/errors';
 import {
   Collections,
   convertFirestoreDoc,
   convertFirestoreDocs,
   getAuthAdmin,
   getDb,
-} from '../lib/firebase-admin';
+} from '../core/lib/firebase-admin';
 
 /**
  * Cursor-based pagination result

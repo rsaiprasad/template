@@ -5,9 +5,9 @@ import {
   getPermissionsByResource,
 } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
-import { authMiddleware } from '../middleware/auth';
-import type { AppEnv } from '../types/context';
-import { successResponse } from '../utils/response';
+import { authMiddleware } from '../core/middleware/auth';
+import type { AppEnv } from '../core/types/context';
+import { successResponse } from '../core/utils/response';
 
 const permissionRoutes = new Hono<AppEnv>();
 

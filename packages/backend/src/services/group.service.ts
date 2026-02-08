@@ -6,13 +6,13 @@ import type {
   User,
 } from '@admin-dashboard/shared';
 import { ADMIN_PERMISSIONS, USER_PERMISSIONS } from '@admin-dashboard/shared';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../core/errors';
 import {
   Collections,
   convertFirestoreDoc,
   convertFirestoreDocs,
   getDb,
-} from '../lib/firebase-admin';
+} from '../core/lib/firebase-admin';
 
 /**
  * Group Service

@@ -58,4 +58,4 @@ export const api = onRequest(
 export { app };
 
 // Re-export types for consumers
-export type { AppContext, AppEnv, AuthUser, AppVariables } from './types/context';
+export type { AppContext, AppEnv, AuthUser, AppVariables } from './core/types/context';

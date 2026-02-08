@@ -15,17 +15,24 @@ Hono-based REST API with OpenAPI 3.1 specification, designed for Firebase Cloud 
 
 ```
 src/
+├── core/                   # Template infra (DON'T EDIT)
+│   ├── errors/
+│   │   └── index.ts        # Custom error classes
+│   ├── middleware/
+│   │   ├── auth.ts         # Authentication middleware
+│   │   ├── permissions.ts  # Authorization middleware
+│   │   ├── rate-limit.ts   # Rate limiting
+│   │   └── audit.ts        # Audit logging middleware
+│   ├── lib/
+│   │   └── firebase-admin.ts # Firebase Admin SDK setup
+│   ├── utils/
+│   │   └── response.ts     # Response helpers
+│   ├── types/
+│   │   └── context.ts      # Hono context types
+│   └── index.ts            # Barrel export for core
+│
 ├── config/
 │   └── index.ts            # Environment configuration
-│
-├── errors/
-│   └── index.ts            # Custom error classes
-│
-├── middleware/
-│   ├── auth.ts             # Authentication middleware
-│   ├── permissions.ts      # Authorization middleware
-│   ├── rate-limit.ts       # Rate limiting
-│   └── audit.ts            # Audit logging middleware
 │
 ├── openapi/
 │   ├── schemas.ts          # Zod schemas for OpenAPI
@@ -53,25 +60,16 @@ src/
 │   ├── settings.service.ts
 │   └── index.ts            # Singleton instances
 │
-├── lib/
-│   └── firebase-admin.ts   # Firebase Admin SDK setup
-│
-├── utils/
-│   └── response.ts         # Response helpers
-│
-├── types/
-│   └── context.ts          # Hono context types
-│
 ├── app.ts                  # Main Hono app
 └── index.ts                # Firebase Functions entry
-│
+
 scripts/
 └── generate-openapi.ts     # OpenAPI spec generator
-│
+
 docs/
 ├── README.md               # This documentation
 └── api-reference.md        # API reference
-│
+
 openapi.json                # Generated OpenAPI spec
 ```
 
@@ -197,7 +195,7 @@ Response
 Use typed errors for consistent error handling:
 
 ```typescript
-import { NotFoundError, ForbiddenError, ValidationError } from './errors';
+import { NotFoundError, ForbiddenError, ValidationError } from '../core/errors';
 
 // In services
 throw new NotFoundError('User');           // 404
@@ -276,14 +274,14 @@ Edit `packages/shared/src/constants/permissions.ts`:
 'orders:list':   { resource: 'orders', action: 'list',   description: 'View list of orders' },
 ```
 
-Update the `Permission` and `PermissionResource` types in `packages/shared/src/types/permission.ts` to include the new resource.
+Update the `Permission` and `PermissionResource` types in `packages/shared/src/core/types/permission.ts` to include the new resource.
 
 #### 2. Protect your backend routes
 
 Use the `requirePermission` middleware on your route handlers:
 
 ```typescript
-import { requirePermission } from '../middleware/permissions';
+import { requirePermission } from '../core/middleware/permissions';
 
 // In your route setup:
 app.get('/api/v1/orders', requirePermission('orders:list'), listOrdersHandler);

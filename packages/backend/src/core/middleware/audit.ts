@@ -1,6 +1,6 @@
 import type { AuditAction, AuditLogChanges, AuditResource } from '@admin-dashboard/shared';
 import type { MiddlewareHandler } from 'hono';
-import { AuditService } from '../services/audit.service';
+import { AuditService } from '../../services/audit.service';
 import type { AppEnv } from '../types/context';
 
 /**

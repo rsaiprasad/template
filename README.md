@@ -28,33 +28,50 @@ A production-ready, fully-typed admin dashboard template built with modern techn
 ```
 admin-dashboard-template/
 ├── docs/
-│   └── BRD.md             # Business Requirements Document
+│   ├── BRD.md             # Business Requirements Document
+│   ├── EXTENDING.md       # How to add features
+│   └── UPGRADING.md       # How to pull template updates
 │
 ├── packages/
-│   ├── frontend/          # React SPA
-│   │   ├── src/
-│   │   │   ├── api/       # Generated OpenAPI client
-│   │   │   ├── components/
-│   │   │   ├── pages/
-│   │   │   ├── hooks/
-│   │   │   └── stores/
-│   │   └── docs/          # Frontend documentation
+│   ├── shared/            # Shared TypeScript types & utilities
+│   │   └── src/
+│   │       ├── core/      # Template infra: API types, permission types, utils
+│   │       ├── types/     # Domain types (user, group, audit, settings)
+│   │       └── constants/ # Permission definitions
 │   │
 │   ├── backend/           # Hono REST API
-│   │   ├── src/
-│   │   │   ├── openapi/   # OpenAPI route definitions
-│   │   │   ├── services/
-│   │   │   ├── middleware/
-│   │   │   └── config/
-│   │   ├── docs/          # API documentation
-│   │   └── openapi.json   # Generated OpenAPI spec
+│   │   └── src/
+│   │       ├── core/      # Template infra: middleware, Firebase, errors, response helpers
+│   │       ├── routes/    # API route handlers (customizable)
+│   │       ├── services/  # Business logic (customizable)
+│   │       ├── config/    # App configuration (customizable)
+│   │       └── openapi/   # API documentation (customizable)
 │   │
-│   └── shared/            # Shared TypeScript types
+│   └── frontend/          # React SPA
+│       └── src/
+│           ├── core/      # Template infra: auth hooks, permission gates, API client
+│           ├── pages/     # Page components (customizable)
+│           ├── components/# UI components (customizable)
+│           ├── hooks/     # Custom hooks (customizable)
+│           └── stores/    # State stores (customizable)
 │
-├── firebase/              # Firebase configuration
+├── scripts/
+│   ├── init-project.sh    # Rename template for new project
+│   ├── sync-template.sh   # Pull upstream template updates
+│   ├── dev.sh             # Start dev environment
+│   └── setup-firebase.sh  # Firebase setup
+│
+├── template.json          # Template version & core/customizable paths
+├── TEMPLATE_CHANGELOG.md  # Template version history
 ├── Claude.md              # AI assistant guidelines
 └── README.md              # This file
 ```
+
+### Core vs. Customizable
+
+Each package has a `core/` directory containing template infrastructure (auth, permissions, API client, middleware). **Don't edit core files** — they receive updates from the template.
+
+Everything outside `core/` is yours to customize: routes, services, pages, components, types, and configuration. See [docs/EXTENDING.md](./docs/EXTENDING.md) for details.
 
 ## Quick Start
 
@@ -615,9 +632,41 @@ bun run generate:openapi
 - **Super Admin Protection**: Cannot be deleted or demoted
 - **Audit Trail**: All sensitive operations logged
 
+## Using This Template
+
+### Create a New Project
+
+1. Click **"Use this template"** on GitHub (or clone the repo)
+2. Run the init script to rename everything:
+
+```bash
+./scripts/init-project.sh my-saas-app @mycompany
+bun install
+bun run build
+```
+
+3. Follow the [Quick Start](#quick-start) to set up Firebase
+
+### Pull Template Updates
+
+When the template is updated, sync core changes into your project:
+
+```bash
+./scripts/sync-template.sh https://github.com/your-org/admin-dashboard-template.git
+```
+
+See [docs/UPGRADING.md](./docs/UPGRADING.md) for the full process.
+
+### Extend with New Features
+
+See [docs/EXTENDING.md](./docs/EXTENDING.md) for how to add permissions, routes, services, and pages.
+
 ## Documentation
 
 - [Business Requirements Document](./docs/BRD.md) - Complete project requirements and specifications
+- [Extending the Template](./docs/EXTENDING.md) - How to add features
+- [Upgrading from Template](./docs/UPGRADING.md) - How to pull template updates
+- [Template Changelog](./TEMPLATE_CHANGELOG.md) - Version history of core changes
 - [Frontend Documentation](./packages/frontend/docs/README.md)
 - [Backend Documentation](./packages/backend/docs/README.md)
 - [API Reference](./packages/backend/docs/api-reference.md)

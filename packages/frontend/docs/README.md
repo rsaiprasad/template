@@ -50,12 +50,13 @@ The development server runs on `http://localhost:5173` with:
 
 ```
 src/
-├── api/          # API client (generated from OpenAPI)
+├── core/         # Template infra (DON'T EDIT): auth, permissions, API client
+├── api/          # API client configuration
 ├── components/   # React components
-├── hooks/        # Custom React hooks
-├── lib/          # Utilities and Firebase setup
+├── hooks/        # Custom React hooks (+ re-export shims for core/)
+├── lib/          # Re-export shims (firebase.ts, utils.ts, api.ts)
 ├── pages/        # Page components (routes)
-├── stores/       # Zustand stores
+├── stores/       # Zustand stores (+ re-export shims for core/)
 └── types/        # TypeScript types
 ```
 

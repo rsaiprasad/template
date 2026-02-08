@@ -24,7 +24,7 @@ import type {
   User,
   UserWithPermissions,
   VerifyAuthResponse,
-} from './types';
+} from '../../api/generated/types';
 
 // ============================================================================
 // Configuration

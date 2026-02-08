@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { AppError } from '../errors';
-import { logAuditAction } from '../middleware/audit';
-import { authMiddleware } from '../middleware/auth';
-import { requirePermission } from '../middleware/permissions';
+import { AppError } from '../core/errors';
+import { logAuditAction } from '../core/middleware/audit';
+import { authMiddleware } from '../core/middleware/auth';
+import { requirePermission } from '../core/middleware/permissions';
 import { groupService, settingsService } from '../services';
-import type { AppEnv } from '../types/context';
-import { badRequest, internalError, notFound, successResponse } from '../utils/response';
+import type { AppEnv } from '../core/types/context';
+import { badRequest, internalError, notFound, successResponse } from '../core/utils/response';
 
 const settingsRoutes = new Hono<AppEnv>();
 

@@ -1,4 +1,4 @@
-import type { Permission, PermissionDefinition, PermissionResource } from '../types/permission';
+import type { Permission, PermissionDefinition, PermissionResource } from '../core/types/permission';
 
 export const PERMISSIONS: Record<Permission, PermissionDefinition> = {
   // Users

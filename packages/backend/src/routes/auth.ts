@@ -1,12 +1,12 @@
 import type { Group, UserWithPermissions } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { Collections, convertFirestoreDoc, getAuthAdmin, getDb } from '../lib/firebase-admin';
-import { logAuditAction, loginAuditMiddleware } from '../middleware/audit';
-import { authMiddleware, buildAuthUser, optionalAuthMiddleware } from '../middleware/auth';
+import { Collections, convertFirestoreDoc, getAuthAdmin, getDb } from '../core/lib/firebase-admin';
+import { logAuditAction, loginAuditMiddleware } from '../core/middleware/audit';
+import { authMiddleware, buildAuthUser, optionalAuthMiddleware } from '../core/middleware/auth';
 import { auditService, groupService, settingsService, userService } from '../services';
-import type { AppEnv } from '../types/context';
-import { badRequest, internalError, successResponse, unauthorized } from '../utils/response';
+import type { AppEnv } from '../core/types/context';
+import { badRequest, internalError, successResponse, unauthorized } from '../core/utils/response';
 
 const authRoutes = new Hono<AppEnv>();
 

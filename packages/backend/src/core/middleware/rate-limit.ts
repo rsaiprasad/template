@@ -1,5 +1,5 @@
 import type { Context, Next } from 'hono';
-import { config } from '../config';
+import { config } from '../../config';
 
 interface RateLimitEntry {
   count: number;

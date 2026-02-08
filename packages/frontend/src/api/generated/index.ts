@@ -7,4 +7,4 @@
 export * from './types';
 
 // Export the API client class and error class
-export { AdminDashboardApi, ApiRequestError } from './client';
+export { AdminDashboardApi, ApiRequestError } from '../../core/api/client';

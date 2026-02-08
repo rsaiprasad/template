@@ -5,18 +5,18 @@ import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 import { config } from './config';
-import { AppError } from './errors';
-import { initializeFirebaseAdmin } from './lib/firebase-admin';
-import { rateLimitMiddleware } from './middleware/rate-limit';
+import { AppError } from './core/errors';
+import { initializeFirebaseAdmin } from './core/lib/firebase-admin';
+import { rateLimitMiddleware } from './core/middleware/rate-limit';
 import { createOpenAPIApp } from './openapi';
-import type { AppEnv } from './types/context';
+import type { AppEnv } from './core/types/context';
 import {
   ErrorCodes,
   errorResponse,
   generateRequestId,
   getClientIp,
   getUserAgent,
-} from './utils/response';
+} from './core/utils/response';
 
 import { auditRoutes } from './routes/audit';
 // Import routes

@@ -1,5 +1,5 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
-import type { AppEnv } from '../types/context';
+import type { AppEnv } from '../core/types/context';
 
 // Import route definitions
 import * as auditRoutes from './routes/audit';

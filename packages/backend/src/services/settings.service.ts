@@ -1,6 +1,6 @@
 import type { AppSettings, UpdateSettingsInput } from '@admin-dashboard/shared';
-import { NotFoundError } from '../errors';
-import { Collections, convertFirestoreDoc, getDb } from '../lib/firebase-admin';
+import { NotFoundError } from '../core/errors';
+import { Collections, convertFirestoreDoc, getDb } from '../core/lib/firebase-admin';
 
 /**
  * Settings Service

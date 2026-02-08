@@ -1,10 +1,10 @@
 import type { AuditAction, AuditResource, AuditSearchParams } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
-import { authMiddleware } from '../middleware/auth';
-import { requirePermission } from '../middleware/permissions';
+import { authMiddleware } from '../core/middleware/auth';
+import { requirePermission } from '../core/middleware/permissions';
 import { auditService } from '../services';
-import type { AppEnv } from '../types/context';
-import { badRequest, notFound, paginatedResponse, successResponse } from '../utils/response';
+import type { AppEnv } from '../core/types/context';
+import { badRequest, notFound, paginatedResponse, successResponse } from '../core/utils/response';
 
 const auditRoutes = new Hono<AppEnv>();
 

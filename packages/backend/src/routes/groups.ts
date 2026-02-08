@@ -1,19 +1,19 @@
 import { ALL_PERMISSIONS, type Permission } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { AppError } from '../errors';
-import { logAuditAction } from '../middleware/audit';
-import { authMiddleware } from '../middleware/auth';
-import { requirePermission } from '../middleware/permissions';
+import { AppError } from '../core/errors';
+import { logAuditAction } from '../core/middleware/audit';
+import { authMiddleware } from '../core/middleware/auth';
+import { requirePermission } from '../core/middleware/permissions';
 import { groupService } from '../services';
-import type { AppEnv } from '../types/context';
+import type { AppEnv } from '../core/types/context';
 import {
   ErrorCodes,
   badRequest,
   errorResponse,
   notFound,
   successResponse,
-} from '../utils/response';
+} from '../core/utils/response';
 
 const groupRoutes = new Hono<AppEnv>();
 

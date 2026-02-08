@@ -1,0 +1,33 @@
+{
+  "name": "admin-dashboard-template",
+  "version": "1.0.0",
+  "description": "Admin Dashboard Template — reusable foundation for B2C/B2B SaaS apps",
+  "core": {
+    "description": "Template infrastructure that downstream projects should not edit. Updates to these paths come from the template repo.",
+    "paths": [
+      "packages/shared/src/core/",
+      "packages/backend/src/core/",
+      "packages/frontend/src/core/"
+    ]
+  },
+  "customizable": {
+    "description": "Domain-specific code that downstream projects freely customize. These paths are yours to change.",
+    "paths": [
+      "packages/shared/src/types/",
+      "packages/shared/src/constants/",
+      "packages/backend/src/routes/",
+      "packages/backend/src/services/",
+      "packages/backend/src/config/",
+      "packages/backend/src/openapi/",
+      "packages/backend/src/app.ts",
+      "packages/frontend/src/api/",
+      "packages/frontend/src/components/",
+      "packages/frontend/src/pages/",
+      "packages/frontend/src/hooks/",
+      "packages/frontend/src/stores/",
+      "packages/frontend/src/types/",
+      "packages/frontend/src/App.tsx",
+      "packages/frontend/src/main.tsx"
+    ]
+  }
+}
