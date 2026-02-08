@@ -27,13 +27,42 @@ This guide covers how to run the Firebase Auth emulator and perform manual end-t
    bun install
    ```
 
-2. Ensure you have a valid Firebase project configured:
-   ```bash
-   cd firebase
-   firebase use <your-project-id>
+2. **Firebase Project ID** — configured in `firebase/.firebaserc`:
+
+   The project ships with a `demo-` prefixed project ID (`demo-ccvpool-test`) by default.
+   This is the recommended setup for local development:
+
+   - **`demo-*` project IDs** (default) — These are special emulator-only projects that
+     do **not** require a real Firebase project to exist. The Firebase emulator recognizes
+     the `demo-` prefix and runs in a fully offline mode with no connection to Google Cloud.
+     This is safer because it's impossible to accidentally read/write production data.
+
+   - **Real project IDs** (e.g., `my-app-prod`) — If you use a real Firebase project ID,
+     the emulator will still run locally, but non-emulated services (Storage, Realtime Database,
+     etc.) may fall through to production. You must have the project created in the
+     [Firebase Console](https://console.firebase.google.com/) and be authenticated
+     (`firebase login`) for this to work.
+
+   To change the project ID, edit `firebase/.firebaserc`:
+   ```json
+   {
+     "projects": {
+       "default": "demo-your-project-name"
+     }
+   }
    ```
 
-3. Copy and configure environment variables:
+   > **Note**: Do not use `firebase use <project-id>` with `demo-` prefixed IDs — it
+   > validates against real projects and will reject them. The `dev.sh` script reads
+   > `.firebaserc` directly to avoid this issue.
+
+3. Configure the super admin email in `packages/backend/.env`:
+   ```
+   SUPER_ADMIN_EMAIL=your-email@example.com
+   ```
+   The first user who signs in with this email is automatically granted super admin privileges.
+
+4. (Optional) Copy and configure frontend environment variables:
    ```bash
    cp packages/frontend/.env.example packages/frontend/.env
    ```
@@ -47,6 +76,9 @@ This guide covers how to run the Firebase Auth emulator and perform manual end-t
    PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
    PUBLIC_FIREBASE_APP_ID=your-app-id
    ```
+
+   > When using `demo-` project IDs with the emulator, the frontend env vars are not
+   > strictly required — the emulator does not validate Firebase config values.
 
 ---
 
@@ -79,9 +111,9 @@ To start just the emulators without the frontend:
 bun run emulators
 ```
 
-Or directly:
+Or directly (the `--project` flag must match `.firebaserc`):
 ```bash
-cd firebase && firebase emulators:start
+cd firebase && firebase emulators:start --project demo-ccvpool-test
 ```
 
 ### Emulator Ports
@@ -126,7 +158,7 @@ For testing permissions, create multiple users with different email patterns:
 | Viewer        | `viewer@test.com`        | Read-only access                  |
 | New User      | `newuser@test.com`       | No permissions (default state)    |
 
-**Note**: The super admin is determined by the `SUPER_ADMIN_EMAIL` environment variable in the root `.env` file. The user whose email matches this value is automatically granted super admin privileges on login.
+**Note**: The super admin is determined by the `SUPER_ADMIN_EMAIL` environment variable in `packages/backend/.env`. The user whose email matches this value is automatically granted super admin privileges on login.
 
 ---
 
