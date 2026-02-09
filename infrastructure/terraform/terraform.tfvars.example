@@ -25,12 +25,21 @@ create_project = false
 # org_id = "123456789"
 
 # Google Sign-In Configuration
-# To enable Google Sign-In:
-# 1. Go to GCP Console > APIs & Services > Credentials
-# 2. Create an OAuth 2.0 Client ID (Web application type)
-# 3. Add authorized redirect URI: https://YOUR_PROJECT.firebaseapp.com/__/auth/handler
-# 4. Copy the Client ID and Secret below
-# 5. Set enable_google_signin = true
+#
+# Google Sign-In requires OAuth 2.0 credentials. For personal GCP projects
+# (not belonging to an organization), OAuth clients can only be created via
+# the Cloud Console UI — no CLI/API exists for this.
+#
+# Setup steps:
+#   1. Go to GCP Console > APIs & Services > OAuth consent screen
+#      - Choose "External" user type, fill in app name and email
+#   2. Go to GCP Console > APIs & Services > Credentials
+#      - Create an OAuth 2.0 Client ID (Web application type)
+#      - Add authorized redirect URI: https://YOUR_PROJECT.firebaseapp.com/__/auth/handler
+#   3. Set the values below and run terraform apply
+#
+# For org-based projects, Terraform can create OAuth clients automatically
+# via the IAP API (google_iap_brand + google_iap_client resources).
 
 enable_google_signin = false
 # oauth_client_id     = "YOUR_CLIENT_ID.apps.googleusercontent.com"

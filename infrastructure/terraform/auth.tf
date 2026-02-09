@@ -29,9 +29,12 @@ resource "google_identity_platform_config" "default" {
 }
 
 # Google Sign-In Provider (optional - requires OAuth credentials)
+# When enable_google_signin=true but no OAuth credentials are provided,
+# this resource is skipped. Enable Google Sign-In manually in Firebase Console,
+# or provide oauth_client_id and oauth_client_secret in terraform.tfvars.
 
 resource "google_identity_platform_default_supported_idp_config" "google" {
-  count = var.enable_google_signin ? 1 : 0
+  count = var.enable_google_signin && var.oauth_client_id != null ? 1 : 0
 
   provider = google-beta
 

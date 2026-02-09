@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# E2E Test: Terraform Deployment (Option B)
+# E2E Test: Terraform Deployment
 # Tests full Terraform apply/destroy cycle against a real GCP project.
 #
 # Usage: BILLING_ACCOUNT=XXX TEST_ADMIN_EMAIL=you@example.com ./e2e/deploy/test-terraform-deploy.sh
@@ -55,14 +55,14 @@ on_exit() {
 
     cleanup_local_files
 
-    print_summary "Terraform Deploy (Option B)" || true
+    print_summary "Terraform Deploy" || true
     exit $exit_code
 }
 trap on_exit EXIT
 
 # --- Test Start ---
 
-print_header "E2E Test: Terraform Deploy (Option B)"
+print_header "E2E Test: Terraform Deploy"
 
 check_prerequisites
 require_command "terraform"

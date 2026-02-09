@@ -502,7 +502,7 @@ admin-dashboard-template/
 ├── biome.json                   # Biome config (shared)
 ├── template.json                # Template version & core/customizable paths
 ├── TEMPLATE_CHANGELOG.md        # Template version history
-├── Claude.md                    # AI assistant guidelines
+├── CLAUDE.md                    # AI assistant guidelines
 ├── README.md
 │
 ├── packages/
@@ -591,7 +591,7 @@ admin-dashboard-template/
 │   ├── init-project.sh          # Rename template for new project
 │   ├── sync-template.sh         # Pull upstream template updates
 │   ├── dev.sh                   # Start dev environment
-│   └── setup-firebase.sh        # Firebase setup
+│   └── dev.sh                   # Start dev environment
 │
 ├── infrastructure/              # Terraform IaC for GCP/Firebase
 │

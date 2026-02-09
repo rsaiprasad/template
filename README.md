@@ -59,15 +59,14 @@ admin-dashboard-template/
 ├── scripts/
 │   ├── init-project.sh    # Rename template for new project
 │   ├── sync-template.sh   # Pull upstream template updates
-│   ├── dev.sh             # Start dev environment
-│   └── setup-firebase.sh  # Firebase setup
+│   └── dev.sh             # Start dev environment
 │
 ├── firebase.json          # Firebase config (hosting, functions, emulators)
 ├── .firebaserc            # Firebase project aliases
 ├── firebase/              # Firestore rules & indexes
 ├── template.json          # Template version & core/customizable paths
 ├── TEMPLATE_CHANGELOG.md  # Template version history
-├── Claude.md              # AI assistant guidelines
+├── CLAUDE.md              # AI assistant guidelines
 └── README.md              # This file
 ```
 
@@ -135,11 +134,10 @@ This replaces all references to `admin-dashboard-template` and `@admin-dashboard
 
 ### 2. Set Up Infrastructure
 
-Follow the [Deployment Guide](./docs/DEPLOYMENT.md) to provision Firebase/GCP. Three options:
+Follow the [Deployment Guide](./docs/DEPLOYMENT.md) to provision Firebase/GCP:
 
-- **Option A** (fastest): `./scripts/setup-firebase.sh <project-id> <email>`
-- **Option B** (IaC): Terraform in `infrastructure/terraform/`
-- **Option C** (manual): Step-by-step in the deployment docs
+- **Terraform** (recommended): `./infrastructure/scripts/setup-terraform.sh`
+- **Manual**: Step-by-step in the deployment docs
 
 ### 3. Pull Template Updates
 
@@ -176,7 +174,7 @@ Add your own permissions, routes, services, and pages — see [docs/EXTENDING.md
 
 1. Follow the coding standards in `biome.json`
 2. Run `bun run typecheck` and `bun run lint` before committing
-3. Update `Claude.md` with any architectural decisions
+3. Update `CLAUDE.md` with any architectural decisions
 
 ## License
 

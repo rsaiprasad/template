@@ -5,8 +5,7 @@
   "type": "module",
   "workspaces": ["packages/*"],
   "scripts": {
-    "setup": "./scripts/setup-firebase.sh",
-    "setup:terraform": "./infrastructure/scripts/setup-terraform.sh",
+    "setup": "./infrastructure/scripts/setup-terraform.sh",
     "infra:plan": "./infrastructure/scripts/setup-terraform.sh plan",
     "infra:apply": "./infrastructure/scripts/setup-terraform.sh apply",
     "infra:destroy": "./infrastructure/scripts/setup-terraform.sh destroy",

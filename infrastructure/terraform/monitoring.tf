@@ -50,7 +50,7 @@ resource "google_project_iam_audit_config" "firestore_audit" {
   count    = local.audit_logs_enabled && var.monitoring.audit_logs.firestore ? 1 : 0
 
   project = local.project_id
-  service = "firestore.googleapis.com"
+  service = "datastore.googleapis.com"
 
   dynamic "audit_log_config" {
     for_each = var.monitoring.audit_logs.log_types
@@ -186,6 +186,20 @@ resource "google_logging_metric" "high_latency_requests" {
   depends_on = [google_project_service.logging]
 }
 
+# Wait for log-based metrics to become available in Cloud Monitoring
+# GCP can take up to 10 minutes to register newly created log-based metrics
+resource "time_sleep" "wait_for_metrics" {
+  count           = local.alerts_enabled ? 1 : 0
+  create_duration = "60s"
+
+  depends_on = [
+    google_logging_metric.auth_failures,
+    google_logging_metric.function_errors,
+    google_logging_metric.firestore_errors,
+    google_logging_metric.high_latency_requests,
+  ]
+}
+
 # =============================================================================
 # NOTIFICATION CHANNELS
 # =============================================================================
@@ -251,7 +265,7 @@ resource "google_monitoring_alert_policy" "auth_failure_alert" {
     display_name = "Auth failures exceed threshold (${var.monitoring.alerts.auth_failures.threshold})"
 
     condition_threshold {
-      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.auth_failures[0].name}\" AND resource.type=\"identitytoolkit.googleapis.com/Project\""
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.auth_failures[0].name}\" AND resource.type=\"global\""
       duration        = var.monitoring.alerts.auth_failures.window
       comparison      = "COMPARISON_GT"
       threshold_value = var.monitoring.alerts.auth_failures.threshold
@@ -277,6 +291,7 @@ resource "google_monitoring_alert_policy" "auth_failure_alert" {
   depends_on = [
     google_logging_metric.auth_failures,
     google_monitoring_notification_channel.email,
+    time_sleep.wait_for_metrics,
   ]
 }
 
@@ -319,6 +334,7 @@ resource "google_monitoring_alert_policy" "function_error_alert" {
   depends_on = [
     google_logging_metric.function_errors,
     google_monitoring_notification_channel.email,
+    time_sleep.wait_for_metrics,
   ]
 }
 
@@ -335,7 +351,7 @@ resource "google_monitoring_alert_policy" "firestore_error_alert" {
     display_name = "Firestore errors exceed threshold (${var.monitoring.alerts.firestore_errors.threshold})"
 
     condition_threshold {
-      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.firestore_errors[0].name}\" AND resource.type=\"firestore_database\""
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.firestore_errors[0].name}\" AND resource.type=\"global\""
       duration        = var.monitoring.alerts.firestore_errors.window
       comparison      = "COMPARISON_GT"
       threshold_value = var.monitoring.alerts.firestore_errors.threshold
@@ -361,6 +377,7 @@ resource "google_monitoring_alert_policy" "firestore_error_alert" {
   depends_on = [
     google_logging_metric.firestore_errors,
     google_monitoring_notification_channel.email,
+    time_sleep.wait_for_metrics,
   ]
 }
 
@@ -403,6 +420,7 @@ resource "google_monitoring_alert_policy" "latency_alert" {
   depends_on = [
     google_logging_metric.high_latency_requests,
     google_monitoring_notification_channel.email,
+    time_sleep.wait_for_metrics,
   ]
 }
 
