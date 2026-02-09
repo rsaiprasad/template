@@ -183,6 +183,63 @@ function MyComponent() {
 }
 ```
 
+### Data Table Pattern
+
+List pages (Users, Groups) use the `DataTable` component with TanStack Table for server-side pagination, row selection, and bulk actions.
+
+**Column definitions** define what renders in each column:
+
+```typescript
+import type { ColumnDef } from '@tanstack/react-table';
+
+const columns: ColumnDef<MyType, unknown>[] = [
+  {
+    id: 'select',
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected()}
+        onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(v) => row.toggleSelected(!!v)}
+      />
+    ),
+  },
+  {
+    accessorKey: 'name',
+    header: 'Name',
+    cell: ({ row }) => (
+      <Link to={`/items/${row.original.id}`}>{row.original.name}</Link>
+    ),
+  },
+];
+```
+
+**DataTable usage** with URL-param-based pagination:
+
+```tsx
+<DataTable
+  columns={columns}
+  data={data?.data ?? []}
+  isLoading={isLoading}
+  rowCount={data?.meta?.total ?? 0}
+  pagination={pagination}
+  onPaginationChange={handlePaginationChange}
+  rowSelection={rowSelection}
+  onRowSelectionChange={setRowSelection}
+  getRowId={(row) => row.id}
+/>
+```
+
+Key patterns:
+- Name column is a clickable `<Link>` to the detail/edit page (no separate View/Edit actions)
+- Row selection with checkboxes enables bulk actions (e.g., delete) shown in an action bar above the table
+- Server-side pagination via `manualPagination: true` with URL search params
+- Selection state resets when page, search, or filter params change
+
 ### Theme Support
 
 ```typescript
@@ -200,10 +257,12 @@ All components in `src/components/ui/` follow shadcn/ui patterns:
 
 - `Button` - with variants and loading state
 - `Card` - content containers
+- `Checkbox` - checkbox input (Radix UI)
+- `DataTable` - reusable TanStack Table wrapper with server-side pagination, row selection, and loading states
 - `Dialog` - modal dialogs
 - `Form` - react-hook-form integration
 - `Input`, `Select`, `Switch` - form controls
-- `Table` - data tables
+- `Table` - base table primitives
 - `Toast` - notifications
 
 ### Layout Components

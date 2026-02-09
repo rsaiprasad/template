@@ -1,7 +1,10 @@
+import { api } from '@/api';
 import { WithPermission } from '@/components/features/permission-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DataTable } from '@/components/ui/data-table';
 import {
   Dialog,
   DialogContent,
@@ -10,12 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -24,36 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch';
 import { toastError, toastSuccess } from '@/hooks/useToast';
-import { api } from '@/api';
 import { formatDate, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import type { UserWithGroups } from '@/types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-} from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ColumnDef, PaginationState, RowSelectionState } from '@tanstack/react-table';
+import { Plus, Search, Trash2 } from 'lucide-react';
 import * as React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-
-const PAGE_SIZES = [10, 20, 50];
 
 function getStatusBadgeVariant(status: string) {
   switch (status) {
@@ -66,68 +43,73 @@ function getStatusBadgeVariant(status: string) {
   }
 }
 
-// Memoized table row component for better performance
-interface UserRowProps {
-  user: UserWithGroups;
-  onDeleteClick: (user: UserWithGroups) => void;
-}
-
-const UserRow = React.memo(function UserRow({ user, onDeleteClick }: UserRowProps) {
-  return (
-    <TableRow>
-      <TableCell>
+const columns: ColumnDef<UserWithGroups, unknown>[] = [
+  {
+    id: 'select',
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: 'displayName',
+    header: 'User',
+    cell: ({ row }) => {
+      const user = row.original;
+      return (
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarImage src={user.photoURL || undefined} />
             <AvatarFallback>{getInitials(user.displayName || user.email)}</AvatarFallback>
           </Avatar>
-          <span className="font-medium">{user.displayName || 'No name'}</span>
+          <Link to={`/users/${user.id}`} className="font-medium hover:underline">
+            {user.displayName || 'No name'}
+          </Link>
         </div>
-      </TableCell>
-      <TableCell className="text-muted-foreground">{user.email}</TableCell>
-      <TableCell>
-        <Badge variant={getStatusBadgeVariant(user.status)}>{user.status}</Badge>
-      </TableCell>
-      <TableCell className="text-muted-foreground">{user.groups?.length || 0} groups</TableCell>
-      <TableCell className="text-muted-foreground">{formatDate(user.createdAt)}</TableCell>
-      <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Actions</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link to={`/users/${user.id}`}>
-                <Eye className="mr-2 h-4 w-4" />
-                View
-              </Link>
-            </DropdownMenuItem>
-            <WithPermission permission="users:update">
-              <DropdownMenuItem asChild>
-                <Link to={`/users/${user.id}/edit`}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit
-                </Link>
-              </DropdownMenuItem>
-            </WithPermission>
-            <WithPermission permission="users:delete">
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => onDeleteClick(user)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </WithPermission>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
-  );
-});
+      );
+    },
+  },
+  {
+    accessorKey: 'email',
+    header: 'Email',
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.email}</span>,
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => (
+      <Badge variant={getStatusBadgeVariant(row.original.status)}>{row.original.status}</Badge>
+    ),
+  },
+  {
+    id: 'groups',
+    header: 'Groups',
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{row.original.groups?.length || 0} groups</span>
+    ),
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Created',
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{formatDate(row.original.createdAt)}</span>
+    ),
+  },
+];
 
 export function UserList() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -142,9 +124,18 @@ export function UserList() {
   // Debounced search
   const { inputValue: searchInput, handleChange: handleSearchChange } = useDebouncedSearch();
 
-  // Local state
+  // Selection state
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+
+  // Reset selection when page/search/status changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on filter change
+  React.useEffect(() => {
+    setRowSelection({});
+  }, [page, pageSize, search, status]);
+
+  // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [userToDelete, setUserToDelete] = React.useState<UserWithGroups | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Fetch users
   const { data, isLoading, error } = useQuery({
@@ -152,19 +143,27 @@ export function UserList() {
     queryFn: () => api.listUsers({ page, pageSize, search, status: status || undefined }),
   });
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: (userId: string) => api.deleteUser(userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      toastSuccess('User deleted', 'The user has been successfully deleted.');
-      setDeleteDialogOpen(false);
-      setUserToDelete(null);
+  const selectedCount = Object.keys(rowSelection).length;
+
+  // Pagination state bridged to URL params
+  const pagination: PaginationState = {
+    pageIndex: page - 1,
+    pageSize,
+  };
+
+  const handlePaginationChange = React.useCallback(
+    (updaterOrValue: PaginationState | ((old: PaginationState) => PaginationState)) => {
+      const newPagination =
+        typeof updaterOrValue === 'function'
+          ? updaterOrValue({ pageIndex: page - 1, pageSize })
+          : updaterOrValue;
+      const params = new URLSearchParams(searchParams);
+      params.set('page', (newPagination.pageIndex + 1).toString());
+      params.set('pageSize', newPagination.pageSize.toString());
+      setSearchParams(params);
     },
-    onError: (error: Error) => {
-      toastError('Failed to delete user', error.message);
-    },
-  });
+    [page, pageSize, searchParams, setSearchParams]
+  );
 
   const handleStatusChange = (value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -177,31 +176,30 @@ export function UserList() {
     setSearchParams(params);
   };
 
-  const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('page', newPage.toString());
-    setSearchParams(params);
-  };
+  const confirmBulkDelete = async () => {
+    const selectedIds = Object.keys(rowSelection);
+    if (selectedIds.length === 0) return;
 
-  const handlePageSizeChange = (value: string) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('pageSize', value);
-    params.set('page', '1');
-    setSearchParams(params);
-  };
+    setIsDeleting(true);
+    const results = await Promise.allSettled(selectedIds.map((id) => api.deleteUser(id)));
 
-  const handleDeleteClick = React.useCallback((user: UserWithGroups) => {
-    setUserToDelete(user);
-    setDeleteDialogOpen(true);
-  }, []);
-
-  const confirmDelete = () => {
-    if (userToDelete) {
-      deleteMutation.mutate(userToDelete.id);
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length === 0) {
+      toastSuccess('Users deleted', `${selectedIds.length} user(s) deleted successfully.`);
+    } else if (failures.length < selectedIds.length) {
+      toastError(
+        'Partial failure',
+        `${selectedIds.length - failures.length} deleted, ${failures.length} failed.`
+      );
+    } else {
+      toastError('Failed to delete users', 'All delete operations failed.');
     }
-  };
 
-  const totalPages = data?.meta?.total ? Math.ceil(data.meta.total / pageSize) : 0;
+    setIsDeleting(false);
+    setDeleteDialogOpen(false);
+    setRowSelection({});
+    queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+  };
 
   return (
     <div className="space-y-6">
@@ -244,161 +242,50 @@ export function UserList() {
         </Select>
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Groups</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-[70px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="h-10 w-10 rounded-full" />
-                      <Skeleton className="h-4 w-32" />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-40" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-5 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-20" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8" />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : error ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  <p className="text-destructive">Failed to load users</p>
-                </TableCell>
-              </TableRow>
-            ) : data?.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  <p className="text-muted-foreground">No users found</p>
-                </TableCell>
-              </TableRow>
-            ) : (
-              data?.data.map((user) => (
-                <UserRow
-                  key={user.id}
-                  user={user as UserWithGroups}
-                  onDeleteClick={handleDeleteClick}
-                />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination */}
-      {data?.meta?.total && data.meta.total > 0 && (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Showing</span>
-            <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
-              <SelectTrigger className="w-[70px] h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAGE_SIZES.map((size: number) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span>of {data.meta.total} users</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(page - 1)}
-              disabled={page <= 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
+      {/* Bulk action bar */}
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-4 rounded-md border bg-muted/50 px-4 py-2">
+          <span className="text-sm font-medium">{selectedCount} selected</span>
+          <WithPermission permission="users:delete">
+            <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Selected
             </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum: number;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (page <= 3) {
-                  pageNum = i + 1;
-                } else if (page >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = page - 2 + i;
-                }
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={page === pageNum ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handlePageChange(pageNum)}
-                    className="w-8"
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(page + 1)}
-              disabled={page >= totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          </WithPermission>
         </div>
       )}
 
-      {/* Delete confirmation dialog */}
+      {/* Data Table */}
+      <DataTable
+        columns={columns}
+        data={(data?.data as UserWithGroups[]) ?? []}
+        isLoading={isLoading}
+        error={error}
+        errorMessage="Failed to load users"
+        emptyMessage="No users found"
+        rowCount={data?.meta?.total ?? 0}
+        pagination={pagination}
+        onPaginationChange={handlePaginationChange}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
+        getRowId={(row) => row.id}
+      />
+
+      {/* Bulk delete confirmation dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
+            <DialogTitle>Delete Users</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete{' '}
-              <span className="font-medium">
-                {userToDelete?.displayName || userToDelete?.email}
-              </span>
-              ? This action cannot be undone.
+              Are you sure you want to delete {selectedCount} user(s)? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-              isLoading={deleteMutation.isPending}
-            >
-              Delete
+            <Button variant="destructive" onClick={confirmBulkDelete} isLoading={isDeleting}>
+              Delete {selectedCount} User(s)
             </Button>
           </DialogFooter>
         </DialogContent>

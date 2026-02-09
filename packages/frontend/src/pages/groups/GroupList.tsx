@@ -1,6 +1,9 @@
+import { api } from '@/api';
 import { WithPermission } from '@/components/features/permission-gate';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DataTable } from '@/components/ui/data-table';
 import {
   Dialog,
   DialogContent,
@@ -9,121 +12,91 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch';
 import { toastError, toastSuccess } from '@/hooks/useToast';
-import { api } from '@/api';
 import { formatDate } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import type { GroupWithUsers } from '@/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Search,
-  Shield,
-  Trash2,
-  Users,
-} from 'lucide-react';
+import type { ColumnDef, PaginationState, RowSelectionState } from '@tanstack/react-table';
+import { Plus, Search, Shield, Trash2, Users } from 'lucide-react';
 import * as React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
-const PAGE_SIZES = [10, 20, 50];
-
-// Memoized table row component for better performance
-interface GroupRowProps {
-  group: GroupWithUsers;
-  onDeleteClick: (group: GroupWithUsers) => void;
-}
-
-const GroupRow = React.memo(function GroupRow({ group, onDeleteClick }: GroupRowProps) {
-  return (
-    <TableRow>
-      <TableCell>
+const columns: ColumnDef<GroupWithUsers, unknown>[] = [
+  {
+    id: 'select',
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: 'name',
+    header: 'Group',
+    cell: ({ row }) => {
+      const group = row.original;
+      return (
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
             <Shield className="h-4 w-4 text-primary" />
           </div>
-          <span className="font-medium">{group.name}</span>
+          <Link to={`/groups/${group.id}`} className="font-medium hover:underline">
+            {group.name}
+          </Link>
         </div>
-      </TableCell>
-      <TableCell className="text-muted-foreground max-w-[200px] truncate">
-        {group.description || '-'}
-      </TableCell>
-      <TableCell>
-        <Badge variant="outline" className="gap-1">
-          <Users className="h-3 w-3" />
-          {group.users?.length || 0}
-        </Badge>
-      </TableCell>
-      <TableCell>
-        <Badge variant="secondary">{group.permissions?.length || 0} permissions</Badge>
-      </TableCell>
-      <TableCell className="text-muted-foreground">{formatDate(group.createdAt)}</TableCell>
-      <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Actions</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link to={`/groups/${group.id}`}>
-                <Eye className="mr-2 h-4 w-4" />
-                View
-              </Link>
-            </DropdownMenuItem>
-            <WithPermission permission="groups:update">
-              <DropdownMenuItem asChild>
-                <Link to={`/groups/${group.id}/edit`}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit
-                </Link>
-              </DropdownMenuItem>
-            </WithPermission>
-            <WithPermission permission="groups:delete">
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => onDeleteClick(group)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </WithPermission>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
-  );
-});
+      );
+    },
+  },
+  {
+    accessorKey: 'description',
+    header: 'Description',
+    cell: ({ row }) => (
+      <span className="text-muted-foreground max-w-[200px] truncate block">
+        {row.original.description || '-'}
+      </span>
+    ),
+  },
+  {
+    id: 'members',
+    header: 'Members',
+    cell: ({ row }) => (
+      <Badge variant="outline" className="gap-1">
+        <Users className="h-3 w-3" />
+        {row.original.users?.length || 0}
+      </Badge>
+    ),
+  },
+  {
+    id: 'permissions',
+    header: 'Permissions',
+    cell: ({ row }) => (
+      <Badge variant="secondary">{row.original.permissions?.length || 0} permissions</Badge>
+    ),
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Created',
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{formatDate(row.original.createdAt)}</span>
+    ),
+  },
+];
 
 export function GroupList() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -137,9 +110,18 @@ export function GroupList() {
   // Debounced search
   const { inputValue: searchInput, handleChange: handleSearchChange } = useDebouncedSearch();
 
-  // Local state
+  // Selection state
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+
+  // Reset selection when page/search changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on filter change
+  React.useEffect(() => {
+    setRowSelection({});
+  }, [page, pageSize, search]);
+
+  // Dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [groupToDelete, setGroupToDelete] = React.useState<GroupWithUsers | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [newGroupName, setNewGroupName] = React.useState('');
   const [newGroupDescription, setNewGroupDescription] = React.useState('');
@@ -165,43 +147,27 @@ export function GroupList() {
     },
   });
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: (groupId: string) => api.deleteGroup(groupId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
-      toastSuccess('Group deleted', 'The group has been successfully deleted.');
-      setDeleteDialogOpen(false);
-      setGroupToDelete(null);
+  const selectedCount = Object.keys(rowSelection).length;
+
+  // Pagination state bridged to URL params
+  const pagination: PaginationState = {
+    pageIndex: page - 1,
+    pageSize,
+  };
+
+  const handlePaginationChange = React.useCallback(
+    (updaterOrValue: PaginationState | ((old: PaginationState) => PaginationState)) => {
+      const newPagination =
+        typeof updaterOrValue === 'function'
+          ? updaterOrValue({ pageIndex: page - 1, pageSize })
+          : updaterOrValue;
+      const params = new URLSearchParams(searchParams);
+      params.set('page', (newPagination.pageIndex + 1).toString());
+      params.set('pageSize', newPagination.pageSize.toString());
+      setSearchParams(params);
     },
-    onError: (error: Error) => {
-      toastError('Failed to delete group', error.message);
-    },
-  });
-
-  const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('page', newPage.toString());
-    setSearchParams(params);
-  };
-
-  const handlePageSizeChange = (value: string) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('pageSize', value);
-    params.set('page', '1');
-    setSearchParams(params);
-  };
-
-  const handleDeleteClick = React.useCallback((group: GroupWithUsers) => {
-    setGroupToDelete(group);
-    setDeleteDialogOpen(true);
-  }, []);
-
-  const confirmDelete = () => {
-    if (groupToDelete) {
-      deleteMutation.mutate(groupToDelete.id);
-    }
-  };
+    [page, pageSize, searchParams, setSearchParams]
+  );
 
   const handleCreateGroup = () => {
     if (newGroupName.trim()) {
@@ -212,7 +178,30 @@ export function GroupList() {
     }
   };
 
-  const totalPages = data?.meta?.total ? Math.ceil(data.meta.total / pageSize) : 0;
+  const confirmBulkDelete = async () => {
+    const selectedIds = Object.keys(rowSelection);
+    if (selectedIds.length === 0) return;
+
+    setIsDeleting(true);
+    const results = await Promise.allSettled(selectedIds.map((id) => api.deleteGroup(id)));
+
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length === 0) {
+      toastSuccess('Groups deleted', `${selectedIds.length} group(s) deleted successfully.`);
+    } else if (failures.length < selectedIds.length) {
+      toastError(
+        'Partial failure',
+        `${selectedIds.length - failures.length} deleted, ${failures.length} failed.`
+      );
+    } else {
+      toastError('Failed to delete groups', 'All delete operations failed.');
+    }
+
+    setIsDeleting(false);
+    setDeleteDialogOpen(false);
+    setRowSelection({});
+    queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
+  };
 
   return (
     <div className="space-y-6">
@@ -243,134 +232,34 @@ export function GroupList() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Group</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Members</TableHead>
-              <TableHead>Permissions</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-[70px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <Skeleton className="h-4 w-32" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-48" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8" />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : error ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  <p className="text-destructive">Failed to load groups</p>
-                </TableCell>
-              </TableRow>
-            ) : data?.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  <p className="text-muted-foreground">No groups found</p>
-                </TableCell>
-              </TableRow>
-            ) : (
-              data?.data.map((group) => (
-                <GroupRow
-                  key={group.id}
-                  group={group as GroupWithUsers}
-                  onDeleteClick={handleDeleteClick}
-                />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination */}
-      {data?.meta?.total && data.meta.total > 0 && (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Showing</span>
-            <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
-              <SelectTrigger className="w-[70px] h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAGE_SIZES.map((size: number) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span>of {data.meta.total} groups</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(page - 1)}
-              disabled={page <= 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
+      {/* Bulk action bar */}
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-4 rounded-md border bg-muted/50 px-4 py-2">
+          <span className="text-sm font-medium">{selectedCount} selected</span>
+          <WithPermission permission="groups:delete">
+            <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Selected
             </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum: number;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (page <= 3) {
-                  pageNum = i + 1;
-                } else if (page >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = page - 2 + i;
-                }
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={page === pageNum ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handlePageChange(pageNum)}
-                    className="w-8"
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(page + 1)}
-              disabled={page >= totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          </WithPermission>
         </div>
       )}
+
+      {/* Data Table */}
+      <DataTable
+        columns={columns}
+        data={(data?.data as GroupWithUsers[]) ?? []}
+        isLoading={isLoading}
+        error={error}
+        errorMessage="Failed to load groups"
+        emptyMessage="No groups found"
+        rowCount={data?.meta?.total ?? 0}
+        pagination={pagination}
+        onPaginationChange={handlePaginationChange}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
+        getRowId={(row) => row.id}
+      />
 
       {/* Create dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -418,27 +307,22 @@ export function GroupList() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete dialog */}
+      {/* Bulk delete dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Group</DialogTitle>
+            <DialogTitle>Delete Groups</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete{' '}
-              <span className="font-medium">{groupToDelete?.name}</span>? This will remove all users
-              from this group. This action cannot be undone.
+              Are you sure you want to delete {selectedCount} group(s)? This will remove all users
+              from these groups. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-              isLoading={deleteMutation.isPending}
-            >
-              Delete
+            <Button variant="destructive" onClick={confirmBulkDelete} isLoading={isDeleting}>
+              Delete {selectedCount} Group(s)
             </Button>
           </DialogFooter>
         </DialogContent>
