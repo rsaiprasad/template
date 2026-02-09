@@ -139,7 +139,7 @@ NODE_ENV=development
 EOF
 
     cat > "$PROJECT_ROOT/packages/frontend/.env" << EOF
-PUBLIC_API_BASE_URL=/api
+PUBLIC_API_BASE_URL=/api/v1
 PUBLIC_FIREBASE_API_KEY=${api_key}
 PUBLIC_FIREBASE_AUTH_DOMAIN=${auth_domain}
 PUBLIC_FIREBASE_PROJECT_ID=${project_id}

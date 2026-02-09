@@ -93,7 +93,7 @@ PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 PUBLIC_FIREBASE_APP_ID=your-app-id
 
 # API Configuration
-PUBLIC_API_BASE_URL=/api
+PUBLIC_API_BASE_URL=/api/v1
 ```
 
 ### Commands

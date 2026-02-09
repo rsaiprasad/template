@@ -172,7 +172,7 @@ EOF
     print_info "Generating $PROJECT_ROOT/packages/frontend/.env"
     cat > "$PROJECT_ROOT/packages/frontend/.env" << EOF
 # API Configuration
-PUBLIC_API_BASE_URL=/api
+PUBLIC_API_BASE_URL=/api/v1
 
 # Firebase Configuration
 PUBLIC_FIREBASE_API_KEY=${api_key}

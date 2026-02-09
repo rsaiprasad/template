@@ -16,7 +16,7 @@
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `PUBLIC_API_BASE_URL` | API base URL (relative in prod) | `/api` |
+| `PUBLIC_API_BASE_URL` | API base URL (relative in prod) | `/api/v1` |
 | `PUBLIC_FIREBASE_API_KEY` | Firebase API key | `AIzaSy...` |
 | `PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase auth domain | `project.firebaseapp.com` |
 | `PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID | `my-dashboard-app` |

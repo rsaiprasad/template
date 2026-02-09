@@ -12,7 +12,7 @@ import { AdminDashboardApi } from './generated';
 export * from './generated';
 
 // API Base URL from environment
-const API_BASE_URL = process.env.PUBLIC_API_BASE_URL || '/api';
+const API_BASE_URL = process.env.PUBLIC_API_BASE_URL || '/api/v1';
 
 /**
  * Singleton instance of the Admin Dashboard API client
