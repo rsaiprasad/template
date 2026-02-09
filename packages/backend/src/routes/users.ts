@@ -55,7 +55,19 @@ userRoutes.get('/', requirePermission('users:list'), async (c) => {
 
   const { users, total, nextCursor } = await userService.listUsers(params);
 
-  return paginatedResponse(c, users, {
+  // Resolve groupId to groupName for each user
+  const groupIds = [...new Set(users.map((u) => u.groupId).filter(Boolean))];
+  const groupMap = new Map<string, string>();
+  for (const gid of groupIds) {
+    const group = await groupService.getGroup(gid);
+    if (group) groupMap.set(gid, group.name);
+  }
+  const usersWithGroupName = users.map((u) => ({
+    ...u,
+    groupName: groupMap.get(u.groupId) || 'Unknown',
+  }));
+
+  return paginatedResponse(c, usersWithGroupName, {
     page: params.page!,
     limit: params.limit!,
     total,

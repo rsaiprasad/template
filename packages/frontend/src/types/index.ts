@@ -12,7 +12,7 @@ import type { User, Group } from '@admin-dashboard/shared';
 
 // Extended types for API responses with computed fields
 export interface UserWithGroups extends User {
-  groups?: Array<{ id: string; name: string }>;
+  groupName?: string;
 }
 
 export interface GroupWithUsers extends Group {

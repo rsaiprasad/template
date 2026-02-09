@@ -107,10 +107,10 @@ function getColumns(
       ),
     },
     {
-      id: 'groups',
-      header: 'Groups',
+      id: 'group',
+      header: 'Group',
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.groups?.length || 0} groups</span>
+        <Badge variant="outline">{row.original.groupName || 'None'}</Badge>
       ),
     },
     {
