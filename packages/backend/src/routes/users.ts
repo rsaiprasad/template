@@ -93,6 +93,11 @@ userRoutes.put('/:id', requirePermission('users:update'), async (c) => {
   const userId = c.req.param('id');
   const currentUser = c.get('user');
 
+  // Non-super-admins without users:list can only update their own profile
+  if (!currentUser.isSuperAdmin && !currentUser.permissions.includes('users:list') && userId !== currentUser.uid) {
+    return errorResponse(c, ErrorCodes.FORBIDDEN, 'You can only update your own profile', 403);
+  }
+
   // Parse and validate request body
   let body: unknown;
   try {
@@ -150,6 +155,11 @@ userRoutes.put('/:id', requirePermission('users:update'), async (c) => {
 userRoutes.delete('/:id', requirePermission('users:delete'), async (c) => {
   const userId = c.req.param('id');
   const currentUser = c.get('user');
+
+  // Non-super-admins without users:list can only delete their own account
+  if (!currentUser.isSuperAdmin && !currentUser.permissions.includes('users:list') && userId !== currentUser.uid) {
+    return errorResponse(c, ErrorCodes.FORBIDDEN, 'You can only delete your own account', 403);
+  }
 
   // Prevent self-deletion
   if (userId === currentUser.uid) {
