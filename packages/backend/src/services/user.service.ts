@@ -132,8 +132,13 @@ export class UserService {
     const total = countSnapshot.data().count;
 
     // Apply sorting
+    // When searching with email prefix (inequality filters on email),
+    // Firestore requires the first orderBy to be on the inequality field
     const validSortFields = ['createdAt', 'updatedAt', 'displayName', 'email', 'lastLoginAt'];
     const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    if (query && sortField !== 'email') {
+      baseQuery = baseQuery.orderBy('email', 'asc');
+    }
     baseQuery = baseQuery.orderBy(sortField, sortOrder === 'asc' ? 'asc' : 'desc');
 
     // Cursor-based pagination (preferred for large datasets)

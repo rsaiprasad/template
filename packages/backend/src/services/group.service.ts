@@ -83,6 +83,11 @@ export class GroupService {
     const total = countSnapshot.data().count;
 
     // Apply sorting and pagination
+    // When searching with name prefix (inequality filters on name),
+    // Firestore requires the first orderBy to be on the inequality field
+    if (params.query && sortBy !== 'name') {
+      ref = ref.orderBy('name', 'asc');
+    }
     ref = ref.orderBy(sortBy, sortOrder);
     const offset = (page - 1) * limit;
     if (offset > 0) {

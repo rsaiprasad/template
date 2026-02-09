@@ -50,7 +50,7 @@ kill_existing() {
 # We read the file directly instead of `firebase use` because `firebase use`
 # validates against real projects, but demo-* projects only exist in the emulator.
 cd "$PROJECT_ROOT"
-PROJECT_ID=$(node -e "console.log(require('./.firebaserc').projects.default)" 2>/dev/null || echo "demo-project")
+PROJECT_ID=$(node -e "console.log(JSON.parse(require('fs').readFileSync('./.firebaserc','utf8')).projects.default)" 2>/dev/null || echo "demo-project")
 echo -e "${BLUE}Using Firebase project: ${PROJECT_ID}${NC}"
 
 # Build backend if dist doesn't exist
