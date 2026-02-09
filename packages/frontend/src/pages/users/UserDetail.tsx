@@ -42,6 +42,7 @@ interface UserGroup {
 
 type UserWithGroups = User & {
   groups?: UserGroup[];
+  groupNames?: string[];
   firebaseUid?: string;
 };
 
@@ -81,7 +82,21 @@ export function UserDetail() {
     queryFn: () => api.listGroups({ pageSize: 100 }),
   });
 
-  const user = userData?.success ? (userData.data as UserWithGroups) : undefined;
+  const rawUser = userData?.success ? (userData.data as UserWithGroups) : undefined;
+  // Derive groups array from groupIds + groupNames for multi-group UI
+  const user = React.useMemo(() => {
+    if (!rawUser) return undefined;
+    if (!rawUser.groups && rawUser.groupIds && rawUser.groupNames) {
+      return {
+        ...rawUser,
+        groups: rawUser.groupIds.map((id, i) => ({
+          id,
+          name: rawUser.groupNames?.[i] || 'Unknown',
+        })),
+      };
+    }
+    return rawUser;
+  }, [rawUser]);
   const availableGroups: Group[] = groupsData?.data || [];
 
   // Form setup

@@ -82,20 +82,28 @@ authRoutes.post('/login', loginAuditMiddleware, async (c) => {
       photoURL: firebaseUserRecord.photoURL || null,
     });
 
-    // Get user's permissions
+    // Get user's permissions from all groups
     let permissions: string[] = [];
-    let groupName = 'Unknown';
+    const groupNames: string[] = [];
 
     if (!user.isSuperAdmin) {
       const db = getDb();
-      const groupDoc = await db.collection(Collections.GROUPS).doc(user.groupId).get();
-      if (groupDoc.exists) {
-        const group = convertFirestoreDoc<Group>(groupDoc);
-        permissions = group?.permissions || [];
-        groupName = group?.name || 'Unknown';
+      const permissionSet = new Set<string>();
+      for (const gid of user.groupIds) {
+        const groupDoc = await db.collection(Collections.GROUPS).doc(gid).get();
+        if (groupDoc.exists) {
+          const group = convertFirestoreDoc<Group>(groupDoc);
+          if (group) {
+            groupNames.push(group.name);
+            for (const perm of group.permissions) {
+              permissionSet.add(perm);
+            }
+          }
+        }
       }
+      permissions = [...permissionSet];
     } else {
-      groupName = 'Super Admin';
+      groupNames.push('Super Admin');
     }
 
     // Set user context for audit logging
@@ -104,7 +112,7 @@ authRoutes.post('/login', loginAuditMiddleware, async (c) => {
     const userWithPermissions: UserWithPermissions = {
       ...user,
       permissions,
-      groupName,
+      groupNames: groupNames.length > 0 ? groupNames : ['Unknown'],
     };
 
     return successResponse(c, {
@@ -140,22 +148,26 @@ authRoutes.get('/me', authMiddleware, async (c) => {
   const user = c.get('user');
   const userRecord = c.get('userRecord');
 
-  // Get group name
-  let groupName = 'Super Admin';
+  // Get group names
+  const groupNames: string[] = [];
 
   if (!user.isSuperAdmin) {
     const db = getDb();
-    const groupDoc = await db.collection(Collections.GROUPS).doc(user.groupId).get();
-    if (groupDoc.exists) {
-      const group = convertFirestoreDoc<Group>(groupDoc);
-      groupName = group?.name || 'Unknown';
+    for (const gid of user.groupIds) {
+      const groupDoc = await db.collection(Collections.GROUPS).doc(gid).get();
+      if (groupDoc.exists) {
+        const group = convertFirestoreDoc<Group>(groupDoc);
+        if (group) groupNames.push(group.name);
+      }
     }
+  } else {
+    groupNames.push('Super Admin');
   }
 
   const userWithPermissions: UserWithPermissions = {
     ...userRecord,
     permissions: user.permissions,
-    groupName,
+    groupNames: groupNames.length > 0 ? groupNames : ['Unknown'],
   };
 
   return successResponse(c, userWithPermissions);

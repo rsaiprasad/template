@@ -13,6 +13,7 @@ import {
   getDb,
 } from '../core/lib/firebase-admin';
 import { getAdminPermissions, getUserPermissions } from '../core/permissions';
+import { migrateAllUsersToMultiGroup } from './migration';
 
 /**
  * Group Service
@@ -101,11 +102,14 @@ export class GroupService {
     const groups = convertFirestoreDocs<Group>(snapshot);
 
     // Add user counts (same pattern as listGroupsWithUserCounts)
-    const usersSnapshot = await this.db.collection(Collections.USERS).select('groupId').get();
+    const usersSnapshot = await this.db.collection(Collections.USERS).select('groupIds', 'groupId').get();
     const groupCounts = new Map<string, number>();
     for (const doc of usersSnapshot.docs) {
-      const gid = doc.data().groupId as string;
-      groupCounts.set(gid, (groupCounts.get(gid) || 0) + 1);
+      const data = doc.data();
+      const gids: string[] = Array.isArray(data.groupIds) ? data.groupIds : (data.groupId ? [data.groupId] : []);
+      for (const gid of gids) {
+        groupCounts.set(gid, (groupCounts.get(gid) || 0) + 1);
+      }
     }
 
     return {
@@ -123,13 +127,16 @@ export class GroupService {
 
     // Get all users and count by group in a single query
     // This avoids N+1 queries by fetching all user group counts at once
-    const usersSnapshot = await this.db.collection(Collections.USERS).select('groupId').get();
+    const usersSnapshot = await this.db.collection(Collections.USERS).select('groupIds', 'groupId').get();
 
-    // Count users per group
+    // Count users per group (a user in multiple groups counts for each)
     const groupCounts = new Map<string, number>();
     for (const doc of usersSnapshot.docs) {
-      const groupId = doc.data().groupId as string;
-      groupCounts.set(groupId, (groupCounts.get(groupId) || 0) + 1);
+      const data = doc.data();
+      const gids: string[] = Array.isArray(data.groupIds) ? data.groupIds : (data.groupId ? [data.groupId] : []);
+      for (const gid of gids) {
+        groupCounts.set(gid, (groupCounts.get(gid) || 0) + 1);
+      }
     }
 
     // Merge counts with groups
@@ -255,13 +262,13 @@ export class GroupService {
     // Check if group has any users
     const userCountSnapshot = await this.db
       .collection(Collections.USERS)
-      .where('groupId', '==', groupId)
+      .where('groupIds', 'array-contains', groupId)
       .count()
       .get();
     const userCount = userCountSnapshot.data().count;
 
     if (userCount > 0) {
-      throw new ValidationError('Cannot delete a group that has users. Please move users to another group first.');
+      throw new ValidationError('Cannot delete a group that has users. Please remove users from this group first.');
     }
 
     await groupRef.delete();
@@ -279,7 +286,7 @@ export class GroupService {
 
     const snapshot = await this.db
       .collection(Collections.USERS)
-      .where('groupId', '==', groupId)
+      .where('groupIds', 'array-contains', groupId)
       .get();
 
     return convertFirestoreDocs<User>(snapshot);
@@ -332,6 +339,9 @@ export class GroupService {
     }
 
     await batch.commit();
+
+    // Migrate existing users from groupId to groupIds
+    await migrateAllUsersToMultiGroup();
   }
 
   /**

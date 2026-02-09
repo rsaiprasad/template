@@ -11,7 +11,7 @@ export interface User {
   email: string;
   displayName: string;
   photoURL: string | null;
-  groupId: string;
+  groupIds: string[];
   isSuperAdmin: boolean;
   status: UserStatus;
   disabledAt?: Date;
@@ -26,17 +26,16 @@ export interface CreateUserInput {
   email: string;
   displayName: string;
   photoURL?: string | null;
-  groupId?: string;
+  groupIds?: string[];
 }
 
 export interface UpdateUserInput {
   displayName?: string;
   photoURL?: string | null;
-  groupId?: string;
   preferences?: Partial<UserPreferences>;
 }
 
 export interface UserWithPermissions extends User {
   permissions: string[];
-  groupName: string;
+  groupNames: string[];
 }

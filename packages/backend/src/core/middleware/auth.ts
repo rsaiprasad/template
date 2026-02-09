@@ -1,5 +1,6 @@
 import type { Group, User } from '@admin-dashboard/shared';
 import type { MiddlewareHandler } from 'hono';
+import { normalizeUserGroupIds } from '../../services/migration';
 import { Collections, convertFirestoreDoc, getAuthAdmin, getDb } from '../lib/firebase-admin';
 import type { AppEnv, AuthUser } from '../types/context';
 import { ErrorCodes, errorResponse, unauthorized } from '../utils/response';
@@ -18,9 +19,37 @@ export function buildAuthUser(
     displayName: userRecord.displayName,
     photoURL: userRecord.photoURL,
     isSuperAdmin: userRecord.isSuperAdmin,
-    groupId: userRecord.groupId,
+    groupIds: userRecord.groupIds,
     permissions,
   };
+}
+
+/**
+ * Fetch all groups for the given groupIds and return the union of all permissions
+ */
+async function fetchMultiGroupPermissions(groupIds: string[]): Promise<string[]> {
+  if (groupIds.length === 0) return [];
+
+  const db = getDb();
+  const permissionSet = new Set<string>();
+
+  // Fetch all group docs in parallel
+  const groupDocs = await Promise.all(
+    groupIds.map((gid) => db.collection(Collections.GROUPS).doc(gid).get())
+  );
+
+  for (const groupDoc of groupDocs) {
+    if (groupDoc.exists) {
+      const group = convertFirestoreDoc<Group>(groupDoc);
+      if (group?.permissions) {
+        for (const perm of group.permissions) {
+          permissionSet.add(perm);
+        }
+      }
+    }
+  }
+
+  return [...permissionSet];
 }
 
 /**
@@ -58,7 +87,10 @@ export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
       return unauthorized(c, 'User not registered. Please complete registration.');
     }
 
-    const userRecord = convertFirestoreDoc<User>(userDoc);
+    const rawData = userDoc.data() as Record<string, unknown>;
+    // Normalize groupId -> groupIds for backward compatibility
+    const groupIds = normalizeUserGroupIds(rawData);
+    const userRecord = { ...convertFirestoreDoc<User>(userDoc)!, groupIds };
 
     if (!userRecord) {
       return unauthorized(c, 'Failed to load user data');
@@ -74,15 +106,11 @@ export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
       );
     }
 
-    // Get user's group to fetch permissions
+    // Get user's permissions from all groups
     let permissions: string[] = [];
 
     if (!userRecord.isSuperAdmin) {
-      const groupDoc = await db.collection(Collections.GROUPS).doc(userRecord.groupId).get();
-      if (groupDoc.exists) {
-        const group = convertFirestoreDoc<Group>(groupDoc);
-        permissions = group?.permissions || [];
-      }
+      permissions = await fetchMultiGroupPermissions(userRecord.groupIds);
     }
 
     // Build auth user object and attach to context
@@ -147,18 +175,16 @@ export const optionalAuthMiddleware: MiddlewareHandler<AppEnv> = async (c, next)
     const userDoc = await db.collection(Collections.USERS).doc(decodedToken.uid).get();
 
     if (userDoc.exists) {
-      const userRecord = convertFirestoreDoc<User>(userDoc);
+      const rawData = userDoc.data() as Record<string, unknown>;
+      const groupIds = normalizeUserGroupIds(rawData);
+      const userRecord = { ...convertFirestoreDoc<User>(userDoc)!, groupIds };
 
       // Check if user is disabled - don't authenticate disabled users
       if (userRecord && userRecord.status !== 'disabled') {
         let permissions: string[] = [];
 
         if (!userRecord.isSuperAdmin) {
-          const groupDoc = await db.collection(Collections.GROUPS).doc(userRecord.groupId).get();
-          if (groupDoc.exists) {
-            const group = convertFirestoreDoc<Group>(groupDoc);
-            permissions = group?.permissions || [];
-          }
+          permissions = await fetchMultiGroupPermissions(userRecord.groupIds);
         }
 
         const authUser = buildAuthUser(decodedToken.uid, userRecord, permissions);

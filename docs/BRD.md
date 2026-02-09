@@ -169,7 +169,7 @@ A well-architected, fully-typed, and tested template that includes:
 | FR-AUTH-01 | Users can sign in using Google OAuth | Must Have |
 | FR-AUTH-02 | Users can sign out from the application | Must Have |
 | FR-AUTH-03 | New users are automatically created in Firestore on first login | Must Have |
-| FR-AUTH-04 | New users are auto-assigned to "Users" group | Must Have |
+| FR-AUTH-04 | New users are auto-assigned to the default group (initially "Users") | Must Have |
 | FR-AUTH-05 | Protected Super Admin account cannot be deleted or demoted | Must Have |
 | FR-AUTH-08 | Super Admin is determined by `SUPER_ADMIN_EMAIL` env var, not first login | Must Have |
 | FR-AUTH-09 | Super Admin automatically has all permissions (bypasses all checks) | Must Have |
@@ -217,7 +217,7 @@ SO THAT I know I'm authenticated and can navigate the app
 | FR-USER-02 | Admins can search/filter users | Must Have |
 | FR-USER-03 | Admins can view user details | Must Have |
 | FR-USER-04 | Admins can edit user information | Must Have |
-| FR-USER-05 | Admins can change user's group assignment | Must Have |
+| FR-USER-05 | Admins can manage user's group assignments (add/remove multiple groups) | Must Have |
 | FR-USER-06 | Admins can disable/enable user accounts | Must Have |
 | FR-USER-07 | Admins can delete users (except Super Admin) | Must Have |
 | FR-USER-08 | Users can view and edit their own profile | Should Have |
@@ -235,8 +235,8 @@ I WANT TO disable a user account
 SO THAT I can revoke access without deleting data
 
 AS AN admin
-I WANT TO change a user's group
-SO THAT I can adjust their permissions
+I WANT TO add or remove groups from a user
+SO THAT I can adjust their permissions (merged from all assigned groups)
 
 AS A user
 I WANT TO view my profile
@@ -254,6 +254,7 @@ SO THAT I can see my account information
 | FR-GROUP-05 | Admins can view users in a group | Should Have |
 | FR-GROUP-06 | Default groups (Admin, Users) cannot be deleted | Must Have |
 | FR-GROUP-07 | System prevents deletion of groups with assigned users | Should Have |
+| FR-GROUP-08 | Users can belong to multiple groups; permissions are merged from all assigned groups | Must Have |
 
 #### Default Groups
 
@@ -297,7 +298,7 @@ Permissions are split between **code** (what permissions exist) and **database**
 | **Core Permission Definitions** | `packages/backend/src/core/permissions.ts` | Template (code) | Built-in permissions for users, groups, settings, audit |
 | **Custom Permission Definitions** | `packages/shared/src/constants/permissions.ts` | Developers (code) | App-specific permissions added by developers |
 | **Group Permissions** | Firestore `groups` collection | Admins (runtime) | Which permissions are assigned to each group |
-| **User Group Assignment** | Firestore `users` collection (`groupId` field) | Admins (runtime) | Which group a user belongs to |
+| **User Group Assignment** | Firestore `users` collection (`groupIds` field) | Admins (runtime) | Which groups a user belongs to (permissions merged from all assigned groups) |
 
 #### Permission Definition Files
 
@@ -347,7 +348,7 @@ Permissions follow the format: `resource:action`
 
 | Layer | Mechanism | Example |
 |-------|-----------|---------|
-| **Backend** | Permission middleware reads user's group permissions from Firestore and checks against required permission for the endpoint | `requirePermission('users:list')` on `GET /api/v1/users` |
+| **Backend** | Permission middleware reads user's group permissions from Firestore (merged from all assigned groups) and checks against required permission for the endpoint | `requirePermission('users:list')` on `GET /api/v1/users` |
 | **Frontend** | `useAuth` hook exposes `user.permissions` array; components conditionally render based on permission checks | `{hasPermission('users:create') && <AddUserButton />}` |
 | **Super Admin** | Bypasses all checks — backend middleware grants access; frontend treats `isSuperAdmin` as having all permissions | Always passes any permission check |
 
@@ -399,7 +400,7 @@ interface AuditLogEntry {
 | **Auth** | LOGIN, LOGOUT, LOGIN_FAILED |
 | **Users** | USER_CREATED, USER_UPDATED, USER_DISABLED, USER_ENABLED, USER_DELETED |
 | **Groups** | GROUP_CREATED, GROUP_UPDATED, GROUP_DELETED, GROUP_PERMISSIONS_CHANGED |
-| **Permissions** | USER_GROUP_CHANGED |
+| **Permissions** | USER_GROUP_ADDED, USER_GROUP_REMOVED |
 
 ---
 
@@ -671,7 +672,7 @@ interface User {
   photoURL: string | null;       // From Google OAuth
   
   // Authorization
-  groupId: string;               // Reference to group
+  groupIds: string[];            // References to groups (permissions merged from all)
   isSuperAdmin: boolean;         // Protected super admin flag
   
   // Status
@@ -754,7 +755,8 @@ type AuditAction =
   | 'USER_DISABLED'
   | 'USER_ENABLED'
   | 'USER_DELETED'
-  | 'USER_GROUP_CHANGED'
+  | 'USER_GROUP_ADDED'
+  | 'USER_GROUP_REMOVED'
   // Groups
   | 'GROUP_CREATED'
   | 'GROUP_UPDATED'
@@ -867,7 +869,8 @@ PUT    /api/v1/users/:id      # Update user
 DELETE /api/v1/users/:id      # Delete user
 POST   /api/v1/users/:id/disable   # Disable user
 POST   /api/v1/users/:id/enable    # Enable user
-PUT    /api/v1/users/:id/group     # Change user group
+POST   /api/v1/users/:id/groups/add     # Add group to user
+POST   /api/v1/users/:id/groups/remove  # Remove group from user
 ```
 
 #### 9.4.4 Groups Endpoints
@@ -913,7 +916,8 @@ GET    /api/v1/audit/:id      # Get audit log entry
 | `DELETE /users/:id` | `users:delete` |
 | `POST /users/:id/disable` | `users:update` |
 | `POST /users/:id/enable` | `users:update` |
-| `PUT /users/:id/group` | `users:update` + `groups:read` |
+| `POST /users/:id/groups/add` | `users:update` + `groups:read` |
+| `POST /users/:id/groups/remove` | `users:update` + `groups:read` |
 | `GET /groups` | `groups:list` |
 | `POST /groups` | `groups:create` |
 | `GET /groups/:id` | `groups:read` |
@@ -934,7 +938,7 @@ GET    /api/v1/audit/:id      # Get audit log entry
 |------|-------|-------------|------------|
 | Login | `/login` | Google OAuth sign-in | Unauthenticated |
 | Dashboard | `/` or `/dashboard` | Welcome page with greeting | All authenticated |
-| Users List | `/users` | User management table (list all users, group assignments) | `users:list` permission |
+| Users List | `/users` | User management table (list all users, multi-group assignments) | `users:list` permission |
 | User Detail | `/users/:id` | View/edit user | `users:read` permission |
 | Groups List | `/groups` | Group management (create, edit, assign permissions) | `groups:list` permission |
 | Group Detail | `/groups/:id` | View/edit group and its permissions | `groups:read` permission |
@@ -947,7 +951,7 @@ The Super Admin sees all sidebar links. Two key management sections:
 
 | Menu Link | Route | Purpose |
 |-----------|-------|---------|
-| **User Management** | `/users` | List all users, view group assignments, disable/enable/delete users, change user groups |
+| **User Management** | `/users` | List all users, view group assignments, disable/enable/delete users, add/remove user groups |
 | **Group Management** | `/groups` | Create/edit/delete groups, assign permissions from the shared permission definitions to groups, set default group for new users |
 
 Admins can configure the **default group** (via Settings) that new users are automatically assigned to on first login. The permissions of this default group are also configurable through the Group Management screen.
@@ -1044,8 +1048,8 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == 'admin';
+      return isAuthenticated() &&
+        'admin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupIds;
     }
     
     function isSuperAdmin() {

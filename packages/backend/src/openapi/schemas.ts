@@ -63,7 +63,7 @@ export const UserSchema = z.object({
   email: z.string().email().openapi({ description: 'User email address', example: 'user@example.com' }),
   displayName: z.string().openapi({ description: 'User display name', example: 'John Doe' }),
   photoURL: z.string().url().nullable().openapi({ description: 'User profile photo URL', example: 'https://example.com/photo.jpg' }),
-  groupId: z.string().openapi({ description: 'ID of the group the user belongs to', example: 'group_admin' }),
+  groupIds: z.array(z.string()).openapi({ description: 'IDs of the groups the user belongs to', example: ['group_admin'] }),
   isSuperAdmin: z.boolean().openapi({ description: 'Whether the user is a super administrator', example: false }),
   status: z.enum(['active', 'disabled']).openapi({ description: 'User account status', example: 'active' }),
   disabledAt: z.string().datetime().optional().openapi({ description: 'When the user was disabled' }),
@@ -76,14 +76,14 @@ export const UserSchema = z.object({
 
 export const UserWithPermissionsSchema = UserSchema.extend({
   permissions: z.array(z.string()).openapi({ description: 'List of permission strings', example: ['users:read', 'users:list'] }),
-  groupName: z.string().openapi({ description: 'Name of the user group', example: 'Administrators' }),
+  groupNames: z.array(z.string()).openapi({ description: 'Names of the user groups', example: ['Administrators'] }),
 });
 
 export const CreateUserSchema = z.object({
   email: z.string().email().openapi({ description: 'User email address', example: 'newuser@example.com' }),
   displayName: z.string().openapi({ description: 'User display name', example: 'Jane Doe' }),
   photoURL: z.string().url().nullable().optional().openapi({ description: 'User profile photo URL' }),
-  groupId: z.string().optional().openapi({ description: 'ID of the group to assign the user to' }),
+  groupIds: z.array(z.string()).optional().openapi({ description: 'IDs of the groups to assign the user to' }),
 });
 
 export const UpdateUserSchema = z.object({

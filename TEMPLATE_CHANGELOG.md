@@ -2,6 +2,26 @@
 
 All notable changes to the template core are documented here. Downstream projects should review this when syncing template updates.
 
+## [1.2.0] - 2026-02-09
+
+### Added
+- **Multi-group support**: Users can now belong to multiple groups simultaneously. Permissions are merged (union) from all assigned groups.
+- **Add/remove group endpoints**: `POST /api/v1/users/:id/groups/add` and `POST /api/v1/users/:id/groups/remove` replace the old `PUT /api/v1/users/:id/group` endpoint.
+- **Automatic data migration**: `initializeDefaultGroups` migrates existing users from `groupId: string` to `groupIds: string[]` on login, ensuring backward compatibility.
+
+### Changed
+- **User model**: `User.groupId: string` changed to `User.groupIds: string[]` in `packages/shared/src/types/user.ts`.
+- **Permission resolution**: Backend middleware now merges permissions from all groups in a user's `groupIds` array instead of reading from a single group.
+- **Firestore security rules**: Updated `isAdmin()` helper to check `groupIds` array membership instead of a single `groupId` field.
+- **Firestore indexes**: Updated to support queries on the `groupIds` array field.
+- **Users page**: Now displays multiple group badges per user and supports add/remove group actions.
+- **Audit actions**: `USER_GROUP_CHANGED` replaced by `USER_GROUP_ADDED` and `USER_GROUP_REMOVED` for granular tracking.
+
+### Migration notes
+- The `groupId` field on user documents is no longer used. Existing users are automatically migrated to `groupIds` on their next login via `initializeDefaultGroups`.
+- If your code references `user.groupId`, update it to `user.groupIds` (an array).
+- The `PUT /api/v1/users/:id/group` endpoint is removed. Use the new `POST .../groups/add` and `POST .../groups/remove` endpoints instead.
+
 ## [1.1.0] - 2026-02-09
 
 ### Changed

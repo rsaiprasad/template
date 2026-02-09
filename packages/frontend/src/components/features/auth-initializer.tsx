@@ -43,8 +43,8 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
         const typedUserData = userData as {
           permissions?: string[];
           isSuperAdmin?: boolean;
-          groupId?: string;
-          groupName?: string;
+          groupIds?: string[];
+          groupNames?: string[];
         };
         return {
           uid: firebaseUser.uid,
@@ -55,8 +55,8 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
           lastName: backendName.lastName || firebaseName.lastName,
           permissions: typedUserData.permissions || [],
           isSuperAdmin: typedUserData.isSuperAdmin ?? false,
-          groupId: typedUserData.groupId,
-          groupName: typedUserData.groupName,
+          groupIds: typedUserData.groupIds,
+          groupNames: typedUserData.groupNames,
         };
       } catch (err) {
         // If backend is unavailable, use basic Firebase user data

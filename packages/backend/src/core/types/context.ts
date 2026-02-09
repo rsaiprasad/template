@@ -10,7 +10,7 @@ export interface AuthUser {
   displayName: string;
   photoURL: string | null;
   isSuperAdmin: boolean;
-  groupId: string;
+  groupIds: string[];
   permissions: string[];
 }
 

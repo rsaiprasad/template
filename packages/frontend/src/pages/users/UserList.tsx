@@ -108,10 +108,20 @@ function getColumns(
     },
     {
       id: 'group',
-      header: 'Group',
-      cell: ({ row }) => (
-        <Badge variant="outline">{row.original.groupName || 'None'}</Badge>
-      ),
+      header: 'Groups',
+      cell: ({ row }) => {
+        const groupNames = row.original.groupNames;
+        if (!groupNames || groupNames.length === 0) {
+          return <Badge variant="outline">None</Badge>;
+        }
+        return (
+          <div className="flex flex-wrap gap-1">
+            {groupNames.map((name) => (
+              <Badge key={name} variant="outline">{name}</Badge>
+            ))}
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'createdAt',

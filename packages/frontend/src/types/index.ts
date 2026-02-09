@@ -12,7 +12,7 @@ import type { User, Group } from '@admin-dashboard/shared';
 
 // Extended types for API responses with computed fields
 export interface UserWithGroups extends User {
-  groupName?: string;
+  groupNames?: string[];
 }
 
 export interface GroupWithUsers extends Group {
@@ -38,8 +38,8 @@ export interface AuthUser {
   lastName: string;
   permissions: string[];
   isSuperAdmin?: boolean;
-  groupId?: string;
-  groupName?: string;
+  groupIds?: string[];
+  groupNames?: string[];
 }
 
 export interface ThemeState {

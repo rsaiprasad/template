@@ -55,7 +55,7 @@ export interface User {
   email: string;
   displayName: string;
   photoURL: string | null;
-  groupId: string;
+  groupIds: string[];
   isSuperAdmin: boolean;
   status: UserStatus;
   disabledAt?: Date | string;
@@ -68,7 +68,7 @@ export interface User {
 
 export interface UserWithPermissions extends User {
   permissions: string[];
-  groupName: string;
+  groupNames: string[];
 }
 
 export interface UpdateUserRequest {

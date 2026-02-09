@@ -11,7 +11,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && (getUserData().groupId == 'admin' || getUserData().isSuperAdmin == true);
+      return isAuthenticated() && ('admin' in getUserData().groupIds || getUserData().isSuperAdmin == true);
     }
 
     function isSuperAdmin() {
@@ -33,7 +33,7 @@ service cloud.firestore {
 
       // Only admins can create/update users (except for own profile updates)
       allow create: if isAdmin();
-      allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['groupId', 'isSuperAdmin', 'status']));
+      allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['groupIds', 'isSuperAdmin', 'status']));
 
       // Only admins can delete, but not super admin
       allow delete: if isAdmin() && !resource.data.isSuperAdmin;

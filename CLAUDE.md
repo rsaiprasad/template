@@ -25,8 +25,14 @@ This is an **Admin Dashboard Template** — a reusable foundation for B2C/B2B Sa
 - Firebase Auth emulator shows a Google sign-in popup for test users
 
 ### Admin Screens
-- **User Management** (`/users`): list users, group assignments, disable/enable/delete
+- **User Management** (`/users`): list users, multi-group assignments (add/remove groups), disable/enable/delete
 - **Group Management** (`/groups`): create/edit/delete groups, assign permissions, set default group
+
+### Multi-Group Model
+- Users have `groupIds: string[]` (not a single `groupId`) -- they can belong to multiple groups
+- Permissions are **merged** from all assigned groups (union of all group permissions)
+- Add/remove group endpoints: `POST /users/:id/groups/add`, `POST /users/:id/groups/remove`
+- Data migration from `groupId` to `groupIds` runs automatically via `initializeDefaultGroups` on login
 
 ---
 

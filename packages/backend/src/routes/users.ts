@@ -5,7 +5,7 @@ import { AppError } from '../core/errors';
 import { logAuditAction } from '../core/middleware/audit';
 import { authMiddleware } from '../core/middleware/auth';
 import { requirePermission } from '../core/middleware/permissions';
-import { groupService, settingsService, userService } from '../services';
+import { groupService, userService } from '../services';
 import type { AppEnv } from '../core/types/context';
 import {
   ErrorCodes,
@@ -55,19 +55,19 @@ userRoutes.get('/', requirePermission('users:list'), async (c) => {
 
   const { users, total, nextCursor } = await userService.listUsers(params);
 
-  // Resolve groupId to groupName for each user
-  const groupIds = [...new Set(users.map((u) => u.groupId).filter(Boolean))];
+  // Resolve groupIds to groupNames for each user
+  const allGroupIds = [...new Set(users.flatMap((u) => u.groupIds).filter(Boolean))];
   const groupMap = new Map<string, string>();
-  for (const gid of groupIds) {
+  for (const gid of allGroupIds) {
     const group = await groupService.getGroup(gid);
     if (group) groupMap.set(gid, group.name);
   }
-  const usersWithGroupName = users.map((u) => ({
+  const usersWithGroupNames = users.map((u) => ({
     ...u,
-    groupName: groupMap.get(u.groupId) || 'Unknown',
+    groupNames: u.groupIds.map((gid) => groupMap.get(gid) || 'Unknown'),
   }));
 
-  return paginatedResponse(c, usersWithGroupName, {
+  return paginatedResponse(c, usersWithGroupNames, {
     page: params.page!,
     limit: params.limit!,
     total,
@@ -203,7 +203,7 @@ userRoutes.delete('/:id', requirePermission('users:delete'), async (c) => {
     before: {
       email: user.email,
       displayName: user.displayName,
-      groupId: user.groupId,
+      groupIds: user.groupIds,
     },
     after: {},
   });
@@ -299,11 +299,17 @@ userRoutes.put('/:id/group', requirePermission('users:update'), async (c) => {
     return notFound(c, 'Group');
   }
 
-  // Get old group for audit
-  const oldGroup = await groupService.getGroup(existingUser.groupId);
+  // Get old group names for audit
+  const oldGroupNames: string[] = [];
+  for (const gid of existingUser.groupIds) {
+    const g = await groupService.getGroup(gid);
+    if (g) oldGroupNames.push(g.name);
+  }
 
-  // Change user group - throws AppError on failure (handled by global error handler)
-  const updatedUser = await userService.changeUserGroup(userId, result.data.groupId);
+  // Set user to only the specified group (replaces all groups)
+  const userRef = (await import('../core/lib/firebase-admin')).getDb().collection('users').doc(userId);
+  await userRef.update({ groupIds: [result.data.groupId], updatedAt: new Date() });
+  const updatedUser = { ...existingUser, groupIds: [result.data.groupId], updatedAt: new Date() };
 
   // Log audit
   await logAuditAction(
@@ -311,10 +317,10 @@ userRoutes.put('/:id/group', requirePermission('users:update'), async (c) => {
     'USER_GROUP_CHANGED',
     'users',
     userId,
-    `Changed user ${updatedUser.email} group from "${oldGroup?.name}" to "${newGroup.name}"`,
+    `Set user ${updatedUser.email} groups to "${newGroup.name}"`,
     {
-      before: { groupId: existingUser.groupId, groupName: oldGroup?.name },
-      after: { groupId: result.data.groupId, groupName: newGroup.name },
+      before: { groupIds: existingUser.groupIds, groupNames: oldGroupNames },
+      after: { groupIds: [result.data.groupId], groupNames: [newGroup.name] },
     }
   );
 
@@ -323,7 +329,7 @@ userRoutes.put('/:id/group', requirePermission('users:update'), async (c) => {
 
 /**
  * POST /api/v1/users/:userId/groups/:groupId
- * Add user to group (changes user's group)
+ * Add user to a group
  */
 userRoutes.post(':userId/groups/:groupId', requirePermission('users:update'), async (c) => {
   const userId = c.req.param('userId');
@@ -344,18 +350,17 @@ userRoutes.post(':userId/groups/:groupId', requirePermission('users:update'), as
     return notFound(c, 'Group');
   }
 
-  const oldGroup = await groupService.getGroup(existingUser.groupId);
-  const updatedUser = await userService.changeUserGroup(userId, groupId);
+  const updatedUser = await userService.addUserToGroup(userId, groupId);
 
   await logAuditAction(
     c,
     'USER_GROUP_CHANGED',
     'users',
     userId,
-    `Changed user ${updatedUser.email} group from "${oldGroup?.name}" to "${newGroup.name}"`,
+    `Added user ${updatedUser.email} to group "${newGroup.name}"`,
     {
-      before: { groupId: existingUser.groupId, groupName: oldGroup?.name },
-      after: { groupId, groupName: newGroup.name },
+      before: { groupIds: existingUser.groupIds },
+      after: { groupIds: updatedUser.groupIds },
     }
   );
 
@@ -364,7 +369,7 @@ userRoutes.post(':userId/groups/:groupId', requirePermission('users:update'), as
 
 /**
  * DELETE /api/v1/users/:userId/groups/:groupId
- * Remove user from group (resets to default group)
+ * Remove user from a group
  */
 userRoutes.delete(':userId/groups/:groupId', requirePermission('users:update'), async (c) => {
   const userId = c.req.param('userId');
@@ -380,28 +385,18 @@ userRoutes.delete(':userId/groups/:groupId', requirePermission('users:update'), 
     return errorResponse(c, ErrorCodes.CANNOT_MODIFY_SUPER_ADMIN, 'Cannot modify super administrator accounts', 403);
   }
 
-  // Only remove if user is actually in this group
-  if (existingUser.groupId !== groupId) {
-    return badRequest(c, 'User is not in this group');
-  }
-
-  // Reset to default group
-  const settings = await settingsService.getSettings();
-  const defaultGroupId = settings.defaultGroupId || 'users';
-
-  const oldGroup = await groupService.getGroup(groupId);
-  const updatedUser = await userService.changeUserGroup(userId, defaultGroupId);
-  const newGroup = await groupService.getGroup(defaultGroupId);
+  const removedGroup = await groupService.getGroup(groupId);
+  const updatedUser = await userService.removeUserFromGroup(userId, groupId);
 
   await logAuditAction(
     c,
     'USER_GROUP_CHANGED',
     'users',
     userId,
-    `Removed user ${updatedUser.email} from group "${oldGroup?.name}", reset to default "${newGroup?.name}"`,
+    `Removed user ${updatedUser.email} from group "${removedGroup?.name}"`,
     {
-      before: { groupId, groupName: oldGroup?.name },
-      after: { groupId: defaultGroupId, groupName: newGroup?.name },
+      before: { groupIds: existingUser.groupIds },
+      after: { groupIds: updatedUser.groupIds },
     }
   );
 

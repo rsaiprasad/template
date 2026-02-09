@@ -6,6 +6,7 @@ import type {
   UserSearchParams,
   UserWithPermissions,
 } from '@admin-dashboard/shared';
+import { FieldValue } from 'firebase-admin/firestore';
 import { config } from '../config';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../core/errors';
 import {
@@ -15,6 +16,7 @@ import {
   getAuthAdmin,
   getDb,
 } from '../core/lib/firebase-admin';
+import { normalizeUserGroupIds } from './migration';
 
 /**
  * Cursor-based pagination result
@@ -34,11 +36,24 @@ export class UserService {
   private auth = getAuthAdmin();
 
   /**
+   * Normalize a user document to ensure groupIds is always a string[].
+   * Handles backward compat with old groupId: string docs.
+   */
+  private normalizeUser(user: User | null): User | null {
+    if (!user) return null;
+    if (!Array.isArray(user.groupIds)) {
+      const raw = user as unknown as Record<string, unknown>;
+      user.groupIds = normalizeUserGroupIds(raw);
+    }
+    return user;
+  }
+
+  /**
    * Get a user by ID
    */
   async getUser(userId: string): Promise<User | null> {
     const doc = await this.db.collection(Collections.USERS).doc(userId).get();
-    return convertFirestoreDoc<User>(doc);
+    return this.normalizeUser(convertFirestoreDoc<User>(doc));
   }
 
   /**
@@ -55,7 +70,7 @@ export class UserService {
       return null;
     }
 
-    return convertFirestoreDoc<User>(snapshot.docs[0]!);
+    return this.normalizeUser(convertFirestoreDoc<User>(snapshot.docs[0]!));
   }
 
   /**
@@ -65,14 +80,32 @@ export class UserService {
     const user = await this.getUser(userId);
     if (!user) return null;
 
-    // Get the user's group
-    const groupDoc = await this.db.collection(Collections.GROUPS).doc(user.groupId).get();
-    const group = convertFirestoreDoc<Group>(groupDoc);
+    // Fetch all groups for the user
+    const groupDocs = await Promise.all(
+      user.groupIds.map((gid) => this.db.collection(Collections.GROUPS).doc(gid).get())
+    );
+
+    const permissionSet = new Set<string>();
+    const groupNames: string[] = [];
+
+    for (const groupDoc of groupDocs) {
+      if (groupDoc.exists) {
+        const group = convertFirestoreDoc<Group>(groupDoc);
+        if (group) {
+          groupNames.push(group.name);
+          if (!user.isSuperAdmin) {
+            for (const perm of group.permissions) {
+              permissionSet.add(perm);
+            }
+          }
+        }
+      }
+    }
 
     return {
       ...user,
-      permissions: user.isSuperAdmin ? [] : group?.permissions || [],
-      groupName: group?.name || 'Unknown',
+      permissions: user.isSuperAdmin ? [] : [...permissionSet],
+      groupNames: groupNames.length > 0 ? groupNames : ['Unknown'],
     };
   }
 
@@ -110,7 +143,7 @@ export class UserService {
 
     // Filter by group
     if (groupId) {
-      baseQuery = baseQuery.where('groupId', '==', groupId);
+      baseQuery = baseQuery.where('groupIds', 'array-contains', groupId);
     }
 
     // Search filtering at query level where possible
@@ -160,7 +193,7 @@ export class UserService {
     baseQuery = baseQuery.limit(limit + 1);
 
     const snapshot = await baseQuery.get();
-    let users = convertFirestoreDocs<User>(snapshot);
+    let users = convertFirestoreDocs<User>(snapshot).map((u) => this.normalizeUser(u)!);
 
     // Check if there are more results
     const hasMore = users.length > limit;
@@ -185,10 +218,11 @@ export class UserService {
     }
 
     // Get default group if not specified
-    let groupId = input.groupId;
-    if (!groupId) {
+    let groupIds = input.groupIds;
+    if (!groupIds || groupIds.length === 0) {
       const settingsDoc = await this.db.collection(Collections.SETTINGS).doc('app').get();
-      groupId = settingsDoc.exists ? settingsDoc.data()?.defaultGroupId : 'users';
+      const defaultGroupId = settingsDoc.exists ? settingsDoc.data()?.defaultGroupId : 'users';
+      groupIds = [defaultGroupId];
     }
 
     const now = new Date();
@@ -198,7 +232,7 @@ export class UserService {
       email: input.email.toLowerCase(),
       displayName: input.displayName,
       photoURL: input.photoURL || null,
-      groupId: groupId!,
+      groupIds,
       isSuperAdmin: false,
       status: 'active',
       createdAt: now,
@@ -251,14 +285,17 @@ export class UserService {
       const shouldBeSuperAdmin = !!(config.superAdminEmail && firebaseUser.email.toLowerCase() === config.superAdminEmail);
       if (shouldBeSuperAdmin !== existingUser.isSuperAdmin) {
         updates.isSuperAdmin = shouldBeSuperAdmin;
-        if (shouldBeSuperAdmin) {
-          updates.groupId = 'admin';
-        }
       }
 
-      await userRef.update(updates);
+      // Ensure super admin is in the admin group
+      const updateData: Record<string, unknown> = { ...updates };
+      if (shouldBeSuperAdmin) {
+        updateData.groupIds = FieldValue.arrayUnion('admin');
+      }
+
+      await userRef.update(updateData);
       const updatedDoc = await userRef.get();
-      return convertFirestoreDoc<User>(updatedDoc)!;
+      return this.normalizeUser(convertFirestoreDoc<User>(updatedDoc))!;
     }
 
     // Get default group for new users
@@ -273,7 +310,7 @@ export class UserService {
       email: firebaseUser.email.toLowerCase(),
       displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0] || 'User',
       photoURL: firebaseUser.photoURL,
-      groupId: isSuperAdmin ? 'admin' : defaultGroupId,
+      groupIds: isSuperAdmin ? ['admin'] : [defaultGroupId],
       isSuperAdmin,
       status: 'active',
       createdAt: now,
@@ -313,10 +350,6 @@ export class UserService {
 
     if (input.photoURL !== undefined) {
       updates.photoURL = input.photoURL;
-    }
-
-    if (input.groupId !== undefined) {
-      updates.groupId = input.groupId;
     }
 
     // Merge preferences if provided
@@ -445,12 +478,11 @@ export class UserService {
   }
 
   /**
-   * Change a user's group
+   * Add a user to a group
    */
-  async changeUserGroup(userId: string, newGroupId: string): Promise<User> {
-    // Use a transaction to prevent race conditions (e.g., group deleted between check and update)
+  async addUserToGroup(userId: string, groupId: string): Promise<User> {
     return this.db.runTransaction(async (transaction) => {
-      const groupRef = this.db.collection(Collections.GROUPS).doc(newGroupId);
+      const groupRef = this.db.collection(Collections.GROUPS).doc(groupId);
       const userRef = this.db.collection(Collections.USERS).doc(userId);
 
       const [groupDoc, userDoc] = await Promise.all([
@@ -467,19 +499,56 @@ export class UserService {
       }
 
       const user = convertFirestoreDoc<User>(userDoc)!;
+      const rawData = userDoc.data() as Record<string, unknown>;
+      user.groupIds = normalizeUserGroupIds(rawData);
 
       if (user.isSuperAdmin) {
         throw new ForbiddenError('Cannot modify super administrator accounts');
       }
 
-      const updates: Partial<User> = {
-        groupId: newGroupId,
-        updatedAt: new Date(),
-      };
+      if (user.groupIds.includes(groupId)) {
+        throw new ValidationError('User is already in this group');
+      }
 
-      transaction.update(userRef, updates);
+      const newGroupIds = [...user.groupIds, groupId];
+      transaction.update(userRef, { groupIds: newGroupIds, updatedAt: new Date() });
 
-      return { ...user, ...updates };
+      return { ...user, groupIds: newGroupIds, updatedAt: new Date() };
+    });
+  }
+
+  /**
+   * Remove a user from a group
+   */
+  async removeUserFromGroup(userId: string, groupId: string): Promise<User> {
+    return this.db.runTransaction(async (transaction) => {
+      const userRef = this.db.collection(Collections.USERS).doc(userId);
+      const userDoc = await transaction.get(userRef);
+
+      if (!userDoc.exists) {
+        throw new NotFoundError('User');
+      }
+
+      const user = convertFirestoreDoc<User>(userDoc)!;
+      const rawData = userDoc.data() as Record<string, unknown>;
+      user.groupIds = normalizeUserGroupIds(rawData);
+
+      if (user.isSuperAdmin) {
+        throw new ForbiddenError('Cannot modify super administrator accounts');
+      }
+
+      if (!user.groupIds.includes(groupId)) {
+        throw new ValidationError('User is not in this group');
+      }
+
+      if (user.groupIds.length <= 1) {
+        throw new ValidationError('Cannot remove the last group. Users must belong to at least one group.');
+      }
+
+      const newGroupIds = user.groupIds.filter((gid) => gid !== groupId);
+      transaction.update(userRef, { groupIds: newGroupIds, updatedAt: new Date() });
+
+      return { ...user, groupIds: newGroupIds, updatedAt: new Date() };
     });
   }
 
@@ -489,10 +558,10 @@ export class UserService {
   async getUsersByGroup(groupId: string): Promise<User[]> {
     const snapshot = await this.db
       .collection(Collections.USERS)
-      .where('groupId', '==', groupId)
+      .where('groupIds', 'array-contains', groupId)
       .get();
 
-    return convertFirestoreDocs<User>(snapshot);
+    return convertFirestoreDocs<User>(snapshot).map((u) => this.normalizeUser(u)!);
   }
 
   /**
@@ -501,7 +570,7 @@ export class UserService {
   async countUsersByGroup(groupId: string): Promise<number> {
     const countSnapshot = await this.db
       .collection(Collections.USERS)
-      .where('groupId', '==', groupId)
+      .where('groupIds', 'array-contains', groupId)
       .count()
       .get();
 
