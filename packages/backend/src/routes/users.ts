@@ -69,6 +69,12 @@ userRoutes.get('/', requirePermission('users:list'), async (c) => {
  */
 userRoutes.get('/:id', requirePermission('users:read'), async (c) => {
   const userId = c.req.param('id');
+  const currentUser = c.get('user');
+
+  // Non-super-admins without users:list can only read their own profile
+  if (!currentUser.isSuperAdmin && !currentUser.permissions.includes('users:list') && userId !== currentUser.uid) {
+    return errorResponse(c, ErrorCodes.FORBIDDEN, 'You can only view your own profile', 403);
+  }
 
   const user = await userService.getUserWithPermissions(userId);
 
