@@ -1,10 +1,11 @@
-import { ALL_PERMISSIONS, type Permission } from '@admin-dashboard/shared';
+import type { Permission } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { AppError } from '../core/errors';
 import { logAuditAction } from '../core/middleware/audit';
 import { authMiddleware } from '../core/middleware/auth';
 import { requirePermission } from '../core/middleware/permissions';
+import { getAllPermissions } from '../core/permissions';
 import { groupService } from '../services';
 import type { AppEnv } from '../core/types/context';
 import {
@@ -82,7 +83,7 @@ groupRoutes.post('/', requirePermission('groups:create'), async (c) => {
   // Validate permissions if provided
   if (result.data.permissions) {
     const invalidPermissions = result.data.permissions.filter(
-      (p) => !ALL_PERMISSIONS.includes(p as Permission)
+      (p) => !getAllPermissions().includes(p as Permission)
     );
     if (invalidPermissions.length > 0) {
       return badRequest(c, 'Invalid permissions', { invalidPermissions });
@@ -240,7 +241,7 @@ groupRoutes.put('/:id/permissions', requirePermission('groups:update'), async (c
 
   // Validate all permissions are valid
   const invalidPermissions = result.data.permissions.filter(
-    (p) => !ALL_PERMISSIONS.includes(p as Permission)
+    (p) => !getAllPermissions().includes(p as Permission)
   );
 
   if (invalidPermissions.length > 0) {
@@ -287,7 +288,7 @@ groupRoutes.post('/:id/permissions/:permissionId', requirePermission('groups:upd
   const currentUser = c.get('user');
 
   // Validate the permission
-  if (!ALL_PERMISSIONS.includes(permissionId)) {
+  if (!getAllPermissions().includes(permissionId)) {
     return badRequest(c, 'Invalid permission', { permission: permissionId });
   }
 
@@ -337,7 +338,7 @@ groupRoutes.delete('/:id/permissions/:permissionId', requirePermission('groups:u
   const currentUser = c.get('user');
 
   // Validate the permission
-  if (!ALL_PERMISSIONS.includes(permissionId)) {
+  if (!getAllPermissions().includes(permissionId)) {
     return badRequest(c, 'Invalid permission', { permission: permissionId });
   }
 

@@ -11,7 +11,7 @@ packages/
   shared/src/
     core/           # Permission types, API types, utils — DON'T EDIT
     types/          # Domain types (user, group, audit, settings) — EDIT FREELY
-    constants/      # Permission definitions — EDIT FREELY
+    constants/      # Custom permission definitions (CUSTOM_PERMISSIONS) — EDIT FREELY
 
   backend/src/
     core/           # Auth middleware, permissions, Firebase helpers — DON'T EDIT
@@ -36,22 +36,19 @@ Example: Adding a "Products" resource with CRUD operations.
 
 ### 1. Define Permissions
 
-Edit `packages/shared/src/constants/permissions.ts`:
+Edit `packages/shared/src/constants/permissions.ts` and add entries to the `CUSTOM_PERMISSIONS` record:
 
 ```typescript
-// Add to the PERMISSIONS record:
-'products:create': { resource: 'products', action: 'create', description: 'Create products' },
-'products:read':   { resource: 'products', action: 'read',   description: 'View product details' },
-'products:update': { resource: 'products', action: 'update', description: 'Update products' },
-'products:delete': { resource: 'products', action: 'delete', description: 'Delete products' },
-'products:list':   { resource: 'products', action: 'list',   description: 'View product list' },
+export const CUSTOM_PERMISSIONS: Record<string, PermissionDefinition> = {
+  'products:create': { resource: 'products', action: 'create', description: 'Create products' },
+  'products:read':   { resource: 'products', action: 'read',   description: 'View product details' },
+  'products:update': { resource: 'products', action: 'update', description: 'Update products' },
+  'products:delete': { resource: 'products', action: 'delete', description: 'Delete products' },
+  'products:list':   { resource: 'products', action: 'list',   description: 'View product list' },
+};
 ```
 
-Update the `PermissionResource` type in `packages/shared/src/core/types/permission.ts`:
-
-```typescript
-export type PermissionResource = 'users' | 'groups' | 'settings' | 'audit' | 'products';
-```
+No changes to the permission types are needed -- the `Permission` type in `packages/shared/src/core/types/permission.ts` is extensible and accepts any string.
 
 ### 2. Add Shared Types
 
@@ -177,10 +174,9 @@ Add methods to the API client or create a new API module in `packages/frontend/s
 
 ## Adding a New Permission to an Existing Resource
 
-1. Add the permission definition in `packages/shared/src/constants/permissions.ts`
-2. If it's a new action type, update `PermissionAction` in `packages/shared/src/core/types/permission.ts`
-3. Use `requirePermission('resource:action')` in your backend route
-4. Use `<WithPermission permission="resource:action">` in your frontend component
+1. Add the permission definition to `CUSTOM_PERMISSIONS` in `packages/shared/src/constants/permissions.ts`
+2. Use `requirePermission('resource:action')` in your backend route
+3. Use `<WithPermission permission="resource:action">` in your frontend component
 
 ## Customizing the Auth Flow
 

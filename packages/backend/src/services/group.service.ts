@@ -5,7 +5,6 @@ import type {
   UpdateGroupInput,
   User,
 } from '@admin-dashboard/shared';
-import { ADMIN_PERMISSIONS, USER_PERMISSIONS } from '@admin-dashboard/shared';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../core/errors';
 import {
   Collections,
@@ -13,6 +12,7 @@ import {
   convertFirestoreDocs,
   getDb,
 } from '../core/lib/firebase-admin';
+import { getAdminPermissions, getUserPermissions } from '../core/permissions';
 
 /**
  * Group Service
@@ -100,7 +100,18 @@ export class GroupService {
     const snapshot = await ref.get();
     const groups = convertFirestoreDocs<Group>(snapshot);
 
-    return { groups, total };
+    // Add user counts (same pattern as listGroupsWithUserCounts)
+    const usersSnapshot = await this.db.collection(Collections.USERS).select('groupId').get();
+    const groupCounts = new Map<string, number>();
+    for (const doc of usersSnapshot.docs) {
+      const gid = doc.data().groupId as string;
+      groupCounts.set(gid, (groupCounts.get(gid) || 0) + 1);
+    }
+
+    return {
+      groups: groups.map((g) => ({ ...g, userCount: groupCounts.get(g.id) || 0 })),
+      total,
+    };
   }
 
   /**
@@ -290,7 +301,7 @@ export class GroupService {
       const adminGroup: Omit<Group, 'id'> = {
         name: 'Administrators',
         description: 'Full access to all system features',
-        permissions: [...ADMIN_PERMISSIONS],
+        permissions: [...getAdminPermissions()],
         isDefault: false,
         isSystem: true,
         createdAt: now,
@@ -309,7 +320,7 @@ export class GroupService {
       const usersGroup: Omit<Group, 'id'> = {
         name: 'Users',
         description: 'Standard user access',
-        permissions: [...USER_PERMISSIONS],
+        permissions: [...getUserPermissions()],
         isDefault: true,
         isSystem: true,
         createdAt: now,

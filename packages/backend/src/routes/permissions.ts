@@ -1,11 +1,7 @@
-import {
-  ALL_PERMISSIONS,
-  PERMISSIONS,
-  type Permission,
-  getPermissionsByResource,
-} from '@admin-dashboard/shared';
+import type { Permission } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { authMiddleware } from '../core/middleware/auth';
+import { getAllPermissions, getPermissionDefinitions } from '../core/permissions';
 import type { AppEnv } from '../core/types/context';
 import { successResponse } from '../core/utils/response';
 
@@ -19,12 +15,12 @@ permissionRoutes.use('*', authMiddleware);
  */
 interface PermissionListResponse {
   permissions: Array<{
-    id: Permission;
+    id: string;
     resource: string;
     action: string;
     description: string;
   }>;
-  byResource: Record<string, Permission[]>;
+  byResource: Record<string, string[]>;
   total: number;
 }
 
@@ -34,6 +30,8 @@ interface PermissionListResponse {
  */
 permissionRoutes.get('/', (c) => {
   const user = c.get('user');
+  const allPermissions = getAllPermissions();
+  const definitions = getPermissionDefinitions();
 
   // Only super admins and users with groups:update can see all permissions
   // (since they need to know what permissions are available to assign)
@@ -42,7 +40,7 @@ permissionRoutes.get('/', (c) => {
     return successResponse(c, {
       permissions: user.permissions.map((p) => ({
         id: p,
-        ...(PERMISSIONS[p as Permission] || {
+        ...(definitions[p] || {
           resource: p.split(':')[0],
           action: p.split(':')[1],
           description: p,
@@ -54,22 +52,33 @@ permissionRoutes.get('/', (c) => {
   }
 
   // Return all system permissions
-  const permissions = ALL_PERMISSIONS.map((p) => ({
-    id: p,
-    ...PERMISSIONS[p],
-  }));
+  const permissions = allPermissions.map((p) => {
+    const def = definitions[p];
+    const parts = p.split(':');
+    return {
+      id: p,
+      resource: def?.resource ?? parts[0] ?? '',
+      action: def?.action ?? parts[1] ?? '',
+      description: def?.description ?? p,
+    };
+  });
 
-  const byResource: Record<string, Permission[]> = {
-    users: getPermissionsByResource('users'),
-    groups: getPermissionsByResource('groups'),
-    settings: getPermissionsByResource('settings'),
-    audit: getPermissionsByResource('audit'),
-  };
+  // Build byResource dynamically from all permissions
+  const byResource: Record<string, string[]> = {};
+  for (const p of allPermissions) {
+    const resource = p.split(':')[0];
+    if (resource) {
+      if (!byResource[resource]) {
+        byResource[resource] = [];
+      }
+      byResource[resource].push(p);
+    }
+  }
 
   const response: PermissionListResponse = {
     permissions,
     byResource,
-    total: ALL_PERMISSIONS.length,
+    total: allPermissions.length,
   };
 
   return successResponse(c, response);
@@ -81,19 +90,26 @@ permissionRoutes.get('/', (c) => {
  */
 permissionRoutes.get('/my', (c) => {
   const user = c.get('user');
+  const allPermissions = getAllPermissions();
 
   // Super admins have all permissions
   if (user.isSuperAdmin) {
+    const byResource: Record<string, string[]> = {};
+    for (const p of allPermissions) {
+      const resource = p.split(':')[0];
+      if (resource) {
+        if (!byResource[resource]) {
+          byResource[resource] = [];
+        }
+        byResource[resource].push(p);
+      }
+    }
+
     return successResponse(c, {
-      permissions: ALL_PERMISSIONS,
-      byResource: {
-        users: getPermissionsByResource('users'),
-        groups: getPermissionsByResource('groups'),
-        settings: getPermissionsByResource('settings'),
-        audit: getPermissionsByResource('audit'),
-      },
+      permissions: allPermissions,
+      byResource,
       isSuperAdmin: true,
-      total: ALL_PERMISSIONS.length,
+      total: allPermissions.length,
     });
   }
 
@@ -112,9 +128,10 @@ permissionRoutes.get('/my', (c) => {
 permissionRoutes.get('/check/:permission', (c) => {
   const user = c.get('user');
   const permission = c.req.param('permission') as Permission;
+  const allPermissions = getAllPermissions();
 
   // Validate the permission exists
-  if (!ALL_PERMISSIONS.includes(permission)) {
+  if (!allPermissions.includes(permission)) {
     return successResponse(c, {
       permission,
       hasPermission: false,
@@ -145,32 +162,26 @@ permissionRoutes.get('/check/:permission', (c) => {
  * Get list of all permission resources
  */
 permissionRoutes.get('/resources', (c) => {
-  const resources = [
-    {
-      id: 'users',
-      name: 'Users',
-      description: 'User management permissions',
-      permissions: getPermissionsByResource('users'),
-    },
-    {
-      id: 'groups',
-      name: 'Groups',
-      description: 'Group management permissions',
-      permissions: getPermissionsByResource('groups'),
-    },
-    {
-      id: 'settings',
-      name: 'Settings',
-      description: 'Application settings permissions',
-      permissions: getPermissionsByResource('settings'),
-    },
-    {
-      id: 'audit',
-      name: 'Audit',
-      description: 'Audit log permissions',
-      permissions: getPermissionsByResource('audit'),
-    },
-  ];
+  const allPermissions = getAllPermissions();
+
+  // Build resource list dynamically from all permissions
+  const resourceMap = new Map<string, string[]>();
+  for (const p of allPermissions) {
+    const resource = p.split(':')[0];
+    if (resource) {
+      if (!resourceMap.has(resource)) {
+        resourceMap.set(resource, []);
+      }
+      resourceMap.get(resource)?.push(p);
+    }
+  }
+
+  const resources = Array.from(resourceMap.entries()).map(([id, permissions]) => ({
+    id,
+    name: id.charAt(0).toUpperCase() + id.slice(1),
+    description: `${id.charAt(0).toUpperCase() + id.slice(1)} management permissions`,
+    permissions,
+  }));
 
   return successResponse(c, resources);
 });

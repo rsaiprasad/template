@@ -283,10 +283,10 @@ SO THAT I can control what members can do
 | FR-PERM-03 | UI elements hidden based on permissions | Must Have |
 | FR-PERM-04 | Permission denied returns 403 status | Must Have |
 | FR-PERM-05 | Super Admin bypasses all permission checks | Must Have |
-| FR-PERM-06 | All available permissions are defined in a shared TypeScript file | Must Have |
+| FR-PERM-06 | Core permissions are defined in backend core; custom permissions in shared constants | Must Have |
 | FR-PERM-07 | Group Management screen shows all defined permissions (assigned per group) | Must Have |
-| FR-PERM-08 | Developers can extend permissions by adding entries to the shared file | Must Have |
-| FR-PERM-09 | New permissions auto-appear in Group Management UI | Must Have |
+| FR-PERM-08 | Developers can extend permissions by adding entries to `CUSTOM_PERMISSIONS` in the shared file | Must Have |
+| FR-PERM-09 | New custom permissions auto-appear in Group Management UI | Must Have |
 
 #### Permission Architecture
 
@@ -294,24 +294,24 @@ Permissions are split between **code** (what permissions exist) and **database**
 
 | Layer | Storage | Managed By | Purpose |
 |-------|---------|------------|---------|
-| **Permission Definitions** | `packages/shared/src/constants/permissions.ts` | Developers (code) | Single source of truth for all available permissions |
+| **Core Permission Definitions** | `packages/backend/src/core/permissions.ts` | Template (code) | Built-in permissions for users, groups, settings, audit |
+| **Custom Permission Definitions** | `packages/shared/src/constants/permissions.ts` | Developers (code) | App-specific permissions added by developers |
 | **Group Permissions** | Firestore `groups` collection | Admins (runtime) | Which permissions are assigned to each group |
 | **User Group Assignment** | Firestore `users` collection (`groupId` field) | Admins (runtime) | Which group a user belongs to |
 
-#### Permission Definition File
+#### Permission Definition Files
 
-All permissions are defined in a shared TypeScript file (`packages/shared/src/constants/permissions.ts`) that is consumed by both the backend (for API-level enforcement) and the frontend (for conditional UI rendering). This file is the **single source of truth** for what permissions exist in the application.
+Core template permissions (users, groups, settings, audit) are defined in `packages/backend/src/core/permissions.ts` and should not be edited. Developers add app-specific permissions to `packages/shared/src/constants/permissions.ts` via the `CUSTOM_PERMISSIONS` record. The backend merges both at runtime.
 
 ```typescript
-// Example: packages/shared/src/constants/permissions.ts
-export const PERMISSIONS: Record<Permission, PermissionDefinition> = {
-  'users:create': { resource: 'users', action: 'create', description: 'Create new users' },
-  'users:read':   { resource: 'users', action: 'read',   description: 'View user details' },
-  // ... more permissions
+// packages/shared/src/constants/permissions.ts — developer-editable
+export const CUSTOM_PERMISSIONS: Record<string, PermissionDefinition> = {
+  'orders:create': { resource: 'orders', action: 'create', description: 'Create new orders' },
+  'orders:read':   { resource: 'orders', action: 'read',   description: 'View order details' },
 };
 ```
 
-**For developers building on this template**: To add permissions for a new feature (e.g., "orders"), add entries to this file. They will automatically appear in the Group Management UI for admins to assign to groups. See [Section 16.3](#163-template-customization-points) for a step-by-step guide.
+**For developers building on this template**: To add permissions for a new feature, add entries to `CUSTOM_PERMISSIONS`. They will automatically merge with core permissions and appear in the Group Management UI. See [Section 16.3](#163-template-customization-points) for a step-by-step guide.
 
 #### Permission Structure
 
@@ -544,6 +544,7 @@ admin-dashboard-template/
 │   │   │   ├── index.ts         # Entry point
 │   │   │   ├── app.ts           # Hono app setup
 │   │   │   ├── core/            # Template infra (DON'T EDIT)
+│   │   │   │   ├── permissions.ts # Core permission definitions & helpers
 │   │   │   │   ├── errors/      # Custom error classes
 │   │   │   │   ├── lib/         # Firebase Admin SDK init
 │   │   │   │   ├── middleware/  # Auth, permissions, audit, rate-limit
@@ -1291,22 +1292,23 @@ When using this template for new projects, customize:
 
 #### Developer Guide: Adding New Permissions
 
-When building an application on top of this template, you will need to define permissions for your new features. All permissions are defined in a single shared file that is used by both the backend and frontend.
+When building an application on top of this template, you will need to define permissions for your new features. Custom permissions are added to `CUSTOM_PERMISSIONS` in the shared package; the backend merges them with core permissions at runtime.
 
 **Step 1: Define the permission in the shared package**
 
 Edit `packages/shared/src/constants/permissions.ts`:
 
 ```typescript
-// Add your new resource permissions
-'orders:create': { resource: 'orders', action: 'create', description: 'Create new orders' },
-'orders:read':   { resource: 'orders', action: 'read',   description: 'View order details' },
-'orders:update': { resource: 'orders', action: 'update', description: 'Update orders' },
-'orders:delete': { resource: 'orders', action: 'delete', description: 'Delete orders' },
-'orders:list':   { resource: 'orders', action: 'list',   description: 'View list of orders' },
+export const CUSTOM_PERMISSIONS: Record<string, PermissionDefinition> = {
+  'orders:create': { resource: 'orders', action: 'create', description: 'Create new orders' },
+  'orders:read':   { resource: 'orders', action: 'read',   description: 'View order details' },
+  'orders:update': { resource: 'orders', action: 'update', description: 'Update orders' },
+  'orders:delete': { resource: 'orders', action: 'delete', description: 'Delete orders' },
+  'orders:list':   { resource: 'orders', action: 'list',   description: 'View list of orders' },
+};
 ```
 
-Also update the Permission type in `packages/shared/src/core/types/permission.ts` to include `'orders'` as a resource and the new permission strings.
+No changes to `packages/shared/src/core/types/permission.ts` are needed — the `Permission` type is extensible via `string & {}` and accepts any string.
 
 **Step 2: Protect backend routes**
 
@@ -1341,10 +1343,12 @@ return (
 Once deployed, the Super Admin will see the new permissions in the Group Management screen. They can then assign these permissions to existing or new groups.
 
 **Key points:**
-- The shared permissions file is the **single source of truth** — if a permission is not in this file, it does not exist in the system
+- Core permissions (users, groups, settings, audit) are in `packages/backend/src/core/permissions.ts` — don't edit
+- Custom permissions go in `CUSTOM_PERMISSIONS` in `packages/shared/src/constants/permissions.ts`
+- The backend merges both at runtime via `getAllPermissions()` and `getPermissionDefinitions()`
 - Super Admin always has all permissions (no configuration needed)
-- New permissions automatically appear in the Group Management UI for admins to assign
-- Both backend middleware and frontend conditional rendering use the same permission strings from the shared package
+- New custom permissions automatically appear in the Group Management UI for admins to assign
+- Both backend middleware and frontend conditional rendering use the same permission strings
 
 ---
 

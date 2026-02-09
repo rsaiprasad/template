@@ -2,6 +2,21 @@
 
 All notable changes to the template core are documented here. Downstream projects should review this when syncing template updates.
 
+## [1.1.0] - 2026-02-09
+
+### Changed
+- **Permission restructuring**: Core template permissions (users, groups, settings, audit) moved from `packages/shared/src/constants/permissions.ts` to `packages/backend/src/core/permissions.ts`. The shared file now only exports `CUSTOM_PERMISSIONS` for developers to add app-specific permissions.
+- **Permission types renamed**: `PermissionAction` -> `CorePermissionAction`, `PermissionResource` -> `CorePermissionResource`. New `CorePermission` type (strict union) and `Permission` type (extensible with `string & {}`).
+- **Backend permission helpers**: New file `packages/backend/src/core/permissions.ts` exports `CORE_PERMISSIONS`, `getAllPermissions()`, `getAdminPermissions()`, `getUserPermissions()`, `getPermissionDefinitions()`, `getPermissionsByResource()`, `getPermissionDescription()`.
+- **GroupList**: Fixed "0 members" display bug (now uses `userCount` from API), added "System" badge for system groups, hid delete action for system groups.
+
+### Removed
+- Old exports from shared permissions: `PERMISSIONS`, `ALL_PERMISSIONS`, `ADMIN_PERMISSIONS`, `USER_PERMISSIONS`, `USERS_PERMISSIONS`, `GROUPS_PERMISSIONS`, `SETTINGS_PERMISSIONS`, `AUDIT_PERMISSIONS`, `PERMISSION_RESOURCES`, `PERMISSIONS_BY_RESOURCE`, `getPermissionsByResource`, `getPermissionDescription`.
+
+### Migration notes
+- If your code imported `PERMISSIONS` or other removed exports from `@admin-dashboard/shared`, update imports to use `CUSTOM_PERMISSIONS` from the shared package or the helper functions from `packages/backend/src/core/permissions.ts`.
+- The `Permission` type is now extensible -- no need to edit `permission.ts` when adding custom permissions.
+
 ## [1.0.0] - 2026-02-08
 
 ### Added
@@ -17,6 +32,7 @@ All notable changes to the template core are documented here. Downstream project
 |---------|-----------|----------|
 | shared | `src/core/types/` | API response types, permission type system |
 | shared | `src/core/utils/` | Permission utilities, validation helpers |
+| backend | `src/core/permissions.ts` | Core permission definitions and helpers |
 | backend | `src/core/middleware/` | Auth, permissions, audit, rate-limit middleware |
 | backend | `src/core/lib/` | Firebase Admin SDK initialization |
 | backend | `src/core/utils/` | Response helpers, error codes |

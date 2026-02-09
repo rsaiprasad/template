@@ -70,6 +70,11 @@ function getColumns(
             <Link to={`/groups/${group.id}`} className="font-medium hover:underline">
               {group.name}
             </Link>
+            {group.isSystem && (
+              <Badge variant="outline" className="text-xs">
+                System
+              </Badge>
+            )}
           </div>
         );
       },
@@ -89,7 +94,7 @@ function getColumns(
       cell: ({ row }) => (
         <Badge variant="outline" className="gap-1">
           <Users className="h-3 w-3" />
-          {row.original.users?.length || 0}
+          {row.original.userCount || 0}
         </Badge>
       ),
     },
@@ -126,16 +131,18 @@ function getColumns(
                   Edit
                 </Link>
               </DropdownMenuItem>
-              <WithPermission permission="groups:delete">
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => onDeleteClick(group)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </WithPermission>
+              {!group.isSystem && (
+                <WithPermission permission="groups:delete">
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => onDeleteClick(group)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </WithPermission>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -239,7 +246,17 @@ export function GroupList() {
     setIsDeleting(true);
 
     if (deleteTarget === 'bulk') {
-      const selectedIds = Object.keys(rowSelection);
+      const allGroups = (data?.data as GroupWithUsers[]) ?? [];
+      const selectedIds = Object.keys(rowSelection).filter((id) => {
+        const group = allGroups.find((g) => g.id === id);
+        return group && !group.isSystem;
+      });
+      if (selectedIds.length === 0) {
+        toastError('Cannot delete', 'System groups cannot be deleted.');
+        setIsDeleting(false);
+        setDeleteDialogOpen(false);
+        return;
+      }
       const results = await Promise.allSettled(selectedIds.map((id) => api.deleteGroup(id)));
       const failures = results.filter((r) => r.status === 'rejected');
       if (failures.length === 0) {

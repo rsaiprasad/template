@@ -1,11 +1,14 @@
-export type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'list';
+export type CorePermissionAction = 'create' | 'read' | 'update' | 'delete' | 'list';
 
-export type PermissionResource = 'users' | 'groups' | 'settings' | 'audit';
+export type CorePermissionResource = 'users' | 'groups' | 'settings' | 'audit';
 
-export type Permission = `${PermissionResource}:${PermissionAction}`;
+export type CorePermission = `${CorePermissionResource}:${CorePermissionAction}`;
+
+// Allow custom permissions (e.g., 'posts:create', 'analytics:read')
+export type Permission = CorePermission | (string & {});
 
 export interface PermissionDefinition {
-  resource: PermissionResource;
-  action: PermissionAction;
+  resource: string;
+  action: string;
   description: string;
 }

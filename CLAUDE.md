@@ -4,7 +4,8 @@
 
 **At the start of every session, read the BRD for full application context:**
 - **BRD**: `docs/BRD.md` — the authoritative requirements document
-- **Shared permissions**: `packages/shared/src/constants/permissions.ts` — single source of truth for all permissions
+- **Custom permissions**: `packages/shared/src/constants/permissions.ts` — where developers add app-specific permissions
+- **Core permissions**: `packages/backend/src/core/permissions.ts` — template's built-in permissions (don't edit)
 - **Shared types**: `packages/shared/src/types/` — type definitions used across backend and frontend
 
 ## Application Context
@@ -12,10 +13,11 @@
 This is an **Admin Dashboard Template** — a reusable foundation for B2C/B2B SaaS apps. Key architecture decisions:
 
 ### Permission System
-- **Permissions are defined in code** (`packages/shared/src/constants/permissions.ts`), not in a database
-- **Groups are stored in Firestore** with assigned permission strings from the shared file
+- **Core permissions** (users, groups, settings, audit) are defined in `packages/backend/src/core/permissions.ts` — template infrastructure, don't edit
+- **Custom permissions** are added by developers in `packages/shared/src/constants/permissions.ts` (`CUSTOM_PERMISSIONS` record) — these auto-merge with core permissions and appear in the Group Management UI
+- **Permission types** are in `packages/shared/src/core/types/permission.ts`: `CorePermission` (strict union of template permissions), `Permission` (extensible with `string & {}` for custom permissions)
+- **Groups are stored in Firestore** with assigned permission strings
 - **Super Admin** is determined by `SUPER_ADMIN_EMAIL` env var (not first login) and bypasses all permission checks
-- When developers build on this template, they add new `resource:action` entries to the shared permissions file — these auto-appear in the Group Management UI
 - Backend enforces permissions via middleware (`requirePermission`); frontend conditionally renders via `user.permissions` array
 
 ### Auth
