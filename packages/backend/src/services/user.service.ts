@@ -133,13 +133,16 @@ export class UserService {
 
     // Apply sorting
     // When searching with email prefix (inequality filters on email),
-    // Firestore requires the first orderBy to be on the inequality field
+    // Firestore requires orderBy on the inequality field only — adding a
+    // secondary orderBy on a different field requires a composite index.
     const validSortFields = ['createdAt', 'updatedAt', 'displayName', 'email', 'lastLoginAt'];
     const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
-    if (query && sortField !== 'email') {
+    if (query) {
+      // Search active: sort by email (the inequality field) to avoid composite index requirement
       baseQuery = baseQuery.orderBy('email', 'asc');
+    } else {
+      baseQuery = baseQuery.orderBy(sortField, sortOrder === 'asc' ? 'asc' : 'desc');
     }
-    baseQuery = baseQuery.orderBy(sortField, sortOrder === 'asc' ? 'asc' : 'desc');
 
     // Cursor-based pagination (preferred for large datasets)
     if (cursor) {

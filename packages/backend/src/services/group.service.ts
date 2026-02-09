@@ -84,11 +84,13 @@ export class GroupService {
 
     // Apply sorting and pagination
     // When searching with name prefix (inequality filters on name),
-    // Firestore requires the first orderBy to be on the inequality field
-    if (params.query && sortBy !== 'name') {
+    // Firestore requires orderBy on the inequality field only — adding a
+    // secondary orderBy on a different field requires a composite index.
+    if (params.query) {
       ref = ref.orderBy('name', 'asc');
+    } else {
+      ref = ref.orderBy(sortBy, sortOrder);
     }
-    ref = ref.orderBy(sortBy, sortOrder);
     const offset = (page - 1) * limit;
     if (offset > 0) {
       ref = ref.offset(offset);
