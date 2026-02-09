@@ -56,6 +56,47 @@ export class GroupService {
   }
 
   /**
+   * Search groups with pagination
+   */
+  async searchGroups(params: {
+    page?: number;
+    limit?: number;
+    query?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<{ groups: Group[]; total: number }> {
+    const page = params.page || 1;
+    const limit = params.limit || 20;
+    const sortBy = params.sortBy || 'name';
+    const sortOrder = params.sortOrder || 'asc';
+
+    let ref = this.db.collection(Collections.GROUPS) as FirebaseFirestore.Query;
+
+    if (params.query) {
+      ref = ref
+        .where('name', '>=', params.query)
+        .where('name', '<', `${params.query}\uf8ff`);
+    }
+
+    // Get total count
+    const countSnapshot = await ref.count().get();
+    const total = countSnapshot.data().count;
+
+    // Apply sorting and pagination
+    ref = ref.orderBy(sortBy, sortOrder);
+    const offset = (page - 1) * limit;
+    if (offset > 0) {
+      ref = ref.offset(offset);
+    }
+    ref = ref.limit(limit);
+
+    const snapshot = await ref.get();
+    const groups = convertFirestoreDocs<Group>(snapshot);
+
+    return { groups, total };
+  }
+
+  /**
    * List groups with user counts
    * Fixed N+1 query by doing a single aggregation query for all group counts
    */

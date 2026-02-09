@@ -15,5 +15,8 @@ export const config = {
     max: 100, // requests per window
     authMax: 10, // auth endpoints
   },
+  audit: {
+    maxHistoryDays: Number.parseInt(process.env.AUDIT_MAX_HISTORY_DAYS || '90'),
+  },
   superAdminEmail,
 };

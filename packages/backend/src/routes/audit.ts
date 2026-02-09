@@ -1,5 +1,6 @@
 import type { AuditAction, AuditResource, AuditSearchParams } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
+import { config } from '../config';
 import { authMiddleware } from '../core/middleware/auth';
 import { requirePermission } from '../core/middleware/permissions';
 import { auditService } from '../services';
@@ -36,13 +37,13 @@ const VALID_RESOURCES: AuditResource[] = ['users', 'groups', 'settings', 'auth']
  * List audit logs with filtering and pagination
  */
 auditRoutes.get('/', requirePermission('audit:list'), async (c) => {
-  // Parse query parameters
+  // Parse query parameters (accept frontend aliases)
   const params: AuditSearchParams = {
     page: Number.parseInt(c.req.query('page') || '1'),
-    limit: Math.min(Number.parseInt(c.req.query('limit') || '50'), 100),
+    limit: Math.min(Number.parseInt(c.req.query('limit') || c.req.query('pageSize') || '50'), 100),
     action: c.req.query('action') || undefined,
-    resource: c.req.query('resource') || undefined,
-    actorId: c.req.query('actorId') || undefined,
+    resource: c.req.query('resource') || c.req.query('resourceType') || undefined,
+    actorId: c.req.query('actorId') || c.req.query('userId') || undefined,
     startDate: c.req.query('startDate') || undefined,
     endDate: c.req.query('endDate') || undefined,
     sortOrder: (c.req.query('sortOrder') as 'asc' | 'desc') || 'desc',
@@ -65,6 +66,26 @@ auditRoutes.get('/', requirePermission('audit:list'), async (c) => {
 
   if (params.endDate && Number.isNaN(Date.parse(params.endDate))) {
     return badRequest(c, 'Invalid endDate format. Use ISO 8601 format.');
+  }
+
+  // Enforce max history window
+  const maxHistoryDays = config.audit.maxHistoryDays;
+  const oldestAllowed = new Date();
+  oldestAllowed.setDate(oldestAllowed.getDate() - maxHistoryDays);
+
+  if (!params.startDate) {
+    // Default to maxHistoryDays ago
+    params.startDate = oldestAllowed.toISOString();
+  } else if (new Date(params.startDate) < oldestAllowed) {
+    // Clamp to oldest allowed
+    params.startDate = oldestAllowed.toISOString();
+  }
+
+  if (!params.endDate) {
+    // Default to end of current day
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+    params.endDate = endOfDay.toISOString();
   }
 
   const { logs, total } = await auditService.listAuditLogs(params);

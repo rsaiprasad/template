@@ -8,10 +8,9 @@ import { requirePermission } from '../core/middleware/permissions';
 import { groupService } from '../services';
 import type { AppEnv } from '../core/types/context';
 import {
-  ErrorCodes,
   badRequest,
-  errorResponse,
   notFound,
+  paginatedResponse,
   successResponse,
 } from '../core/utils/response';
 
@@ -43,13 +42,21 @@ const updatePermissionsSchema = z.object({
 groupRoutes.get('/', requirePermission('groups:list'), async (c) => {
   const includeUserCounts = c.req.query('includeUserCounts') === 'true';
 
+  // If requesting user counts (used by group management UI), return all groups with counts
   if (includeUserCounts) {
     const groups = await groupService.listGroupsWithUserCounts();
     return successResponse(c, groups);
   }
 
-  const groups = await groupService.listGroups();
-  return successResponse(c, groups);
+  const page = Number.parseInt(c.req.query('page') || '1');
+  const limit = Math.min(Number.parseInt(c.req.query('limit') || c.req.query('pageSize') || '20'), 100);
+  const query = c.req.query('query') || c.req.query('search') || undefined;
+  const sortBy = c.req.query('sortBy') || 'name';
+  const sortOrder = (c.req.query('sortOrder') as 'asc' | 'desc') || 'asc';
+
+  const { groups, total } = await groupService.searchGroups({ page, limit, query, sortBy, sortOrder });
+
+  return paginatedResponse(c, groups, { page, limit, total });
 });
 
 /**

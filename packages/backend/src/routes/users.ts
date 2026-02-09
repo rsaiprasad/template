@@ -44,10 +44,10 @@ const changeGroupSchema = z.object({
 userRoutes.get('/', requirePermission('users:list'), async (c) => {
   const params: UserSearchParams & { cursor?: string } = {
     page: Number.parseInt(c.req.query('page') || '1'),
-    limit: Math.min(Number.parseInt(c.req.query('limit') || '20'), 100),
+    limit: Math.min(Number.parseInt(c.req.query('limit') || c.req.query('pageSize') || '20'), 100),
     status: (c.req.query('status') as 'active' | 'disabled' | 'all') || 'all',
     groupId: c.req.query('groupId') || undefined,
-    query: c.req.query('query') || undefined,
+    query: c.req.query('query') || c.req.query('search') || undefined,
     sortBy: c.req.query('sortBy') || 'createdAt',
     sortOrder: (c.req.query('sortOrder') as 'asc' | 'desc') || 'desc',
     cursor: c.req.query('cursor') || undefined,
