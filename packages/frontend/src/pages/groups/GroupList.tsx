@@ -12,6 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch';
 import { toastError, toastSuccess } from '@/hooks/useToast';
@@ -20,83 +27,122 @@ import { queryKeys } from '@/types';
 import type { GroupWithUsers } from '@/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef, PaginationState, RowSelectionState } from '@tanstack/react-table';
-import { Plus, Search, Shield, Trash2, Users } from 'lucide-react';
+import { MoreHorizontal, Pencil, Plus, Search, Shield, Trash2, Users } from 'lucide-react';
 import * as React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
-const columns: ColumnDef<GroupWithUsers, unknown>[] = [
-  {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: 'name',
-    header: 'Group',
-    cell: ({ row }) => {
-      const group = row.original;
-      return (
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-            <Shield className="h-4 w-4 text-primary" />
-          </div>
-          <Link to={`/groups/${group.id}`} className="font-medium hover:underline">
-            {group.name}
-          </Link>
-        </div>
-      );
+function getColumns(
+  onDeleteClick: (group: GroupWithUsers) => void
+): ColumnDef<GroupWithUsers, unknown>[] {
+  return [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
     },
-  },
-  {
-    accessorKey: 'description',
-    header: 'Description',
-    cell: ({ row }) => (
-      <span className="text-muted-foreground max-w-[200px] truncate block">
-        {row.original.description || '-'}
-      </span>
-    ),
-  },
-  {
-    id: 'members',
-    header: 'Members',
-    cell: ({ row }) => (
-      <Badge variant="outline" className="gap-1">
-        <Users className="h-3 w-3" />
-        {row.original.users?.length || 0}
-      </Badge>
-    ),
-  },
-  {
-    id: 'permissions',
-    header: 'Permissions',
-    cell: ({ row }) => (
-      <Badge variant="secondary">{row.original.permissions?.length || 0} permissions</Badge>
-    ),
-  },
-  {
-    accessorKey: 'createdAt',
-    header: 'Created',
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{formatDate(row.original.createdAt)}</span>
-    ),
-  },
-];
+    {
+      accessorKey: 'name',
+      header: 'Group',
+      cell: ({ row }) => {
+        const group = row.original;
+        return (
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+              <Shield className="h-4 w-4 text-primary" />
+            </div>
+            <Link to={`/groups/${group.id}`} className="font-medium hover:underline">
+              {group.name}
+            </Link>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'description',
+      header: 'Description',
+      cell: ({ row }) => (
+        <span className="text-muted-foreground max-w-[200px] truncate block">
+          {row.original.description || '-'}
+        </span>
+      ),
+    },
+    {
+      id: 'members',
+      header: 'Members',
+      cell: ({ row }) => (
+        <Badge variant="outline" className="gap-1">
+          <Users className="h-3 w-3" />
+          {row.original.users?.length || 0}
+        </Badge>
+      ),
+    },
+    {
+      id: 'permissions',
+      header: 'Permissions',
+      cell: ({ row }) => (
+        <Badge variant="secondary">{row.original.permissions?.length || 0} permissions</Badge>
+      ),
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Created',
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">{formatDate(row.original.createdAt)}</span>
+      ),
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const group = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link to={`/groups/${group.id}`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </DropdownMenuItem>
+              <WithPermission permission="groups:delete">
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => onDeleteClick(group)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </WithPermission>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+}
 
 export function GroupList() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -122,6 +168,7 @@ export function GroupList() {
   // Dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<'bulk' | GroupWithUsers>('bulk');
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [newGroupName, setNewGroupName] = React.useState('');
   const [newGroupDescription, setNewGroupDescription] = React.useState('');
@@ -178,30 +225,56 @@ export function GroupList() {
     }
   };
 
-  const confirmBulkDelete = async () => {
-    const selectedIds = Object.keys(rowSelection);
-    if (selectedIds.length === 0) return;
+  const handleDeleteClick = React.useCallback((group: GroupWithUsers) => {
+    setDeleteTarget(group);
+    setDeleteDialogOpen(true);
+  }, []);
 
+  const handleBulkDeleteClick = () => {
+    setDeleteTarget('bulk');
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
     setIsDeleting(true);
-    const results = await Promise.allSettled(selectedIds.map((id) => api.deleteGroup(id)));
 
-    const failures = results.filter((r) => r.status === 'rejected');
-    if (failures.length === 0) {
-      toastSuccess('Groups deleted', `${selectedIds.length} group(s) deleted successfully.`);
-    } else if (failures.length < selectedIds.length) {
-      toastError(
-        'Partial failure',
-        `${selectedIds.length - failures.length} deleted, ${failures.length} failed.`
-      );
+    if (deleteTarget === 'bulk') {
+      const selectedIds = Object.keys(rowSelection);
+      const results = await Promise.allSettled(selectedIds.map((id) => api.deleteGroup(id)));
+      const failures = results.filter((r) => r.status === 'rejected');
+      if (failures.length === 0) {
+        toastSuccess('Groups deleted', `${selectedIds.length} group(s) deleted successfully.`);
+      } else if (failures.length < selectedIds.length) {
+        toastError(
+          'Partial failure',
+          `${selectedIds.length - failures.length} deleted, ${failures.length} failed.`
+        );
+      } else {
+        toastError('Failed to delete groups', 'All delete operations failed.');
+      }
+      setRowSelection({});
     } else {
-      toastError('Failed to delete groups', 'All delete operations failed.');
+      try {
+        await api.deleteGroup(deleteTarget.id);
+        toastSuccess('Group deleted', 'The group has been successfully deleted.');
+      } catch (err) {
+        toastError('Failed to delete group', err instanceof Error ? err.message : 'Unknown error');
+      }
     }
 
     setIsDeleting(false);
     setDeleteDialogOpen(false);
-    setRowSelection({});
     queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
   };
+
+  const columns = React.useMemo(() => getColumns(handleDeleteClick), [handleDeleteClick]);
+
+  const deleteDialogTitle = deleteTarget === 'bulk' ? 'Delete Groups' : 'Delete Group';
+  const deleteDialogDescription =
+    deleteTarget === 'bulk'
+      ? `Are you sure you want to delete ${selectedCount} group(s)? This will remove all users from these groups. This action cannot be undone.`
+      : `Are you sure you want to delete ${deleteTarget.name}? This will remove all users from this group. This action cannot be undone.`;
+  const deleteButtonLabel = deleteTarget === 'bulk' ? `Delete ${selectedCount} Group(s)` : 'Delete';
 
   return (
     <div className="space-y-6">
@@ -237,7 +310,7 @@ export function GroupList() {
         <div className="flex items-center gap-4 rounded-md border bg-muted/50 px-4 py-2">
           <span className="text-sm font-medium">{selectedCount} selected</span>
           <WithPermission permission="groups:delete">
-            <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+            <Button variant="destructive" size="sm" onClick={handleBulkDeleteClick}>
               <Trash2 className="mr-2 h-4 w-4" />
               Delete Selected
             </Button>
@@ -307,22 +380,19 @@ export function GroupList() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk delete dialog */}
+      {/* Delete dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Groups</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {selectedCount} group(s)? This will remove all users
-              from these groups. This action cannot be undone.
-            </DialogDescription>
+            <DialogTitle>{deleteDialogTitle}</DialogTitle>
+            <DialogDescription>{deleteDialogDescription}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmBulkDelete} isLoading={isDeleting}>
-              Delete {selectedCount} Group(s)
+            <Button variant="destructive" onClick={confirmDelete} isLoading={isDeleting}>
+              {deleteButtonLabel}
             </Button>
           </DialogFooter>
         </DialogContent>
