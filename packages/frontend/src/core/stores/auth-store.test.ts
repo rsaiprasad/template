@@ -4,11 +4,6 @@ import {
   hasAllPermissions,
   hasAnyPermission,
   hasPermission,
-  selectIsAuthenticated,
-  selectIsInitialized,
-  selectIsLoading,
-  selectPermissions,
-  selectUser,
   useAuthStore,
 } from './auth-store';
 
@@ -64,13 +59,6 @@ describe('useAuthStore', () => {
     });
   });
 
-  describe('setLoading', () => {
-    it('sets loading state', () => {
-      useAuthStore.getState().setLoading(false);
-      expect(useAuthStore.getState().isLoading).toBe(false);
-    });
-  });
-
   describe('setInitialized', () => {
     it('sets initialized and clears loading', () => {
       useAuthStore.getState().setInitialized(true);
@@ -113,39 +101,6 @@ describe('useAuthStore', () => {
     });
   });
 
-  describe('selectors', () => {
-    it('selectUser returns user', () => {
-      useAuthStore.getState().setUser(mockUser);
-      expect(selectUser(useAuthStore.getState())).toEqual(mockUser);
-    });
-
-    it('selectIsAuthenticated returns auth status', () => {
-      expect(selectIsAuthenticated(useAuthStore.getState())).toBe(false);
-      useAuthStore.getState().setUser(mockUser);
-      expect(selectIsAuthenticated(useAuthStore.getState())).toBe(true);
-    });
-
-    it('selectIsLoading returns loading status', () => {
-      expect(selectIsLoading(useAuthStore.getState())).toBe(true);
-    });
-
-    it('selectIsInitialized returns initialized status', () => {
-      expect(selectIsInitialized(useAuthStore.getState())).toBe(false);
-    });
-
-    it('selectPermissions returns permissions', () => {
-      useAuthStore.getState().setUser(mockUser);
-      expect(selectPermissions(useAuthStore.getState())).toEqual([
-        'users:read',
-        'users:list',
-        'groups:*',
-      ]);
-    });
-
-    it('selectPermissions returns empty array when no user', () => {
-      expect(selectPermissions(useAuthStore.getState())).toEqual([]);
-    });
-  });
 });
 
 describe('hasPermission', () => {

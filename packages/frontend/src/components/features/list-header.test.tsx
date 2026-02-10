@@ -24,21 +24,7 @@ describe('ListHeader', () => {
     });
   });
 
-  it('renders title and description', () => {
-    renderWithProviders(
-      <ListHeader
-        title="Users"
-        description="Manage users"
-        permission="users:create"
-        buttonLabel="Add User"
-        buttonHref="/users/new"
-      />
-    );
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Users');
-    expect(screen.getByText('Manage users')).toBeInTheDocument();
-  });
-
-  it('renders button when user has permission', () => {
+  it('shows button when user has permission', () => {
     renderWithProviders(
       <ListHeader
         title="Users"

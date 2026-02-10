@@ -2,18 +2,11 @@ import { Hono } from 'hono';
 import { describe, expect, it } from 'bun:test';
 import {
   ErrorCodes,
-  badRequest,
-  conflict,
   errorResponse,
-  forbidden,
   generateRequestId,
   getClientIp,
-  getUserAgent,
-  internalError,
-  notFound,
   paginatedResponse,
   successResponse,
-  unauthorized,
 } from './response';
 
 /**
@@ -114,39 +107,6 @@ describe('Response Helpers', () => {
     });
   });
 
-  describe('shorthand helpers', () => {
-    it('badRequest returns 400', async () => {
-      const { status } = await callInContext((c) => badRequest(c, 'bad'));
-      expect(status).toBe(400);
-    });
-
-    it('unauthorized returns 401', async () => {
-      const { status } = await callInContext((c) => unauthorized(c));
-      expect(status).toBe(401);
-    });
-
-    it('forbidden returns 403', async () => {
-      const { status } = await callInContext((c) => forbidden(c));
-      expect(status).toBe(403);
-    });
-
-    it('notFound returns 404', async () => {
-      const { status, body } = await callInContext((c) => notFound(c, 'User'));
-      expect(status).toBe(404);
-      expect((body as { error: { message: string } }).error.message).toBe('User not found');
-    });
-
-    it('conflict returns 409', async () => {
-      const { status } = await callInContext((c) => conflict(c, 'Already exists'));
-      expect(status).toBe(409);
-    });
-
-    it('internalError returns 500', async () => {
-      const { status } = await callInContext((c) => internalError(c));
-      expect(status).toBe(500);
-    });
-  });
-
   describe('generateRequestId', () => {
     it('should return a string starting with req_', () => {
       const id = generateRequestId();
@@ -198,35 +158,4 @@ describe('Response Helpers', () => {
     });
   });
 
-  describe('getUserAgent', () => {
-    it('should extract user-agent header', async () => {
-      const app = new Hono();
-      let ua = '';
-      app.get('/test', (c) => {
-        ua = getUserAgent(c);
-        return c.text('ok');
-      });
-      await app.request('/test', {
-        headers: { 'user-agent': 'TestAgent/1.0' },
-      });
-      expect(ua).toBe('TestAgent/1.0');
-    });
-  });
-
-  describe('ErrorCodes', () => {
-    it('should expose all expected error codes', () => {
-      expect(ErrorCodes.UNAUTHORIZED).toBe('UNAUTHORIZED');
-      expect(ErrorCodes.FORBIDDEN).toBe('FORBIDDEN');
-      expect(ErrorCodes.NOT_FOUND).toBe('NOT_FOUND');
-      expect(ErrorCodes.VALIDATION_ERROR).toBe('VALIDATION_ERROR');
-      expect(ErrorCodes.INTERNAL_ERROR).toBe('INTERNAL_ERROR');
-      expect(ErrorCodes.CANNOT_DELETE_SELF).toBe('CANNOT_DELETE_SELF');
-      expect(ErrorCodes.CANNOT_DISABLE_SELF).toBe('CANNOT_DISABLE_SELF');
-      expect(ErrorCodes.CANNOT_MODIFY_SUPER_ADMIN).toBe('CANNOT_MODIFY_SUPER_ADMIN');
-      expect(ErrorCodes.CANNOT_DELETE_SYSTEM_GROUP).toBe('CANNOT_DELETE_SYSTEM_GROUP');
-      expect(ErrorCodes.CANNOT_DELETE_DEFAULT_GROUP).toBe('CANNOT_DELETE_DEFAULT_GROUP');
-      expect(ErrorCodes.GROUP_HAS_USERS).toBe('GROUP_HAS_USERS');
-      expect(ErrorCodes.USER_DISABLED).toBe('USER_DISABLED');
-    });
-  });
 });

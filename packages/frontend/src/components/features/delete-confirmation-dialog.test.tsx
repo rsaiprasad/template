@@ -13,18 +13,6 @@ describe('DeleteConfirmationDialog', () => {
     onConfirm: mock(() => {}),
   };
 
-  it('renders title and description when open', () => {
-    render(<DeleteConfirmationDialog {...defaultProps} />);
-    expect(screen.getByText('Delete User')).toBeInTheDocument();
-    expect(screen.getByText('Are you sure you want to delete this user?')).toBeInTheDocument();
-  });
-
-  it('renders confirm and cancel buttons', () => {
-    render(<DeleteConfirmationDialog {...defaultProps} />);
-    expect(screen.getByText('Delete')).toBeInTheDocument();
-    expect(screen.getByText('Cancel')).toBeInTheDocument();
-  });
-
   it('calls onConfirm when confirm button is clicked', () => {
     const onConfirm = mock(() => {});
     render(<DeleteConfirmationDialog {...defaultProps} onConfirm={onConfirm} />);

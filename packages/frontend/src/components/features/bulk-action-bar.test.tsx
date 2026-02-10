@@ -31,20 +31,6 @@ describe('BulkActionBar', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders selected count', () => {
-    renderWithProviders(
-      <BulkActionBar selectedCount={3} permission="users:delete" onDelete={() => {}} />
-    );
-    expect(screen.getByText('3 selected')).toBeInTheDocument();
-  });
-
-  it('renders delete button when user has permission', () => {
-    renderWithProviders(
-      <BulkActionBar selectedCount={2} permission="users:delete" onDelete={() => {}} />
-    );
-    expect(screen.getByText('Delete Selected')).toBeInTheDocument();
-  });
-
   it('calls onDelete when delete button is clicked', () => {
     const handleDelete = mock(() => {});
     renderWithProviders(

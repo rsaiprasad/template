@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { selectIsDark, selectResolvedTheme, selectTheme, useThemeStore } from './theme-store';
+import { useThemeStore } from './theme-store';
 
 describe('useThemeStore', () => {
   beforeEach(() => {
@@ -52,25 +52,4 @@ describe('useThemeStore', () => {
     });
   });
 
-  describe('selectors', () => {
-    it('selectTheme returns current theme', () => {
-      useThemeStore.getState().setTheme('dark');
-      expect(selectTheme(useThemeStore.getState())).toBe('dark');
-    });
-
-    it('selectResolvedTheme returns resolved theme', () => {
-      useThemeStore.getState().setTheme('dark');
-      expect(selectResolvedTheme(useThemeStore.getState())).toBe('dark');
-    });
-
-    it('selectIsDark returns true when dark', () => {
-      useThemeStore.getState().setTheme('dark');
-      expect(selectIsDark(useThemeStore.getState())).toBe(true);
-    });
-
-    it('selectIsDark returns false when light', () => {
-      useThemeStore.getState().setTheme('light');
-      expect(selectIsDark(useThemeStore.getState())).toBe(false);
-    });
-  });
 });

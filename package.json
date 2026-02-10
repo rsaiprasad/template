@@ -18,6 +18,7 @@
     "build:backend": "cd packages/backend && bun run build",
     "test": "bun run --filter '*' test",
     "test:unit": "bun run --filter '*' test:unit",
+    "test:coverage": "bun run --filter '*' test:coverage",
     "test:e2e": "bun run --filter frontend test:e2e",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

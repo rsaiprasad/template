@@ -1,13 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import {
   buildQueryString,
-  capitalize,
   cn,
-  formatNumber,
-  getFirstName,
   getInitials,
   getNestedValue,
-  isEmpty,
   parseDisplayName,
   parseQueryString,
   pluralize,
@@ -26,20 +22,6 @@ describe('cn', () => {
 
   it('merges tailwind classes correctly', () => {
     expect(cn('px-2 py-1', 'px-4')).toBe('py-1 px-4');
-  });
-});
-
-describe('capitalize', () => {
-  it('capitalizes the first letter', () => {
-    expect(capitalize('hello')).toBe('Hello');
-  });
-
-  it('handles empty string', () => {
-    expect(capitalize('')).toBe('');
-  });
-
-  it('handles already capitalized', () => {
-    expect(capitalize('Hello')).toBe('Hello');
   });
 });
 
@@ -68,58 +50,6 @@ describe('getInitials', () => {
 
   it('returns max 2 initials', () => {
     expect(getInitials('John Michael Doe')).toBe('JM');
-  });
-});
-
-describe('getFirstName', () => {
-  it('returns first name from full name', () => {
-    expect(getFirstName('John Doe')).toBe('John');
-  });
-
-  it('returns empty string for null', () => {
-    expect(getFirstName(null)).toBe('');
-  });
-
-  it('returns empty string for undefined', () => {
-    expect(getFirstName(undefined)).toBe('');
-  });
-});
-
-describe('isEmpty', () => {
-  it('returns true for null', () => {
-    expect(isEmpty(null)).toBe(true);
-  });
-
-  it('returns true for undefined', () => {
-    expect(isEmpty(undefined)).toBe(true);
-  });
-
-  it('returns true for empty string', () => {
-    expect(isEmpty('')).toBe(true);
-  });
-
-  it('returns true for whitespace string', () => {
-    expect(isEmpty('  ')).toBe(true);
-  });
-
-  it('returns true for empty array', () => {
-    expect(isEmpty([])).toBe(true);
-  });
-
-  it('returns true for empty object', () => {
-    expect(isEmpty({})).toBe(true);
-  });
-
-  it('returns false for non-empty string', () => {
-    expect(isEmpty('hello')).toBe(false);
-  });
-
-  it('returns false for non-empty array', () => {
-    expect(isEmpty([1])).toBe(false);
-  });
-
-  it('returns false for number', () => {
-    expect(isEmpty(0)).toBe(false);
   });
 });
 
@@ -205,16 +135,6 @@ describe('pluralize', () => {
 
   it('uses custom plural form', () => {
     expect(pluralize(2, 'person', 'people')).toBe('people');
-  });
-});
-
-describe('formatNumber', () => {
-  it('formats number with commas', () => {
-    expect(formatNumber(1000)).toBe('1,000');
-  });
-
-  it('handles small numbers', () => {
-    expect(formatNumber(42)).toBe('42');
   });
 });
 

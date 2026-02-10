@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:unit": "bun test",
+    "test:coverage": "bun test --coverage",
     "test:watch": "bun test --watch",
     "generate:openapi": "bun run scripts/generate-openapi.ts"
   },
