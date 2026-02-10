@@ -152,17 +152,17 @@ Authorization: Bearer <firebase-id-token>
 
 | Method | Path | Description | Permission |
 |--------|------|-------------|------------|
-| GET | `/settings` | Get settings | `settings:read` |
-| PUT | `/settings` | Update settings | `settings:update` |
-| GET | `/settings/features` | List features | `settings:read` |
-| PUT | `/settings/features/:feature` | Toggle feature | `settings:update` |
+| GET | `/settings` | Get settings | `users:read` |
+| PUT | `/settings` | Update settings | `users:list` + `users:update` |
+| GET | `/settings/features` | List features | `users:read` |
+| PUT | `/settings/features/:feature` | Toggle feature | `users:list` + `users:update` |
 
 #### Audit
 
 | Method | Path | Description | Permission |
 |--------|------|-------------|------------|
 | GET | `/audit` | List audit logs | `audit:list` |
-| GET | `/audit/:id` | Get audit log | `audit:read` |
+| GET | `/audit/:id` | Get audit log | `audit:list` |
 | GET | `/audit/stats` | Get statistics | `audit:list` |
 | GET | `/audit/actions` | List actions | `audit:list` |
 | GET | `/audit/user/:userId` | User's logs | `audit:list` |
@@ -338,7 +338,7 @@ app.onError((err, c) => {
 | Category | Actions |
 |----------|---------|
 | Auth | `LOGIN`, `LOGOUT`, `LOGIN_FAILED` |
-| Users | `USER_CREATED`, `USER_UPDATED`, `USER_DISABLED`, `USER_ENABLED`, `USER_DELETED`, `USER_GROUP_CHANGED` |
+| Users | `USER_CREATED`, `USER_UPDATED`, `USER_DISABLED`, `USER_ENABLED`, `USER_DELETED`, `USER_GROUP_ADDED`, `USER_GROUP_REMOVED` |
 | Groups | `GROUP_CREATED`, `GROUP_UPDATED`, `GROUP_DELETED`, `GROUP_PERMISSIONS_CHANGED` |
 | Settings | `SETTINGS_UPDATED` |
 

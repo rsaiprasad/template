@@ -4,7 +4,6 @@ import {
   ErrorResponseSchema,
   FeatureParamSchema,
   FeatureResponseSchema,
-  InitializeResponseSchema,
   SettingsWithGroupSchema,
   SuccessResponseSchema,
   ToggleFeatureSchema,
@@ -38,7 +37,7 @@ export const getSettingsRoute = createRoute({
       },
     },
     403: {
-      description: 'Forbidden - User lacks required permission (settings:read)',
+      description: 'Forbidden - User lacks required permission (users:read)',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,
@@ -100,7 +99,7 @@ export const updateSettingsRoute = createRoute({
       },
     },
     403: {
-      description: 'Forbidden - User lacks required permission (settings:update)',
+      description: 'Forbidden - User lacks required permissions (users:list + users:update)',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,
@@ -153,7 +152,7 @@ export const getFeaturesRoute = createRoute({
       },
     },
     403: {
-      description: 'Forbidden - User lacks required permission (settings:read)',
+      description: 'Forbidden - User lacks required permission (users:read)',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,
@@ -216,52 +215,7 @@ export const toggleFeatureRoute = createRoute({
       },
     },
     403: {
-      description: 'Forbidden - User lacks required permission (settings:update)',
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
-    },
-    500: {
-      description: 'Internal Server Error',
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
-    },
-  },
-});
-
-// POST /api/v1/settings/initialize - Initialize settings
-export const initializeSettingsRoute = createRoute({
-  method: 'post',
-  path: '/initialize',
-  operationId: 'initializeSettings',
-  tags: ['Settings'],
-  summary: 'Initialize settings',
-  description: 'Initializes default settings and groups. Typically called during initial application setup.',
-  security: [{ bearerAuth: [] }],
-  responses: {
-    200: {
-      description: 'Initialization result',
-      content: {
-        'application/json': {
-          schema: SuccessResponseSchema(InitializeResponseSchema),
-        },
-      },
-    },
-    401: {
-      description: 'Unauthorized - Invalid or missing authentication token',
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
-    },
-    403: {
-      description: 'Forbidden - User lacks required permission (settings:update)',
+      description: 'Forbidden - User lacks required permissions (users:list + users:update)',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,

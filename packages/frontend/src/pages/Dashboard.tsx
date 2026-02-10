@@ -107,7 +107,7 @@ export function Dashboard() {
             />
           </WithPermission>
 
-          <WithPermission permission="audit:read">
+          <WithPermission permission="audit:list">
             <StatCard
               title="Recent Activity"
               value={auditLogsData?.meta?.total ?? 0}
@@ -147,6 +147,10 @@ export function Dashboard() {
                     <div className="h-2 w-2 rounded-full bg-primary mt-2" />
                     <div className="space-y-1">
                       <p className="text-sm">
+                        <Link to={`/users/${log.actorId}`} className="font-medium hover:underline">
+                          {log.actorName || log.actorEmail || 'System'}
+                        </Link>
+                        {' — '}
                         <span className="font-medium">{log.action}</span> on{' '}
                         <span className="text-muted-foreground">{log.resource}</span>
                       </p>

@@ -13,7 +13,7 @@
 This is an **Admin Dashboard Template** — a reusable foundation for B2C/B2B SaaS apps. Key architecture decisions:
 
 ### Permission System
-- **Core permissions** (users, groups, settings, audit) are defined in `packages/backend/src/core/permissions.ts` — template infrastructure, don't edit
+- **Core permissions** (users, groups, audit) are defined in `packages/backend/src/core/permissions.ts` — template infrastructure, don't edit
 - **Custom permissions** are added by developers in `packages/shared/src/constants/permissions.ts` (`CUSTOM_PERMISSIONS` record) — these auto-merge with core permissions and appear in the Group Management UI
 - **Permission types** are in `packages/shared/src/core/types/permission.ts`: `CorePermission` (strict union of template permissions), `Permission` (extensible with `string & {}` for custom permissions)
 - **Groups are stored in Firestore** with assigned permission strings

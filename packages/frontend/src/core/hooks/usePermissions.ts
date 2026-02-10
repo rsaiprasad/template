@@ -88,7 +88,7 @@ export function usePermissions(): UsePermissionsReturn {
   );
 
   const canViewAuditLogs = useMemo(
-    () => isAdmin || checkAnyPermission(['audit:read', 'audit:*']),
+    () => isAdmin || checkAnyPermission(['audit:list']),
     [isAdmin, checkAnyPermission]
   );
 

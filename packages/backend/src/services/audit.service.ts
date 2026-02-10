@@ -29,9 +29,9 @@ export class AuditService {
       resource: input.resource,
       resourceId: input.resourceId,
       description: input.description,
-      changes: input.changes,
-      ipAddress: input.ipAddress,
-      userAgent: input.userAgent,
+      ...(input.changes !== undefined && { changes: input.changes }),
+      ...(input.ipAddress !== undefined && { ipAddress: input.ipAddress }),
+      ...(input.userAgent !== undefined && { userAgent: input.userAgent }),
     };
 
     await this.db.collection(Collections.AUDIT_LOGS).doc(logId).set(auditLog);

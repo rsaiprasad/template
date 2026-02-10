@@ -9,7 +9,8 @@ export type AuditAction =
   | 'USER_DISABLED'
   | 'USER_ENABLED'
   | 'USER_DELETED'
-  | 'USER_GROUP_CHANGED'
+  | 'USER_GROUP_ADDED'
+  | 'USER_GROUP_REMOVED'
   // Groups
   | 'GROUP_CREATED'
   | 'GROUP_UPDATED'

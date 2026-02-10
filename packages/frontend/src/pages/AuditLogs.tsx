@@ -65,7 +65,8 @@ const ACTIONS = [
   { value: 'USER_DISABLED', label: 'User Disabled' },
   { value: 'USER_ENABLED', label: 'User Enabled' },
   { value: 'USER_DELETED', label: 'User Deleted' },
-  { value: 'USER_GROUP_CHANGED', label: 'User Group Changed' },
+  { value: 'USER_GROUP_ADDED', label: 'User Group Added' },
+  { value: 'USER_GROUP_REMOVED', label: 'User Group Removed' },
   { value: 'GROUP_CREATED', label: 'Group Created' },
   { value: 'GROUP_UPDATED', label: 'Group Updated' },
   { value: 'GROUP_DELETED', label: 'Group Deleted' },
@@ -85,7 +86,7 @@ function getActionBadgeVariant(action: string) {
   if (action.endsWith('_DELETED')) return 'destructive';
   if (action === 'LOGIN_FAILED') return 'destructive';
   if (action === 'USER_DISABLED') return 'warning';
-  if (action.endsWith('_UPDATED') || action.endsWith('_CHANGED') || action.endsWith('_ENABLED'))
+  if (action.endsWith('_UPDATED') || action.endsWith('_CHANGED') || action.endsWith('_ENABLED') || action.endsWith('_ADDED') || action.endsWith('_REMOVED'))
     return 'default';
   if (action === 'LOGIN' || action === 'LOGOUT') return 'secondary';
   if (action === 'SETTINGS_UPDATED') return 'info';

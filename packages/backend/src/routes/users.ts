@@ -314,7 +314,7 @@ userRoutes.put('/:id/group', requirePermission('users:update'), async (c) => {
   // Log audit
   await logAuditAction(
     c,
-    'USER_GROUP_CHANGED',
+    'USER_GROUP_ADDED',
     'users',
     userId,
     `Set user ${updatedUser.email} groups to "${newGroup.name}"`,
@@ -354,7 +354,7 @@ userRoutes.post(':userId/groups/:groupId', requirePermission('users:update'), as
 
   await logAuditAction(
     c,
-    'USER_GROUP_CHANGED',
+    'USER_GROUP_ADDED',
     'users',
     userId,
     `Added user ${updatedUser.email} to group "${newGroup.name}"`,
@@ -390,7 +390,7 @@ userRoutes.delete(':userId/groups/:groupId', requirePermission('users:update'), 
 
   await logAuditAction(
     c,
-    'USER_GROUP_CHANGED',
+    'USER_GROUP_REMOVED',
     'users',
     userId,
     `Removed user ${updatedUser.email} from group "${removedGroup?.name}"`,

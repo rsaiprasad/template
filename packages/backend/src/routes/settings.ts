@@ -1,12 +1,11 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { AppError } from '../core/errors';
 import { logAuditAction } from '../core/middleware/audit';
 import { authMiddleware } from '../core/middleware/auth';
-import { requirePermission } from '../core/middleware/permissions';
+import { requireAllPermissions, requirePermission } from '../core/middleware/permissions';
 import { groupService, settingsService } from '../services';
 import type { AppEnv } from '../core/types/context';
-import { badRequest, internalError, notFound, successResponse } from '../core/utils/response';
+import { badRequest, notFound, successResponse } from '../core/utils/response';
 
 const settingsRoutes = new Hono<AppEnv>();
 
@@ -29,7 +28,7 @@ const updateSettingsSchema = z.object({
  * GET /api/v1/settings
  * Get application settings
  */
-settingsRoutes.get('/', requirePermission('settings:read'), async (c) => {
+settingsRoutes.get('/', requirePermission('users:read'), async (c) => {
   const settings = await settingsService.getSettings();
 
   // Also return the default group details
@@ -45,7 +44,7 @@ settingsRoutes.get('/', requirePermission('settings:read'), async (c) => {
  * PUT /api/v1/settings
  * Update application settings
  */
-settingsRoutes.put('/', requirePermission('settings:update'), async (c) => {
+settingsRoutes.put('/', requireAllPermissions(['users:list', 'users:update']), async (c) => {
   const currentUser = c.get('user');
 
   // Parse and validate request body
@@ -143,7 +142,7 @@ settingsRoutes.put('/', requirePermission('settings:update'), async (c) => {
  * GET /api/v1/settings/features
  * Get feature flags only
  */
-settingsRoutes.get('/features', requirePermission('settings:read'), async (c) => {
+settingsRoutes.get('/features', requirePermission('users:read'), async (c) => {
   const settings = await settingsService.getSettings();
   return successResponse(c, settings.features);
 });
@@ -152,7 +151,7 @@ settingsRoutes.get('/features', requirePermission('settings:read'), async (c) =>
  * PUT /api/v1/settings/features/:feature
  * Toggle a specific feature
  */
-settingsRoutes.put('/features/:feature', requirePermission('settings:update'), async (c) => {
+settingsRoutes.put('/features/:feature', requireAllPermissions(['users:list', 'users:update']), async (c) => {
   const feature = c.req.param('feature') as 'auditLogging' | 'userRegistration';
   const currentUser = c.get('user');
 
@@ -208,22 +207,5 @@ settingsRoutes.put('/features/:feature', requirePermission('settings:update'), a
   });
 });
 
-/**
- * POST /api/v1/settings/initialize
- * Initialize default settings and groups
- * This is typically called during initial setup
- */
-settingsRoutes.post('/initialize', requirePermission('settings:update'), async (c) => {
-  // Initialize default groups
-  await groupService.initializeDefaultGroups();
-
-  // Initialize settings
-  const settings = await settingsService.initializeSettings();
-
-  return successResponse(c, {
-    message: 'Initialization complete',
-    settings,
-  });
-});
 
 export { settingsRoutes };

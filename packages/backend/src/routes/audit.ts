@@ -22,7 +22,8 @@ const VALID_ACTIONS: AuditAction[] = [
   'USER_DISABLED',
   'USER_ENABLED',
   'USER_DELETED',
-  'USER_GROUP_CHANGED',
+  'USER_GROUP_ADDED',
+  'USER_GROUP_REMOVED',
   'GROUP_CREATED',
   'GROUP_UPDATED',
   'GROUP_DELETED',
@@ -185,7 +186,7 @@ auditRoutes.get('/resource/:resource/:resourceId', requirePermission('audit:list
  * GET /api/v1/audit/:id
  * Get a single audit log by ID
  */
-auditRoutes.get('/:id', requirePermission('audit:read'), async (c) => {
+auditRoutes.get('/:id', requirePermission('audit:list'), async (c) => {
   const logId = c.req.param('id');
 
   const log = await auditService.getAuditLog(logId);
@@ -221,7 +222,8 @@ function getActionDescription(action: AuditAction): string {
     USER_DISABLED: 'User was disabled',
     USER_ENABLED: 'User was enabled',
     USER_DELETED: 'User was deleted',
-    USER_GROUP_CHANGED: 'User group was changed',
+    USER_GROUP_ADDED: 'User was added to a group',
+    USER_GROUP_REMOVED: 'User was removed from a group',
     GROUP_CREATED: 'New group was created',
     GROUP_UPDATED: 'Group was updated',
     GROUP_DELETED: 'Group was deleted',

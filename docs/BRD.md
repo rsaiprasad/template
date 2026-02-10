@@ -295,14 +295,14 @@ Permissions are split between **code** (what permissions exist) and **database**
 
 | Layer | Storage | Managed By | Purpose |
 |-------|---------|------------|---------|
-| **Core Permission Definitions** | `packages/backend/src/core/permissions.ts` | Template (code) | Built-in permissions for users, groups, settings, audit |
+| **Core Permission Definitions** | `packages/backend/src/core/permissions.ts` | Template (code) | Built-in permissions for users, groups, audit |
 | **Custom Permission Definitions** | `packages/shared/src/constants/permissions.ts` | Developers (code) | App-specific permissions added by developers |
 | **Group Permissions** | Firestore `groups` collection | Admins (runtime) | Which permissions are assigned to each group |
 | **User Group Assignment** | Firestore `users` collection (`groupIds` field) | Admins (runtime) | Which groups a user belongs to (permissions merged from all assigned groups) |
 
 #### Permission Definition Files
 
-Core template permissions (users, groups, settings, audit) are defined in `packages/backend/src/core/permissions.ts` and should not be edited. Developers add app-specific permissions to `packages/shared/src/constants/permissions.ts` via the `CUSTOM_PERMISSIONS` record. The backend merges both at runtime.
+Core template permissions (users, groups, audit) are defined in `packages/backend/src/core/permissions.ts` and should not be edited. Developers add app-specific permissions to `packages/shared/src/constants/permissions.ts` via the `CUSTOM_PERMISSIONS` record. The backend merges both at runtime.
 
 ```typescript
 // packages/shared/src/constants/permissions.ts — developer-editable
@@ -324,8 +324,7 @@ Permissions follow the format: `resource:action`
 |----------|---------|---------------------|
 | `users` | create, read, update, delete, list | `users:create`, `users:list` |
 | `groups` | create, read, update, delete, list | `groups:update`, `groups:delete` |
-| `settings` | create, read, update, delete, list | `settings:read`, `settings:update` |
-| `audit` | create, read, update, delete, list | `audit:list` |
+| `audit` | list | `audit:list` |
 
 **Developer-added permissions (example):**
 
@@ -400,7 +399,7 @@ interface AuditLogEntry {
 | **Auth** | LOGIN, LOGOUT, LOGIN_FAILED |
 | **Users** | USER_CREATED, USER_UPDATED, USER_DISABLED, USER_ENABLED, USER_DELETED |
 | **Groups** | GROUP_CREATED, GROUP_UPDATED, GROUP_DELETED, GROUP_PERMISSIONS_CHANGED |
-| **Permissions** | USER_GROUP_ADDED, USER_GROUP_REMOVED |
+| **User Groups** | USER_GROUP_ADDED, USER_GROUP_REMOVED |
 
 ---
 
@@ -923,10 +922,10 @@ GET    /api/v1/audit/:id      # Get audit log entry
 | `GET /groups/:id` | `groups:read` |
 | `PUT /groups/:id` | `groups:update` |
 | `DELETE /groups/:id` | `groups:delete` |
-| `GET /settings` | `settings:read` |
-| `PUT /settings` | `settings:update` |
+| `GET /settings` | `users:read` |
+| `PUT /settings` | `users:list` + `users:update` |
 | `GET /audit` | `audit:list` |
-| `GET /audit/:id` | `audit:read` |
+| `GET /audit/:id` | `audit:list` |
 
 ---
 
@@ -942,7 +941,7 @@ GET    /api/v1/audit/:id      # Get audit log entry
 | User Detail | `/users/:id` | View/edit user | `users:read` permission |
 | Groups List | `/groups` | Group management (create, edit, assign permissions) | `groups:list` permission |
 | Group Detail | `/groups/:id` | View/edit group and its permissions | `groups:read` permission |
-| Settings | `/settings` | App settings (default group, app name) & profile | `settings:read` permission |
+| Settings | `/settings` | App settings (default group, app name) & profile | `users:read` permission |
 | Audit Logs | `/audit` | View audit trail | `audit:list` permission |
 
 #### Super Admin Sidebar Navigation

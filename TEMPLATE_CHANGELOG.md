@@ -2,6 +2,28 @@
 
 All notable changes to the template core are documented here. Downstream projects should review this when syncing template updates.
 
+## [1.3.0] - 2026-02-09
+
+### Changed
+- **Simplified permissions**: Removed all `settings:*` permissions (5 entries) — settings routes now use `users:read` and `users:list + users:update`. Reduced audit permissions from 5 to just `audit:list`.
+- **Default user permissions**: `getUserPermissions()` now returns `['users:read', 'users:update']` so users in the default "Users" group can edit their own profile.
+- **Audit action names**: `USER_GROUP_CHANGED` replaced by `USER_GROUP_ADDED` and `USER_GROUP_REMOVED` for granular tracking.
+- **Dashboard activity display**: Shows actor name with clickable link to user edit page instead of just action/resource.
+
+### Fixed
+- **Audit log creation bug**: Fixed Firestore rejecting `undefined` values in optional `changes`, `ipAddress`, and `userAgent` fields by conditionally including them only when defined.
+
+### Removed
+- `POST /api/v1/settings/initialize` endpoint — `updateSettings()` already upserts and `getSettings()` returns defaults.
+- `settings:create`, `settings:read`, `settings:update`, `settings:delete`, `settings:list` core permissions.
+- `audit:create`, `audit:read`, `audit:update`, `audit:delete` core permissions.
+
+### Migration notes
+- If your code references `settings:read` or `settings:update` permissions, update to `users:read` and `users:list + users:update` respectively.
+- If your code uses `audit:read`, update to `audit:list`.
+- If your code uses `USER_GROUP_CHANGED` audit action, update to `USER_GROUP_ADDED` or `USER_GROUP_REMOVED`.
+- Groups in Firestore that have `settings:*` or `audit:create/read/update/delete` permissions assigned will need to be updated (remove stale permissions).
+
 ## [1.2.0] - 2026-02-09
 
 ### Added

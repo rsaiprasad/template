@@ -1,8 +1,9 @@
 export type CorePermissionAction = 'create' | 'read' | 'update' | 'delete' | 'list';
 
-export type CorePermissionResource = 'users' | 'groups' | 'settings' | 'audit';
+export type FullCrudResource = 'users' | 'groups';
+export type CorePermissionResource = FullCrudResource | 'audit';
 
-export type CorePermission = `${CorePermissionResource}:${CorePermissionAction}`;
+export type CorePermission = `${FullCrudResource}:${CorePermissionAction}` | 'audit:list';
 
 // Allow custom permissions (e.g., 'posts:create', 'analytics:read')
 export type Permission = CorePermission | (string & {});

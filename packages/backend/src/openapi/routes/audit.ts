@@ -360,7 +360,7 @@ export const getAuditLogRoute = createRoute({
       },
     },
     403: {
-      description: 'Forbidden - User lacks required permission (audit:read)',
+      description: 'Forbidden - User lacks required permission (audit:list)',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,

@@ -180,7 +180,6 @@ function createOpenAPIAppWithRoutes() {
   settingsApp.openapi(settingsRoutes.updateSettingsRoute, notImplementedHandler);
   settingsApp.openapi(settingsRoutes.getFeaturesRoute, notImplementedHandler);
   settingsApp.openapi(settingsRoutes.toggleFeatureRoute, notImplementedHandler);
-  settingsApp.openapi(settingsRoutes.initializeSettingsRoute, notImplementedHandler);
   app.route('/settings', settingsApp);
 
   // Audit routes - prefixed with /audit
