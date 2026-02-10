@@ -112,7 +112,9 @@ function getColumns(
         return (
           <div className="flex flex-wrap gap-1">
             {groupNames.map((name) => (
-              <Badge key={name} variant="outline">{name}</Badge>
+              <Badge key={name} variant="outline">
+                {name}
+              </Badge>
             ))}
           </div>
         );
@@ -201,7 +203,14 @@ export function UserList() {
   // Fetch users
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.users.list({ page, pageSize, search, status, groupId }),
-    queryFn: () => api.listUsers({ page, pageSize, search, status: status || undefined, groupId: groupId || undefined }),
+    queryFn: () =>
+      api.listUsers({
+        page,
+        pageSize,
+        search,
+        status: status || undefined,
+        groupId: groupId || undefined,
+      }),
   });
 
   const selectedCount = Object.keys(rowSelection).length;

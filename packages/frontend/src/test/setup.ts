@@ -1,41 +1,45 @@
-import '@testing-library/jest-dom';
+import { afterEach, expect, mock } from 'bun:test';
+import * as matchers from '@testing-library/jest-dom/matchers';
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+
+expect.extend(matchers);
 
 // Cleanup after each test
 afterEach(() => {
   cleanup();
 });
 
-// Mock window.matchMedia
+// Mock window.matchMedia (happy-dom doesn't implement it)
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation((query) => ({
+  value: mock((query: string) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: vi.fn(), // deprecated
-    removeListener: vi.fn(), // deprecated
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
+    addListener: mock(() => {}),
+    removeListener: mock(() => {}),
+    addEventListener: mock(() => {}),
+    removeEventListener: mock(() => {}),
+    dispatchEvent: mock(() => false),
   })),
 });
 
 // Mock IntersectionObserver
-const mockIntersectionObserver = vi.fn();
-mockIntersectionObserver.mockReturnValue({
-  observe: () => null,
-  unobserve: () => null,
-  disconnect: () => null,
-});
-window.IntersectionObserver = mockIntersectionObserver;
+if (!window.IntersectionObserver) {
+  class MockIntersectionObserver {
+    observe = mock(() => {});
+    unobserve = mock(() => {});
+    disconnect = mock(() => {});
+  }
+  window.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+}
 
 // Mock ResizeObserver
-const mockResizeObserver = vi.fn();
-mockResizeObserver.mockReturnValue({
-  observe: () => null,
-  unobserve: () => null,
-  disconnect: () => null,
-});
-window.ResizeObserver = mockResizeObserver;
+if (!window.ResizeObserver) {
+  class MockResizeObserver {
+    observe = mock(() => {});
+    unobserve = mock(() => {});
+    disconnect = mock(() => {});
+  }
+  window.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+}

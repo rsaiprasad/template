@@ -1,3 +1,5 @@
+import { api } from '@/api';
+import type { AuditLog } from '@/api';
 import { PageHeader } from '@/components/features/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,10 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { api } from '@/api';
 import { formatDateTime, formatRelativeTime } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import type { AuditLog } from '@/api';
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, ChevronLeft, ChevronRight, Clock, FileText, Filter, User } from 'lucide-react';
 import * as React from 'react';
@@ -87,7 +87,13 @@ function getActionBadgeVariant(action: string) {
   if (action.endsWith('_DELETED')) return 'destructive';
   if (action === 'LOGIN_FAILED') return 'destructive';
   if (action === 'USER_DISABLED') return 'warning';
-  if (action.endsWith('_UPDATED') || action.endsWith('_CHANGED') || action.endsWith('_ENABLED') || action.endsWith('_ADDED') || action.endsWith('_REMOVED'))
+  if (
+    action.endsWith('_UPDATED') ||
+    action.endsWith('_CHANGED') ||
+    action.endsWith('_ENABLED') ||
+    action.endsWith('_ADDED') ||
+    action.endsWith('_REMOVED')
+  )
     return 'default';
   if (action === 'LOGIN' || action === 'LOGOUT') return 'secondary';
   if (action === 'SETTINGS_UPDATED') return 'info';
@@ -191,7 +197,10 @@ export function AuditLogs() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <PageHeader title="Audit Logs" description="View all actions and changes made in the system." />
+      <PageHeader
+        title="Audit Logs"
+        description="View all actions and changes made in the system."
+      />
 
       {/* Filters */}
       <Card>
@@ -206,6 +215,7 @@ export function AuditLogs() {
             {/* Date range row */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
               <div className="w-full sm:w-[180px] space-y-2">
+                {/* biome-ignore lint/a11y/noLabelWithoutControl: Input is a wrapper around native input */}
                 <label className="text-sm font-medium flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
                   Start Date
@@ -214,10 +224,12 @@ export function AuditLogs() {
                   type="date"
                   value={startDate}
                   onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                  aria-label="Start Date"
                 />
               </div>
 
               <div className="w-full sm:w-[180px] space-y-2">
+                {/* biome-ignore lint/a11y/noLabelWithoutControl: Input is a wrapper around native input */}
                 <label className="text-sm font-medium flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
                   End Date
@@ -226,6 +238,7 @@ export function AuditLogs() {
                   type="date"
                   value={endDate}
                   onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                  aria-label="End Date"
                 />
               </div>
             </div>
@@ -233,15 +246,18 @@ export function AuditLogs() {
             {/* Other filters row */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
               <div className="flex-1 space-y-2">
+                {/* biome-ignore lint/a11y/noLabelWithoutControl: Input is a wrapper around native input */}
                 <label className="text-sm font-medium">Actor ID</label>
                 <Input
                   placeholder="Filter by actor ID..."
                   value={actorId}
                   onChange={(e) => handleFilterChange('actorId', e.target.value)}
+                  aria-label="Actor ID"
                 />
               </div>
 
               <div className="w-full sm:w-[220px] space-y-2">
+                {/* biome-ignore lint/a11y/noLabelWithoutControl: Input is a wrapper around native input */}
                 <label className="text-sm font-medium">Action</label>
                 <Select
                   value={action || 'all'}
@@ -262,6 +278,7 @@ export function AuditLogs() {
               </div>
 
               <div className="w-full sm:w-[180px] space-y-2">
+                {/* biome-ignore lint/a11y/noLabelWithoutControl: Select is a custom component */}
                 <label className="text-sm font-medium">Resource</label>
                 <Select
                   value={resource || 'all'}
@@ -307,6 +324,7 @@ export function AuditLogs() {
           <TableBody>
             {isLoading ? (
               Array.from({ length: 10 }).map((_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
                 <TableRow key={i}>
                   <TableCell>
                     <Skeleton className="h-4 w-32" />

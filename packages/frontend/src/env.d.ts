@@ -20,6 +20,16 @@ declare module '*.jpg' {
   export default content;
 }
 
+// Augment bun:test matchers with @testing-library/jest-dom
+// See: https://bun.sh/docs/guides/test/testing-library
+import type { TestingLibraryMatchers } from '@testing-library/jest-dom/matchers';
+
+declare module 'bun:test' {
+  interface Matchers<T>
+    extends TestingLibraryMatchers<typeof expect.stringContaining, T> {}
+  interface AsymmetricMatchers extends TestingLibraryMatchers {}
+}
+
 // Environment variables (PUBLIC_ prefix for client-exposed variables)
 declare namespace NodeJS {
   interface ProcessEnv {

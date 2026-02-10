@@ -74,7 +74,10 @@ export function Settings() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <PageHeader title="Update profile" description="Update your profile information and preferences." />
+      <PageHeader
+        title="Update profile"
+        description="Update your profile information and preferences."
+      />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">

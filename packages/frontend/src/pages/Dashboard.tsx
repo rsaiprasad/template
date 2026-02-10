@@ -1,9 +1,9 @@
+import { api } from '@/api';
 import { WithPermission } from '@/components/features/permission-gate';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import { api } from '@/api';
 import { formatRelativeTime, getFirstName } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import { useQuery } from '@tanstack/react-query';
@@ -131,6 +131,7 @@ export function Dashboard() {
             {auditLogsLoading ? (
               <div className="space-y-4">
                 {Array.from({ length: 3 }).map((_, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
                   <div key={i} className="flex items-start gap-4">
                     <Skeleton className="h-2 w-2 rounded-full mt-2" />
                     <div className="space-y-1 flex-1">
@@ -144,30 +145,30 @@ export function Dashboard() {
               <div className="space-y-4">
                 {auditLogsData.data.slice(0, 5).map((log) => {
                   const resourceLink =
-                    log.resource === 'users' || log.resource === 'groups'
-                      ? (
-                          <Link
-                            to={`/${log.resource}/${log.resourceId}`}
-                            className="text-muted-foreground hover:underline"
-                          >
-                            {log.resource}/{log.resourceId}
-                          </Link>
-                        )
-                      : (
-                          <span className="text-muted-foreground">{log.resource}</span>
-                        );
+                    log.resource === 'users' || log.resource === 'groups' ? (
+                      <Link
+                        to={`/${log.resource}/${log.resourceId}`}
+                        className="text-muted-foreground hover:underline"
+                      >
+                        {log.resource}/{log.resourceId}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">{log.resource}</span>
+                    );
 
                   return (
                     <div key={log.id} className="flex items-start gap-4">
                       <div className="h-2 w-2 rounded-full bg-primary mt-2" />
                       <div className="space-y-1">
                         <p className="text-sm">
-                          <Link to={`/users/${log.actorId}`} className="font-medium hover:underline">
+                          <Link
+                            to={`/users/${log.actorId}`}
+                            className="font-medium hover:underline"
+                          >
                             {log.actorName || log.actorEmail || 'System'}
                           </Link>
                           {' — '}
-                          <span className="font-medium">{log.action}</span> on{' '}
-                          {resourceLink}
+                          <span className="font-medium">{log.action}</span> on {resourceLink}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatRelativeTime(log.timestamp)}

@@ -32,14 +32,7 @@ import { formatDateTime, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ArrowLeft,
-  Calendar,
-  Mail,
-  Save,
-  User as UserIcon,
-  X,
-} from 'lucide-react';
+import { ArrowLeft, Calendar, Mail, Save, User as UserIcon, X } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router-dom';

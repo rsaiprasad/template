@@ -1,3 +1,4 @@
+import { api } from '@/api';
 import { MetadataCard } from '@/components/features/metadata-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { toastError, toastSuccess } from '@/hooks/useToast';
-import { api } from '@/api';
 import { formatDateTime } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import type { Group, Permission } from '@/types';
@@ -81,7 +81,8 @@ export function GroupDetail() {
 
   const group = groupData?.success ? (groupData.data as Group) : undefined;
   const permissionsResponse = permissionsData?.success ? permissionsData.data : null;
-  const permissionsList = (permissionsResponse as { permissions?: Array<{ id: string }> })?.permissions || [];
+  const permissionsList =
+    (permissionsResponse as { permissions?: Array<{ id: string }> })?.permissions || [];
   const allPermissions: PermissionDisplayInfo[] = Array.isArray(permissionsList)
     ? permissionsList.map((p) => parsePermission((typeof p === 'string' ? p : p.id) as Permission))
     : [];
@@ -110,7 +111,11 @@ export function GroupDetail() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: (data: GroupFormData & { permissions: string[] }) =>
-      api.createGroup({ name: data.name, description: data.description, permissions: data.permissions }),
+      api.createGroup({
+        name: data.name,
+        description: data.description,
+        permissions: data.permissions,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
       toastSuccess('Group created', 'The group has been successfully created.');
@@ -209,10 +214,12 @@ export function GroupDetail() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              {isCreateMode ? 'Create Group' : group!.name}
+              {isCreateMode ? 'Create Group' : group?.name}
             </h1>
             <p className="text-muted-foreground">
-              {isCreateMode ? 'Set up a new permission group' : (group!.description || 'No description')}
+              {isCreateMode
+                ? 'Set up a new permission group'
+                : group?.description || 'No description'}
             </p>
           </div>
         </div>
