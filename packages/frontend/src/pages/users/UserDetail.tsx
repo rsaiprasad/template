@@ -23,12 +23,22 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { toastError, toastSuccess } from '@/hooks/useToast';
 import { formatDateTime, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Calendar, Mail, Save, Shield, User as UserIcon, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  Calendar,
+  Mail,
+  Palette,
+  Save,
+  Shield,
+  User as UserIcon,
+  X,
+} from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -39,6 +49,9 @@ const userFormSchema = z.object({
   email: z.string().email('Invalid email address'),
   status: z.enum(['active', 'disabled']),
   groupIds: z.array(z.string()),
+  theme: z.enum(['light', 'dark', 'system']),
+  emailNotifications: z.boolean(),
+  pushNotifications: z.boolean(),
 });
 
 type UserFormData = z.infer<typeof userFormSchema>;
@@ -73,6 +86,9 @@ export function UserDetail() {
       email: '',
       status: 'active',
       groupIds: [],
+      theme: 'system',
+      emailNotifications: true,
+      pushNotifications: false,
     },
   });
 
@@ -84,6 +100,9 @@ export function UserDetail() {
         email: user.email,
         status: user.status,
         groupIds: user.groupIds || [],
+        theme: user.preferences?.theme || 'system',
+        emailNotifications: true,
+        pushNotifications: false,
       });
     }
   }, [user, form]);
@@ -95,6 +114,7 @@ export function UserDetail() {
         displayName: data.displayName,
         status: data.status,
         groupIds: data.groupIds,
+        preferences: { theme: data.theme },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
@@ -352,6 +372,88 @@ export function UserDetail() {
               </Form>
             </CardContent>
           </Card>
+
+          {/* Notification Preferences */}
+          {!isNew && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Notifications</CardTitle>
+                <CardDescription>Configure how this user receives notifications</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Form {...form}>
+                  <FormField
+                    control={form.control}
+                    name="emailNotifications"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">Email Notifications</FormLabel>
+                          <FormDescription>Receive notifications via email</FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="pushNotifications"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">Push Notifications</FormLabel>
+                          <FormDescription>
+                            Receive push notifications in the browser
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </Form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Appearance Settings */}
+          {!isNew && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  Appearance
+                </CardTitle>
+                <CardDescription>Customize how the dashboard looks for this user</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Theme</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['light', 'dark', 'system'] as const).map((t) => (
+                        <Button
+                          key={t}
+                          type="button"
+                          variant={form.watch('theme') === t ? 'default' : 'outline'}
+                          className="capitalize"
+                          onClick={() => form.setValue('theme', t, { shouldDirty: true })}
+                        >
+                          {t}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Select the preferred theme or use system settings
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar */}
