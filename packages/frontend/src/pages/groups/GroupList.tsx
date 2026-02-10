@@ -25,7 +25,7 @@ import { toastError, toastSuccess } from '@/hooks/useToast';
 import { formatDate } from '@/lib/utils';
 import { queryKeys } from '@/types';
 import type { GroupWithUsers } from '@/types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef, PaginationState, RowSelectionState } from '@tanstack/react-table';
 import { MoreHorizontal, Pencil, Plus, Search, Shield, Trash2, Users } from 'lucide-react';
 import * as React from 'react';
@@ -176,29 +176,11 @@ export function GroupList() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<'bulk' | GroupWithUsers>('bulk');
-  const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
-  const [newGroupName, setNewGroupName] = React.useState('');
-  const [newGroupDescription, setNewGroupDescription] = React.useState('');
 
   // Fetch groups
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.groups.list({ page, pageSize, search }),
     queryFn: () => api.listGroups({ page, pageSize, search }),
-  });
-
-  // Create mutation
-  const createMutation = useMutation({
-    mutationFn: (data: { name: string; description?: string }) => api.createGroup(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
-      toastSuccess('Group created', 'The group has been successfully created.');
-      setCreateDialogOpen(false);
-      setNewGroupName('');
-      setNewGroupDescription('');
-    },
-    onError: (error: Error) => {
-      toastError('Failed to create group', error.message);
-    },
   });
 
   const selectedCount = Object.keys(rowSelection).length;
@@ -222,15 +204,6 @@ export function GroupList() {
     },
     [page, pageSize, searchParams, setSearchParams]
   );
-
-  const handleCreateGroup = () => {
-    if (newGroupName.trim()) {
-      createMutation.mutate({
-        name: newGroupName.trim(),
-        description: newGroupDescription.trim() || undefined,
-      });
-    }
-  };
 
   const handleDeleteClick = React.useCallback((group: GroupWithUsers) => {
     setDeleteTarget(group);
@@ -302,9 +275,11 @@ export function GroupList() {
           <p className="text-muted-foreground">Manage permission groups and their members.</p>
         </div>
         <WithPermission permission="groups:create">
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Group
+          <Button asChild>
+            <Link to="/groups/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Group
+            </Link>
           </Button>
         </WithPermission>
       </div>
@@ -350,52 +325,6 @@ export function GroupList() {
         onRowSelectionChange={setRowSelection}
         getRowId={(row) => row.id}
       />
-
-      {/* Create dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Group</DialogTitle>
-            <DialogDescription>Create a new permission group to organize users.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium">
-                Name
-              </label>
-              <Input
-                id="name"
-                value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
-                placeholder="Enter group name"
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="description" className="text-sm font-medium">
-                Description
-              </label>
-              <Input
-                id="description"
-                value={newGroupDescription}
-                onChange={(e) => setNewGroupDescription(e.target.value)}
-                placeholder="Enter group description (optional)"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateGroup}
-              isLoading={createMutation.isPending}
-              disabled={!newGroupName.trim()}
-            >
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

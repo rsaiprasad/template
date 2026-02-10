@@ -7,7 +7,6 @@ import {
   FileText,
   LayoutDashboard,
   type LucideIcon,
-  Settings,
   Shield,
   Users,
 } from 'lucide-react';
@@ -43,11 +42,6 @@ const navItems: NavItem[] = [
     href: '/audit-logs',
     icon: FileText,
     permission: 'audit:list',
-  },
-  {
-    title: 'Settings',
-    href: '/settings',
-    icon: Settings,
   },
 ];
 

@@ -176,6 +176,7 @@ export function UserList() {
   const pageSize = Number.parseInt(searchParams.get('pageSize') || '10', 10);
   const search = searchParams.get('search') || '';
   const status = searchParams.get('status') || '';
+  const groupId = searchParams.get('groupId') || '';
 
   // Debounced search
   const { inputValue: searchInput, handleChange: handleSearchChange } = useDebouncedSearch();
@@ -183,21 +184,29 @@ export function UserList() {
   // Selection state
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
 
-  // Reset selection when page/search/status changes
+  // Reset selection when page/search/status/group changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on filter change
   React.useEffect(() => {
     setRowSelection({});
-  }, [page, pageSize, search, status]);
+  }, [page, pageSize, search, status, groupId]);
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<'bulk' | UserWithGroups>('bulk');
 
+  // Fetch groups for filter dropdown
+  const { data: groupsData } = useQuery({
+    queryKey: queryKeys.groups.list({ pageSize: 100 }),
+    queryFn: () => api.listGroups({ pageSize: 100 }),
+  });
+
+  const groups = (groupsData?.data as Array<{ id: string; name: string }>) ?? [];
+
   // Fetch users
   const { data, isLoading, error } = useQuery({
-    queryKey: queryKeys.users.list({ page, pageSize, search, status }),
-    queryFn: () => api.listUsers({ page, pageSize, search, status: status || undefined }),
+    queryKey: queryKeys.users.list({ page, pageSize, search, status, groupId }),
+    queryFn: () => api.listUsers({ page, pageSize, search, status: status || undefined, groupId: groupId || undefined }),
   });
 
   const selectedCount = Object.keys(rowSelection).length;
@@ -228,6 +237,17 @@ export function UserList() {
       params.set('status', value);
     } else {
       params.delete('status');
+    }
+    params.set('page', '1');
+    setSearchParams(params);
+  };
+
+  const handleGroupChange = (value: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (value && value !== 'all') {
+      params.set('groupId', value);
+    } else {
+      params.delete('groupId');
     }
     params.set('page', '1');
     setSearchParams(params);
@@ -321,6 +341,19 @@ export function UserList() {
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="disabled">Disabled</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={groupId || 'all'} onValueChange={handleGroupChange}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by group" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All groups</SelectItem>
+            {groups.map((g) => (
+              <SelectItem key={g.id} value={g.id}>
+                {g.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

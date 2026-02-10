@@ -22,23 +22,18 @@ import { queryKeys } from '@/types';
 import type { Theme } from '@/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, Palette, Save, Shield, User } from 'lucide-react';
+import { Palette, Save, Shield, User } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 const profileFormSchema = z.object({
   displayName: z.string().min(1, 'Display name is required'),
   email: z.string().email('Invalid email address'),
-});
-
-type ProfileFormData = z.infer<typeof profileFormSchema>;
-
-const notificationFormSchema = z.object({
   emailNotifications: z.boolean(),
   pushNotifications: z.boolean(),
 });
 
-type NotificationFormData = z.infer<typeof notificationFormSchema>;
+type ProfileFormData = z.infer<typeof profileFormSchema>;
 
 export function Settings() {
   const { user } = useAuth();
@@ -46,25 +41,16 @@ export function Settings() {
   const theme = useThemeStore(selectTheme);
   const setTheme = useThemeStore((state) => state.setTheme);
 
-  // Profile form
-  const profileForm = useForm<ProfileFormData>({
+  const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       displayName: user?.displayName || '',
       email: user?.email || '',
-    },
-  });
-
-  // Notification form
-  const notificationForm = useForm<NotificationFormData>({
-    resolver: zodResolver(notificationFormSchema),
-    defaultValues: {
       emailNotifications: true,
       pushNotifications: false,
     },
   });
 
-  // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: (data: ProfileFormData) => {
       if (!user?.uid) throw new Error('User not found');
@@ -79,12 +65,8 @@ export function Settings() {
     },
   });
 
-  const onProfileSubmit = (data: ProfileFormData) => {
+  const onSubmit = (data: ProfileFormData) => {
     updateProfileMutation.mutate(data);
-  };
-
-  const onNotificationSubmit = (_data: NotificationFormData) => {
-    toastSuccess('Settings saved', 'Your notification preferences have been updated.');
   };
 
   const handleThemeChange = (newTheme: Theme) => {
@@ -95,24 +77,24 @@ export function Settings() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage your account settings and preferences.</p>
+        <h1 className="text-2xl font-bold tracking-tight">Update profile</h1>
+        <p className="text-muted-foreground">Update your profile information and preferences.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {/* Profile Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Profile
-              </CardTitle>
-              <CardDescription>Update your personal information</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...profileForm}>
-                <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Profile Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Profile
+                  </CardTitle>
+                  <CardDescription>Update your personal information</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
                   <div className="flex items-center gap-4">
                     <Avatar className="h-20 w-20">
                       <AvatarImage src={user?.photoURL || undefined} />
@@ -128,7 +110,7 @@ export function Settings() {
                   </div>
 
                   <FormField
-                    control={profileForm.control}
+                    control={form.control}
                     name="displayName"
                     render={({ field }) => (
                       <FormItem>
@@ -142,7 +124,7 @@ export function Settings() {
                   />
 
                   <FormField
-                    control={profileForm.control}
+                    control={form.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -157,35 +139,18 @@ export function Settings() {
                       </FormItem>
                     )}
                   />
+                </CardContent>
+              </Card>
 
-                  <div className="flex justify-end">
-                    <Button type="submit" isLoading={updateProfileMutation.isPending}>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-
-          {/* Notification Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Notifications
-              </CardTitle>
-              <CardDescription>Configure how you receive notifications</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...notificationForm}>
-                <form
-                  onSubmit={notificationForm.handleSubmit(onNotificationSubmit)}
-                  className="space-y-6"
-                >
+              {/* Notification Preferences */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notifications</CardTitle>
+                  <CardDescription>Configure how you receive notifications</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
                   <FormField
-                    control={notificationForm.control}
+                    control={form.control}
                     name="emailNotifications"
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-4">
@@ -201,7 +166,7 @@ export function Settings() {
                   />
 
                   <FormField
-                    control={notificationForm.control}
+                    control={form.control}
                     name="pushNotifications"
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-4">
@@ -217,50 +182,52 @@ export function Settings() {
                       </FormItem>
                     )}
                   />
+                </CardContent>
+              </Card>
 
-                  <div className="flex justify-end">
-                    <Button type="submit">
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Preferences
-                    </Button>
+              {/* Appearance Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Palette className="h-5 w-5" />
+                    Appearance
+                  </CardTitle>
+                  <CardDescription>Customize how the dashboard looks</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Theme</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['light', 'dark', 'system'] as Theme[]).map((t) => (
+                          <Button
+                            key={t}
+                            type="button"
+                            variant={theme === t ? 'default' : 'outline'}
+                            className="capitalize"
+                            onClick={() => handleThemeChange(t)}
+                          >
+                            {t}
+                          </Button>
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Select your preferred theme or use system settings
+                      </p>
+                    </div>
                   </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          {/* Appearance Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5" />
-                Appearance
-              </CardTitle>
-              <CardDescription>Customize how the dashboard looks</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Theme</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['light', 'dark', 'system'] as Theme[]).map((t) => (
-                      <Button
-                        key={t}
-                        variant={theme === t ? 'default' : 'outline'}
-                        className="capitalize"
-                        onClick={() => handleThemeChange(t)}
-                      >
-                        {t}
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Select your preferred theme or use system settings
-                  </p>
-                </div>
+              {/* Save button */}
+              <div className="flex justify-end">
+                <Button type="submit" isLoading={updateProfileMutation.isPending}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            </form>
+          </Form>
         </div>
 
         {/* Sidebar */}

@@ -146,36 +146,49 @@ export class UserService {
       baseQuery = baseQuery.where('groupIds', 'array-contains', groupId);
     }
 
-    // Search filtering at query level where possible
-    // Note: Firestore doesn't support full-text search natively.
-    // For simple prefix matching on email, we can use >= and < operators.
-    // For full-text search, consider using Algolia, Typesense, or similar.
-    // This implementation falls back to client-side filtering for displayName searches.
+    // When a search query is provided, we fetch a larger batch and filter in memory
+    // to support matching on both email and displayName (Firestore can't do inequality
+    // queries on two fields). This works well for admin dashboards with <10k users.
+    // For larger scale, consider Algolia or Typesense.
     if (query) {
-      // Use email prefix matching at query level (can use index)
-      // This is a basic implementation - for production, use a search service
       const lowerQuery = query.toLowerCase();
-      baseQuery = baseQuery
-        .where('email', '>=', lowerQuery)
-        .where('email', '<', lowerQuery + '\uf8ff');
+
+      // Apply sorting before fetching
+      const validSortFields = ['createdAt', 'updatedAt', 'displayName', 'email', 'lastLoginAt'];
+      const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+      baseQuery = baseQuery.orderBy(sortField, sortOrder === 'asc' ? 'asc' : 'desc');
+
+      // Fetch a larger batch for in-memory filtering
+      const snapshot = await baseQuery.limit(500).get();
+      let allUsers = convertFirestoreDocs<User>(snapshot).map((u) => this.normalizeUser(u)!);
+
+      // Filter in memory by email or displayName
+      allUsers = allUsers.filter(
+        (u) =>
+          u.email.toLowerCase().includes(lowerQuery) ||
+          (u.displayName && u.displayName.toLowerCase().includes(lowerQuery))
+      );
+
+      const total = allUsers.length;
+
+      // Apply pagination to filtered results
+      const offset = (page - 1) * limit;
+      const users = allUsers.slice(offset, offset + limit);
+      const hasMore = offset + limit < total;
+      const nextCursor = hasMore && users.length > 0 ? users[users.length - 1]!.id : null;
+
+      return { users, total, nextCursor };
     }
 
+    // No search query — use standard Firestore pagination
     // Get total count (without pagination)
     const countSnapshot = await baseQuery.count().get();
     const total = countSnapshot.data().count;
 
     // Apply sorting
-    // When searching with email prefix (inequality filters on email),
-    // Firestore requires orderBy on the inequality field only — adding a
-    // secondary orderBy on a different field requires a composite index.
     const validSortFields = ['createdAt', 'updatedAt', 'displayName', 'email', 'lastLoginAt'];
     const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
-    if (query) {
-      // Search active: sort by email (the inequality field) to avoid composite index requirement
-      baseQuery = baseQuery.orderBy('email', 'asc');
-    } else {
-      baseQuery = baseQuery.orderBy(sortField, sortOrder === 'asc' ? 'asc' : 'desc');
-    }
+    baseQuery = baseQuery.orderBy(sortField, sortOrder === 'asc' ? 'asc' : 'desc');
 
     // Cursor-based pagination (preferred for large datasets)
     if (cursor) {

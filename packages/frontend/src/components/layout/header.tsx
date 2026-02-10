@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
 import { getInitials } from '@/lib/utils';
-import { LogOut, Menu, Settings, ShieldCheck, User } from 'lucide-react';
+import { LogOut, Menu, ShieldCheck, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface HeaderProps {
@@ -74,15 +74,9 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to="/settings" className="flex items-center cursor-pointer">
+              <Link to="/profile" className="flex items-center cursor-pointer">
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/settings" className="flex items-center cursor-pointer">
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

@@ -101,6 +101,14 @@ const router = createBrowserRouter([
             ),
           },
           {
+            path: 'groups/new',
+            element: (
+              <RequirePermission permission="groups:create">
+                <GroupDetail />
+              </RequirePermission>
+            ),
+          },
+          {
             path: 'groups/:id',
             element: (
               <RequirePermission permission="groups:read">
@@ -117,9 +125,9 @@ const router = createBrowserRouter([
               </RequirePermission>
             ),
           },
-          // Settings - accessible to all authenticated users
+          // Profile - accessible to all authenticated users
           {
-            path: 'settings',
+            path: 'profile',
             element: <Settings />,
           },
           // Error pages
