@@ -233,17 +233,17 @@ export function UserDetail() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main form */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Information</CardTitle>
-              <CardDescription>
-                {isNew ? 'Enter the details for the new user' : 'View and edit user details'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Information</CardTitle>
+                  <CardDescription>
+                    {isNew ? 'Enter the details for the new user' : 'View and edit user details'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
                   <FormField
                     control={form.control}
                     name="displayName"
@@ -359,101 +359,100 @@ export function UserDetail() {
                       </FormItem>
                     )}
                   />
+                </CardContent>
+              </Card>
 
-                  <WithPermission permission="users:update">
-                    <div className="flex justify-end">
-                      <Button type="submit" isLoading={updateMutation.isPending}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Changes
-                      </Button>
-                    </div>
-                  </WithPermission>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+              {/* Notification Preferences */}
+              {!isNew && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Notifications</CardTitle>
+                    <CardDescription>Configure how this user receives notifications</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="emailNotifications"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Email Notifications</FormLabel>
+                            <FormDescription>Receive notifications via email</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="pushNotifications"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Push Notifications</FormLabel>
+                            <FormDescription>
+                              Receive push notifications in the browser
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
-          {/* Notification Preferences */}
-          {!isNew && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Notifications</CardTitle>
-                <CardDescription>Configure how this user receives notifications</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <Form {...form}>
-                  <FormField
-                    control={form.control}
-                    name="emailNotifications"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Email Notifications</FormLabel>
-                          <FormDescription>Receive notifications via email</FormDescription>
+              {/* Appearance Settings */}
+              {!isNew && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Palette className="h-5 w-5" />
+                      Appearance
+                    </CardTitle>
+                    <CardDescription>Customize how the dashboard looks for this user</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Theme</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['light', 'dark', 'system'] as const).map((t) => (
+                            <Button
+                              key={t}
+                              type="button"
+                              variant={form.watch('theme') === t ? 'default' : 'outline'}
+                              className="capitalize"
+                              onClick={() => form.setValue('theme', t, { shouldDirty: true })}
+                            >
+                              {t}
+                            </Button>
+                          ))}
                         </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="pushNotifications"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Push Notifications</FormLabel>
-                          <FormDescription>
-                            Receive push notifications in the browser
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </Form>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Appearance Settings */}
-          {!isNew && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Palette className="h-5 w-5" />
-                  Appearance
-                </CardTitle>
-                <CardDescription>Customize how the dashboard looks for this user</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Theme</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(['light', 'dark', 'system'] as const).map((t) => (
-                        <Button
-                          key={t}
-                          type="button"
-                          variant={form.watch('theme') === t ? 'default' : 'outline'}
-                          className="capitalize"
-                          onClick={() => form.setValue('theme', t, { shouldDirty: true })}
-                        >
-                          {t}
-                        </Button>
-                      ))}
+                        <p className="text-sm text-muted-foreground">
+                          Select the preferred theme or use system settings
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Select the preferred theme or use system settings
-                    </p>
-                  </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Save button */}
+              <WithPermission permission="users:update">
+                <div className="flex justify-end">
+                  <Button type="submit" isLoading={updateMutation.isPending}>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </WithPermission>
+            </form>
+          </Form>
         </div>
 
         {/* Sidebar */}
