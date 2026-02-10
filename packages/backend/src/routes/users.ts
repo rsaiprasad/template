@@ -1,11 +1,9 @@
-import type { UserSearchParams } from '@admin-dashboard/shared';
+import type { AuditAction, UserSearchParams } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { AppError } from '../core/errors';
 import { logAuditAction } from '../core/middleware/audit';
 import { authMiddleware } from '../core/middleware/auth';
 import { requirePermission } from '../core/middleware/permissions';
-import { groupService, userService } from '../services';
 import type { AppEnv } from '../core/types/context';
 import {
   ErrorCodes,
@@ -15,6 +13,7 @@ import {
   paginatedResponse,
   successResponse,
 } from '../core/utils/response';
+import { groupService, userService } from '../services';
 
 const userRoutes = new Hono<AppEnv>();
 
@@ -30,10 +29,8 @@ const updateUserSchema = z.object({
       theme: z.enum(['light', 'dark', 'system']).optional(),
     })
     .optional(),
-});
-
-const changeGroupSchema = z.object({
-  groupId: z.string().min(1, 'Group ID is required'),
+  status: z.enum(['active', 'disabled']).optional(),
+  groupIds: z.array(z.string()).optional(),
 });
 
 /**
@@ -84,7 +81,11 @@ userRoutes.get('/:id', requirePermission('users:read'), async (c) => {
   const currentUser = c.get('user');
 
   // Non-super-admins without users:list can only read their own profile
-  if (!currentUser.isSuperAdmin && !currentUser.permissions.includes('users:list') && userId !== currentUser.uid) {
+  if (
+    !currentUser.isSuperAdmin &&
+    !currentUser.permissions.includes('users:list') &&
+    userId !== currentUser.uid
+  ) {
     return errorResponse(c, ErrorCodes.FORBIDDEN, 'You can only view your own profile', 403);
   }
 
@@ -106,7 +107,11 @@ userRoutes.put('/:id', requirePermission('users:update'), async (c) => {
   const currentUser = c.get('user');
 
   // Non-super-admins without users:list can only update their own profile
-  if (!currentUser.isSuperAdmin && !currentUser.permissions.includes('users:list') && userId !== currentUser.uid) {
+  if (
+    !currentUser.isSuperAdmin &&
+    !currentUser.permissions.includes('users:list') &&
+    userId !== currentUser.uid
+  ) {
     return errorResponse(c, ErrorCodes.FORBIDDEN, 'You can only update your own profile', 403);
   }
 
@@ -140,22 +145,45 @@ userRoutes.put('/:id', requirePermission('users:update'), async (c) => {
     );
   }
 
+  // Prevent self-disable
+  if (result.data.status === 'disabled' && userId === currentUser.uid) {
+    return errorResponse(c, ErrorCodes.CANNOT_DISABLE_SELF, 'You cannot disable yourself', 400);
+  }
+
   // Update user - throws AppError on failure
-  const updatedUser = await userService.updateUser(userId, result.data);
+  const updatedUser = await userService.updateUser(userId, result.data, currentUser.uid);
 
   // Log audit
-  await logAuditAction(c, 'USER_UPDATED', 'users', userId, `Updated user ${updatedUser.email}`, {
-    before: {
-      displayName: existingUser.displayName,
-      photoURL: existingUser.photoURL,
-      preferences: existingUser.preferences,
-    },
-    after: {
-      displayName: updatedUser.displayName,
-      photoURL: updatedUser.photoURL,
-      preferences: updatedUser.preferences,
-    },
-  });
+  const before: Record<string, unknown> = {
+    displayName: existingUser.displayName,
+    photoURL: existingUser.photoURL,
+    preferences: existingUser.preferences,
+  };
+  const after: Record<string, unknown> = {
+    displayName: updatedUser.displayName,
+    photoURL: updatedUser.photoURL,
+    preferences: updatedUser.preferences,
+  };
+  if (result.data.status !== undefined) {
+    before.status = existingUser.status;
+    after.status = updatedUser.status;
+  }
+  if (result.data.groupIds !== undefined) {
+    before.groupIds = existingUser.groupIds;
+    after.groupIds = updatedUser.groupIds;
+  }
+
+  let auditAction: AuditAction = 'USER_UPDATED';
+  let description = `Updated user ${updatedUser.email}`;
+  if (result.data.status === 'disabled' && existingUser.status !== 'disabled') {
+    auditAction = 'USER_DISABLED';
+    description = `Disabled user ${updatedUser.email}`;
+  } else if (result.data.status === 'active' && existingUser.status !== 'active') {
+    auditAction = 'USER_ENABLED';
+    description = `Enabled user ${updatedUser.email}`;
+  }
+
+  await logAuditAction(c, auditAction, 'users', userId, description, { before, after });
 
   return successResponse(c, updatedUser);
 });
@@ -169,7 +197,11 @@ userRoutes.delete('/:id', requirePermission('users:delete'), async (c) => {
   const currentUser = c.get('user');
 
   // Non-super-admins without users:list can only delete their own account
-  if (!currentUser.isSuperAdmin && !currentUser.permissions.includes('users:list') && userId !== currentUser.uid) {
+  if (
+    !currentUser.isSuperAdmin &&
+    !currentUser.permissions.includes('users:list') &&
+    userId !== currentUser.uid
+  ) {
     return errorResponse(c, ErrorCodes.FORBIDDEN, 'You can only delete your own account', 403);
   }
 
@@ -209,198 +241,6 @@ userRoutes.delete('/:id', requirePermission('users:delete'), async (c) => {
   });
 
   return successResponse(c, { message: 'User deleted successfully' });
-});
-
-/**
- * POST /api/v1/users/:id/disable
- * Disable a user
- */
-userRoutes.post('/:id/disable', requirePermission('users:update'), async (c) => {
-  const userId = c.req.param('id');
-  const currentUser = c.get('user');
-
-  // Prevent self-disable
-  if (userId === currentUser.uid) {
-    return errorResponse(c, ErrorCodes.CANNOT_DISABLE_SELF, 'You cannot disable yourself', 400);
-  }
-
-  // Disable user - throws AppError on failure (handled by global error handler)
-  const user = await userService.disableUser(userId, currentUser.uid);
-
-  // Log audit
-  await logAuditAction(c, 'USER_DISABLED', 'users', userId, `Disabled user ${user.email}`, {
-    before: { status: 'active' },
-    after: { status: 'disabled', disabledBy: currentUser.uid },
-  });
-
-  return successResponse(c, user);
-});
-
-/**
- * POST /api/v1/users/:id/enable
- * Enable a disabled user
- */
-userRoutes.post('/:id/enable', requirePermission('users:update'), async (c) => {
-  const userId = c.req.param('id');
-
-  // Enable user - throws AppError on failure (handled by global error handler)
-  const user = await userService.enableUser(userId);
-
-  // Log audit
-  await logAuditAction(c, 'USER_ENABLED', 'users', userId, `Enabled user ${user.email}`, {
-    before: { status: 'disabled' },
-    after: { status: 'active' },
-  });
-
-  return successResponse(c, user);
-});
-
-/**
- * PUT /api/v1/users/:id/group
- * Change a user's group
- */
-userRoutes.put('/:id/group', requirePermission('users:update'), async (c) => {
-  const userId = c.req.param('id');
-  const currentUser = c.get('user');
-
-  // Parse and validate request body
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return badRequest(c, 'Invalid JSON in request body');
-  }
-  const result = changeGroupSchema.safeParse(body);
-
-  if (!result.success) {
-    return badRequest(c, 'Invalid request body', result.error.errors);
-  }
-
-  // Get existing user
-  const existingUser = await userService.getUser(userId);
-
-  if (!existingUser) {
-    return notFound(c, 'User');
-  }
-
-  // Check if trying to modify a super admin
-  if (existingUser.isSuperAdmin && !currentUser.isSuperAdmin) {
-    return errorResponse(
-      c,
-      ErrorCodes.CANNOT_MODIFY_SUPER_ADMIN,
-      'Cannot modify super administrator accounts',
-      403
-    );
-  }
-
-  // Verify new group exists
-  const newGroup = await groupService.getGroup(result.data.groupId);
-  if (!newGroup) {
-    return notFound(c, 'Group');
-  }
-
-  // Get old group names for audit
-  const oldGroupNames: string[] = [];
-  for (const gid of existingUser.groupIds) {
-    const g = await groupService.getGroup(gid);
-    if (g) oldGroupNames.push(g.name);
-  }
-
-  // Set user to only the specified group (replaces all groups)
-  const userRef = (await import('../core/lib/firebase-admin')).getDb().collection('users').doc(userId);
-  await userRef.update({ groupIds: [result.data.groupId], updatedAt: new Date() });
-  const updatedUser = { ...existingUser, groupIds: [result.data.groupId], updatedAt: new Date() };
-
-  // Log audit
-  await logAuditAction(
-    c,
-    'USER_GROUP_ADDED',
-    'users',
-    userId,
-    `Set user ${updatedUser.email} groups to "${newGroup.name}"`,
-    {
-      before: { groupIds: existingUser.groupIds, groupNames: oldGroupNames },
-      after: { groupIds: [result.data.groupId], groupNames: [newGroup.name] },
-    }
-  );
-
-  return successResponse(c, updatedUser);
-});
-
-/**
- * POST /api/v1/users/:userId/groups/:groupId
- * Add user to a group
- */
-userRoutes.post(':userId/groups/:groupId', requirePermission('users:update'), async (c) => {
-  const userId = c.req.param('userId');
-  const groupId = c.req.param('groupId');
-  const currentUser = c.get('user');
-
-  const existingUser = await userService.getUser(userId);
-  if (!existingUser) {
-    return notFound(c, 'User');
-  }
-
-  if (existingUser.isSuperAdmin && !currentUser.isSuperAdmin) {
-    return errorResponse(c, ErrorCodes.CANNOT_MODIFY_SUPER_ADMIN, 'Cannot modify super administrator accounts', 403);
-  }
-
-  const newGroup = await groupService.getGroup(groupId);
-  if (!newGroup) {
-    return notFound(c, 'Group');
-  }
-
-  const updatedUser = await userService.addUserToGroup(userId, groupId);
-
-  await logAuditAction(
-    c,
-    'USER_GROUP_ADDED',
-    'users',
-    userId,
-    `Added user ${updatedUser.email} to group "${newGroup.name}"`,
-    {
-      before: { groupIds: existingUser.groupIds },
-      after: { groupIds: updatedUser.groupIds },
-    }
-  );
-
-  return successResponse(c, updatedUser);
-});
-
-/**
- * DELETE /api/v1/users/:userId/groups/:groupId
- * Remove user from a group
- */
-userRoutes.delete(':userId/groups/:groupId', requirePermission('users:update'), async (c) => {
-  const userId = c.req.param('userId');
-  const groupId = c.req.param('groupId');
-  const currentUser = c.get('user');
-
-  const existingUser = await userService.getUser(userId);
-  if (!existingUser) {
-    return notFound(c, 'User');
-  }
-
-  if (existingUser.isSuperAdmin && !currentUser.isSuperAdmin) {
-    return errorResponse(c, ErrorCodes.CANNOT_MODIFY_SUPER_ADMIN, 'Cannot modify super administrator accounts', 403);
-  }
-
-  const removedGroup = await groupService.getGroup(groupId);
-  const updatedUser = await userService.removeUserFromGroup(userId, groupId);
-
-  await logAuditAction(
-    c,
-    'USER_GROUP_REMOVED',
-    'users',
-    userId,
-    `Removed user ${updatedUser.email} from group "${removedGroup?.name}"`,
-    {
-      before: { groupIds: existingUser.groupIds },
-      after: { groupIds: updatedUser.groupIds },
-    }
-  );
-
-  return successResponse(c, updatedUser);
 });
 
 export { userRoutes };

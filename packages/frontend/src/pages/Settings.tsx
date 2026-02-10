@@ -1,3 +1,4 @@
+import { api } from '@/api';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,6 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
 import { toastError, toastSuccess } from '@/hooks/useToast';
-import { api } from '@/api';
 import { getInitials } from '@/lib/utils';
 import { selectTheme, useThemeStore } from '@/stores/theme-store';
 import { queryKeys } from '@/types';
@@ -237,9 +237,9 @@ export function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
-                Your Permissions
+                Permissions
               </CardTitle>
-              <CardDescription>Permissions assigned to your account</CardDescription>
+              <CardDescription>Permissions assigned through groups</CardDescription>
             </CardHeader>
             <CardContent>
               {user?.permissions && user.permissions.length > 0 ? (

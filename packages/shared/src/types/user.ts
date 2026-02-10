@@ -33,6 +33,8 @@ export interface UpdateUserInput {
   displayName?: string;
   photoURL?: string | null;
   preferences?: Partial<UserPreferences>;
+  status?: UserStatus;
+  groupIds?: string[];
 }
 
 export interface UserWithPermissions extends User {

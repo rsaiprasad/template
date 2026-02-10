@@ -39,6 +39,7 @@ interface DataTableProps<TData, TValue> {
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   getRowId?: (row: TData) => string;
+  enableRowSelection?: boolean | ((row: TData) => boolean);
 }
 
 export function DataTable<TData, TValue>({
@@ -54,6 +55,7 @@ export function DataTable<TData, TValue>({
   rowSelection,
   onRowSelectionChange,
   getRowId,
+  enableRowSelection: enableRowSelectionProp,
 }: DataTableProps<TData, TValue>) {
   const pageCount = pagination ? Math.ceil(rowCount / pagination.pageSize) : 0;
 
@@ -71,7 +73,11 @@ export function DataTable<TData, TValue>({
     onPaginationChange,
     onRowSelectionChange,
     getRowId,
-    enableRowSelection: !!onRowSelectionChange,
+    enableRowSelection: enableRowSelectionProp !== undefined
+      ? (typeof enableRowSelectionProp === 'function'
+        ? (row: { original: TData }) => enableRowSelectionProp(row.original)
+        : enableRowSelectionProp)
+      : !!onRowSelectionChange,
   });
 
   const colCount = columns.length;

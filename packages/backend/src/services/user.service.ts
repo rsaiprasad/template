@@ -342,7 +342,7 @@ export class UserService {
   /**
    * Update a user
    */
-  async updateUser(userId: string, input: UpdateUserInput): Promise<User> {
+  async updateUser(userId: string, input: UpdateUserInput, actorId?: string): Promise<User> {
     const userRef = this.db.collection(Collections.USERS).doc(userId);
     const userDoc = await userRef.get();
 
@@ -371,6 +371,47 @@ export class UserService {
         ...existingUser.preferences,
         ...input.preferences,
       };
+    }
+
+    // Handle status change
+    if (input.status !== undefined && input.status !== existingUser.status) {
+      const now = new Date();
+      if (input.status === 'disabled') {
+        if (existingUser.isSuperAdmin) {
+          throw new ForbiddenError('Cannot disable super administrator accounts');
+        }
+        updates.status = 'disabled';
+        updates.disabledAt = now;
+        updates.disabledBy = actorId || '';
+        try {
+          await this.auth.updateUser(userId, { disabled: true });
+        } catch (error) {
+          console.warn(`Could not disable user ${userId} in Firebase Auth:`, error);
+        }
+      } else {
+        updates.status = 'active';
+        updates.disabledAt = null;
+        updates.disabledBy = null;
+        try {
+          await this.auth.updateUser(userId, { disabled: false });
+        } catch (error) {
+          console.warn(`Could not enable user ${userId} in Firebase Auth:`, error);
+        }
+      }
+    }
+
+    // Handle groupIds change
+    if (input.groupIds !== undefined) {
+      // Validate all group IDs exist
+      const groupDocs = await Promise.all(
+        input.groupIds.map((gid) => this.db.collection(Collections.GROUPS).doc(gid).get())
+      );
+      for (let i = 0; i < groupDocs.length; i++) {
+        if (!groupDocs[i]!.exists) {
+          throw new ValidationError(`Group "${input.groupIds[i]}" not found`);
+        }
+      }
+      updates.groupIds = input.groupIds;
     }
 
     await userRef.update(updates);

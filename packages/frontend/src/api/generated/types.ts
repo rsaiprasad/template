@@ -75,6 +75,8 @@ export interface UpdateUserRequest {
   displayName?: string;
   photoURL?: string | null;
   preferences?: Partial<UserPreferences>;
+  status?: UserStatus;
+  groupIds?: string[];
 }
 
 export interface ListUsersParams {

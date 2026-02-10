@@ -1,3 +1,5 @@
+import { api } from '@/api';
+import type { Group, UserWithPermissions } from '@/api';
 import { WithPermission } from '@/components/features/permission-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -22,10 +24,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
 import { toastError, toastSuccess } from '@/hooks/useToast';
-import { api } from '@/api';
 import { formatDateTime, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
-import type { Group, User } from '@/api';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Calendar, Mail, Save, Shield, User as UserIcon, X } from 'lucide-react';
@@ -33,26 +33,6 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
-
-// Extended User type that includes groups array
-interface UserGroup {
-  id: string;
-  name: string;
-}
-
-type UserWithGroups = User & {
-  groups?: UserGroup[];
-  groupNames?: string[];
-  firebaseUid?: string;
-};
-
-// Separator component since it wasn't created
-const SeparatorComponent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className="shrink-0 bg-border h-[1px] w-full my-4" {...props} />
-  )
-);
-SeparatorComponent.displayName = 'Separator';
 
 const userFormSchema = z.object({
   displayName: z.string().min(1, 'Display name is required'),
@@ -82,21 +62,7 @@ export function UserDetail() {
     queryFn: () => api.listGroups({ pageSize: 100 }),
   });
 
-  const rawUser = userData?.success ? (userData.data as UserWithGroups) : undefined;
-  // Derive groups array from groupIds + groupNames for multi-group UI
-  const user = React.useMemo(() => {
-    if (!rawUser) return undefined;
-    if (!rawUser.groups && rawUser.groupIds && rawUser.groupNames) {
-      return {
-        ...rawUser,
-        groups: rawUser.groupIds.map((id, i) => ({
-          id,
-          name: rawUser.groupNames?.[i] || 'Unknown',
-        })),
-      };
-    }
-    return rawUser;
-  }, [rawUser]);
+  const user = userData?.success ? (userData.data as UserWithPermissions) : undefined;
   const availableGroups: Group[] = groupsData?.data || [];
 
   // Form setup
@@ -117,14 +83,19 @@ export function UserDetail() {
         displayName: user.displayName || '',
         email: user.email,
         status: user.status,
-        groupIds: user.groups?.map((g: UserGroup) => g.id) || [],
+        groupIds: user.groupIds || [],
       });
     }
   }, [user, form]);
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: (data: UserFormData) => api.updateUser(id!, data),
+    mutationFn: (data: UserFormData) =>
+      api.updateUser(id!, {
+        displayName: data.displayName,
+        status: data.status,
+        groupIds: data.groupIds,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id!) });
@@ -139,22 +110,48 @@ export function UserDetail() {
     updateMutation.mutate(data);
   };
 
-  // Add/remove group mutations
-  const addGroupMutation = useMutation({
-    mutationFn: (groupId: string) => api.addUserToGroup(id!, groupId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id!) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-    },
-  });
+  // Watch groupIds from form state
+  const formGroupIds = form.watch('groupIds');
 
-  const removeGroupMutation = useMutation({
-    mutationFn: (groupId: string) => api.removeUserFromGroup(id!, groupId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id!) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-    },
-  });
+  // Build group name map for display
+  const groupNameMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const g of availableGroups) {
+      map.set(g.id, g.name);
+    }
+    // Also use groupNames from the API response for groups not in availableGroups
+    if (user?.groupIds && user?.groupNames) {
+      for (let i = 0; i < user.groupIds.length; i++) {
+        if (!map.has(user.groupIds[i]!)) {
+          map.set(user.groupIds[i]!, user.groupNames[i] || 'Unknown');
+        }
+      }
+    }
+    return map;
+  }, [availableGroups, user]);
+
+  const removeGroup = (groupId: string) => {
+    const current = form.getValues('groupIds');
+    if (current.length <= 1) {
+      toastError('Cannot remove group', 'Users must belong to at least one group.');
+      return;
+    }
+    form.setValue(
+      'groupIds',
+      current.filter((id) => id !== groupId),
+      { shouldDirty: true }
+    );
+  };
+
+  const addGroup = (groupId: string) => {
+    const current = form.getValues('groupIds');
+    if (!current.includes(groupId)) {
+      form.setValue('groupIds', [...current, groupId], { shouldDirty: true });
+    }
+  };
+
+  // Groups not yet assigned
+  const unassignedGroups = availableGroups.filter((g) => !formGroupIds.includes(g.id));
 
   if (userLoading && !isNew) {
     return (
@@ -289,6 +286,60 @@ export function UserDetail() {
                     )}
                   />
 
+                  {/* Groups */}
+                  <FormField
+                    control={form.control}
+                    name="groupIds"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Groups</FormLabel>
+                        <div className="space-y-3">
+                          {formGroupIds.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {formGroupIds.map((gid) => (
+                                <Badge
+                                  key={gid}
+                                  variant="secondary"
+                                  className="flex items-center gap-1"
+                                >
+                                  {groupNameMap.get(gid) || gid}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeGroup(gid)}
+                                    className="ml-1 rounded-full hover:bg-destructive/20"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No groups assigned</p>
+                          )}
+
+                          {unassignedGroups.length > 0 && (
+                            <Select onValueChange={addGroup}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Add to group..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {unassignedGroups.map((group) => (
+                                  <SelectItem key={group.id} value={group.id}>
+                                    {group.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                        <FormDescription>
+                          Permissions are merged from all assigned groups
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <WithPermission permission="users:update">
                     <div className="flex justify-end">
                       <Button type="submit" isLoading={updateMutation.isPending}>
@@ -305,64 +356,33 @@ export function UserDetail() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Groups card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                Groups
-              </CardTitle>
-              <CardDescription>Manage user group memberships</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {user?.groups && user.groups.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {user.groups.map((group: UserGroup) => (
-                    <Badge key={group.id} variant="secondary" className="flex items-center gap-1">
-                      {group.name}
-                      <WithPermission permission="users:update">
-                        <button
-                          onClick={() => removeGroupMutation.mutate(group.id)}
-                          className="ml-1 rounded-full hover:bg-destructive/20"
-                          disabled={removeGroupMutation.isPending}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </WithPermission>
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Not a member of any groups</p>
-              )}
-
-              <WithPermission permission="users:update">
-                <SeparatorComponent />
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Add to group</p>
-                  <Select
-                    onValueChange={(value) => addGroupMutation.mutate(value)}
-                    disabled={addGroupMutation.isPending}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a group" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableGroups
-                        .filter(
-                          (g: Group) => !user?.groups?.some((ug: UserGroup) => ug.id === g.id)
-                        )
-                        .map((group: Group) => (
-                          <SelectItem key={group.id} value={group.id}>
-                            {group.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </WithPermission>
-            </CardContent>
-          </Card>
+          {/* Permissions card */}
+          {user && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Permissions
+                </CardTitle>
+                <CardDescription>Permissions assigned through groups</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {user.isSuperAdmin ? (
+                  <Badge variant="default">Super Admin</Badge>
+                ) : user.permissions && user.permissions.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {user.permissions.map((permission) => (
+                      <Badge key={permission} variant="secondary">
+                        {permission}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No specific permissions assigned</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Metadata card */}
           {user && (
@@ -381,8 +401,8 @@ export function UserDetail() {
                 <div className="flex items-center gap-3 text-sm">
                   <Mail className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="font-medium">Firebase UID</p>
-                    <p className="text-muted-foreground font-mono text-xs">{user.firebaseUid}</p>
+                    <p className="font-medium">Email</p>
+                    <p className="text-muted-foreground font-mono text-xs">{user.email}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm">

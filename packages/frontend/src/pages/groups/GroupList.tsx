@@ -51,6 +51,7 @@ function getColumns(
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
+          disabled={!row.getCanSelect()}
           aria-label="Select row"
         />
       ),
@@ -324,6 +325,7 @@ export function GroupList() {
         rowSelection={rowSelection}
         onRowSelectionChange={setRowSelection}
         getRowId={(row) => row.id}
+        enableRowSelection={(row: GroupWithUsers) => !row.isSystem}
       />
 
       {/* Delete dialog */}
