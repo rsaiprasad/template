@@ -1,17 +1,13 @@
 import { api } from '@/api';
+import { BulkActionBar } from '@/components/features/bulk-action-bar';
+import { DeleteConfirmationDialog } from '@/components/features/delete-confirmation-dialog';
+import { ListHeader } from '@/components/features/list-header';
 import { WithPermission } from '@/components/features/permission-gate';
+import { SearchFilterBar } from '@/components/features/search-filter-bar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/data-table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch';
 import { toastError, toastSuccess } from '@/hooks/useToast';
 import { formatDate } from '@/lib/utils';
@@ -27,7 +22,7 @@ import { queryKeys } from '@/types';
 import type { GroupWithUsers } from '@/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef, PaginationState, RowSelectionState } from '@tanstack/react-table';
-import { MoreHorizontal, Pencil, Plus, Search, Shield, Trash2, Users } from 'lucide-react';
+import { MoreHorizontal, Pencil, Shield, Trash2, Users } from 'lucide-react';
 import * as React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -270,46 +265,27 @@ export function GroupList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Groups</h1>
-          <p className="text-muted-foreground">Manage permission groups and their members.</p>
-        </div>
-        <WithPermission permission="groups:create">
-          <Button asChild>
-            <Link to="/groups/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Group
-            </Link>
-          </Button>
-        </WithPermission>
-      </div>
+      <ListHeader
+        title="Groups"
+        description="Manage permission groups and their members."
+        permission="groups:create"
+        buttonLabel="Create Group"
+        buttonHref="/groups/new"
+      />
 
       {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search groups..."
-            value={searchInput}
-            onChange={handleSearchChange}
-            className="pl-9"
-          />
-        </div>
-      </div>
+      <SearchFilterBar
+        placeholder="Search groups..."
+        value={searchInput}
+        onChange={handleSearchChange}
+      />
 
       {/* Bulk action bar */}
-      {selectedCount > 0 && (
-        <div className="flex items-center gap-4 rounded-md border bg-muted/50 px-4 py-2">
-          <span className="text-sm font-medium">{selectedCount} selected</span>
-          <WithPermission permission="groups:delete">
-            <Button variant="destructive" size="sm" onClick={handleBulkDeleteClick}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Selected
-            </Button>
-          </WithPermission>
-        </div>
-      )}
+      <BulkActionBar
+        selectedCount={selectedCount}
+        permission="groups:delete"
+        onDelete={handleBulkDeleteClick}
+      />
 
       {/* Data Table */}
       <DataTable
@@ -329,22 +305,15 @@ export function GroupList() {
       />
 
       {/* Delete dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{deleteDialogTitle}</DialogTitle>
-            <DialogDescription>{deleteDialogDescription}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete} isLoading={isDeleting}>
-              {deleteButtonLabel}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={deleteDialogTitle}
+        description={deleteDialogDescription}
+        confirmLabel={deleteButtonLabel}
+        isDeleting={isDeleting}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

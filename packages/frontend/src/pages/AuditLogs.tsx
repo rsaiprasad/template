@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/features/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -190,10 +191,7 @@ export function AuditLogs() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Audit Logs</h1>
-        <p className="text-muted-foreground">View all actions and changes made in the system.</p>
-      </div>
+      <PageHeader title="Audit Logs" description="View all actions and changes made in the system." />
 
       {/* Filters */}
       <Card>

@@ -218,6 +218,24 @@ Use cursor instead of offset for efficient Firestore queries.
 
 ### Frontend
 
+#### Reuse Shared Components Before Writing New UI
+Before adding any new UI to a page, check `packages/frontend/src/components/features/` for existing shared components. These cover common patterns across pages:
+
+| Component | Purpose |
+|---|---|
+| `PageHeader` | Simple page title + description |
+| `ListHeader` | Title + description + permission-gated create button |
+| `SearchFilterBar` | Search input with icon + optional filter children |
+| `BulkActionBar` | "N selected" bar with permission-gated delete button |
+| `DeleteConfirmationDialog` | Destructive action confirmation dialog |
+| `MetadataCard` | Card with icon + label + value rows (IDs, dates, etc.) |
+| `PermissionsCard` | Displays user/group permissions with super admin badge |
+| `NotificationsCard` | Email/push notification toggle switches (react-hook-form) |
+| `AppearanceCard` | Theme selector (light/dark/system) |
+| `ErrorStatePage` | Full-page error layout (404, 403) with back/home buttons |
+
+**Rule**: Always scan `components/features/` before implementing page-level UI. If a pattern exists, import and use the shared component. If a new pattern appears in 2+ pages, extract it into a shared component.
+
 #### Key Features
 - Error Boundary wraps the app
 - API client: 30s timeout, retry with exponential backoff, token refresh on 401

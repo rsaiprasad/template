@@ -1,3 +1,4 @@
+import { MetadataCard } from '@/components/features/metadata-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -322,34 +323,14 @@ export function GroupDetail() {
         {/* Sidebar — edit mode only */}
         {!isCreateMode && group && (
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3 text-sm">
-                  <Shield className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Group ID</p>
-                    <p className="text-muted-foreground font-mono text-xs">{group.id}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Created</p>
-                    <p className="text-muted-foreground">{formatDateTime(group.createdAt)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Last Updated</p>
-                    <p className="text-muted-foreground">{formatDateTime(group.updatedAt)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <MetadataCard
+              title="Details"
+              items={[
+                { icon: Shield, label: 'Group ID', value: group.id, mono: true },
+                { icon: Calendar, label: 'Created', value: formatDateTime(group.createdAt) },
+                { icon: Calendar, label: 'Last Updated', value: formatDateTime(group.updatedAt) },
+              ]}
+            />
           </div>
         )}
       </div>

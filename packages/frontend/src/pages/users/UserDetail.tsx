@@ -1,6 +1,10 @@
 import { api } from '@/api';
 import type { Group, UserWithPermissions } from '@/api';
+import { AppearanceCard } from '@/components/features/appearance-card';
+import { MetadataCard } from '@/components/features/metadata-card';
+import { NotificationsCard } from '@/components/features/notifications-card';
 import { WithPermission } from '@/components/features/permission-gate';
+import { PermissionsCard } from '@/components/features/permissions-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,7 +27,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
 import { toastError, toastSuccess } from '@/hooks/useToast';
 import { formatDateTime, getInitials } from '@/lib/utils';
 import { queryKeys } from '@/types';
@@ -33,9 +36,7 @@ import {
   ArrowLeft,
   Calendar,
   Mail,
-  Palette,
   Save,
-  Shield,
   User as UserIcon,
   X,
 } from 'lucide-react';
@@ -363,83 +364,14 @@ export function UserDetail() {
               </Card>
 
               {/* Notification Preferences */}
-              {!isNew && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Notifications</CardTitle>
-                    <CardDescription>Configure how this user receives notifications</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="emailNotifications"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Email Notifications</FormLabel>
-                            <FormDescription>Receive notifications via email</FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="pushNotifications"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Push Notifications</FormLabel>
-                            <FormDescription>
-                              Receive push notifications in the browser
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-              )}
+              {!isNew && <NotificationsCard control={form.control} />}
 
               {/* Appearance Settings */}
               {!isNew && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Palette className="h-5 w-5" />
-                      Appearance
-                    </CardTitle>
-                    <CardDescription>Customize how the dashboard looks for this user</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Theme</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          {(['light', 'dark', 'system'] as const).map((t) => (
-                            <Button
-                              key={t}
-                              type="button"
-                              variant={form.watch('theme') === t ? 'default' : 'outline'}
-                              className="capitalize"
-                              onClick={() => form.setValue('theme', t, { shouldDirty: true })}
-                            >
-                              {t}
-                            </Button>
-                          ))}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Select the preferred theme or use system settings
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <AppearanceCard
+                  theme={form.watch('theme')}
+                  onThemeChange={(t) => form.setValue('theme', t, { shouldDirty: true })}
+                />
               )}
 
               {/* Save button */}
@@ -459,69 +391,20 @@ export function UserDetail() {
         <div className="space-y-6">
           {/* Permissions card */}
           {user && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Permissions
-                </CardTitle>
-                <CardDescription>Permissions assigned through groups</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {user.isSuperAdmin ? (
-                  <Badge variant="default">Super Admin</Badge>
-                ) : user.permissions && user.permissions.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {user.permissions.map((permission) => (
-                      <Badge key={permission} variant="secondary">
-                        {permission}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No specific permissions assigned</p>
-                )}
-              </CardContent>
-            </Card>
+            <PermissionsCard permissions={user.permissions} isSuperAdmin={user.isSuperAdmin} />
           )}
 
           {/* Metadata card */}
           {user && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3 text-sm">
-                  <UserIcon className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">User ID</p>
-                    <p className="text-muted-foreground font-mono text-xs">{user.id}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Email</p>
-                    <p className="text-muted-foreground font-mono text-xs">{user.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Created</p>
-                    <p className="text-muted-foreground">{formatDateTime(user.createdAt)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Last Updated</p>
-                    <p className="text-muted-foreground">{formatDateTime(user.updatedAt)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <MetadataCard
+              title="Details"
+              items={[
+                { icon: UserIcon, label: 'User ID', value: user.id, mono: true },
+                { icon: Mail, label: 'Email', value: user.email, mono: true },
+                { icon: Calendar, label: 'Created', value: formatDateTime(user.createdAt) },
+                { icon: Calendar, label: 'Last Updated', value: formatDateTime(user.updatedAt) },
+              ]}
+            />
           )}
         </div>
       </div>
