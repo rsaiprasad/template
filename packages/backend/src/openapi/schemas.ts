@@ -174,27 +174,21 @@ export const UserSearchQuerySchema = PaginationQuerySchema.extend({
 export const GroupSchema = z.object({
   id: z.string().openapi({ description: 'Group unique identifier', example: 'group_admin' }),
   name: z.string().openapi({ description: 'Group name', example: 'Administrators' }),
-  description: z
-    .string()
-    .openapi({
-      description: 'Group description',
-      example: 'Users with full administrative access',
-    }),
-  permissions: z
-    .array(z.string())
-    .openapi({
-      description: 'List of permissions assigned to this group',
-      example: ['users:read', 'users:list', 'groups:read'],
-    }),
+  description: z.string().openapi({
+    description: 'Group description',
+    example: 'Users with full administrative access',
+  }),
+  permissions: z.array(z.string()).openapi({
+    description: 'List of permissions assigned to this group',
+    example: ['users:read', 'users:list', 'groups:read'],
+  }),
   isDefault: z
     .boolean()
     .openapi({ description: 'Whether this is the default group for new users', example: false }),
-  isSystem: z
-    .boolean()
-    .openapi({
-      description: 'Whether this is a system group that cannot be deleted',
-      example: true,
-    }),
+  isSystem: z.boolean().openapi({
+    description: 'Whether this is a system group that cannot be deleted',
+    example: true,
+  }),
   createdAt: z.string().datetime().openapi({ description: 'When the group was created' }),
   updatedAt: z.string().datetime().openapi({ description: 'When the group was last updated' }),
   createdBy: z.string().openapi({ description: 'ID of user who created the group' }),
@@ -227,12 +221,10 @@ export const UpdateGroupSchema = z.object({
 });
 
 export const UpdateGroupPermissionsSchema = z.object({
-  permissions: z
-    .array(z.string())
-    .openapi({
-      description: 'New list of permissions',
-      example: ['users:read', 'users:list', 'groups:read'],
-    }),
+  permissions: z.array(z.string()).openapi({
+    description: 'New list of permissions',
+    example: ['users:read', 'users:list', 'groups:read'],
+  }),
 });
 
 export const GroupQuerySchema = z.object({
@@ -280,13 +272,10 @@ export const AuditLogSchema = z.object({
   actorId: z
     .string()
     .openapi({ description: 'ID of the user who performed the action', example: 'user_abc123' }),
-  actorEmail: z
-    .string()
-    .email()
-    .openapi({
-      description: 'Email of the user who performed the action',
-      example: 'admin@example.com',
-    }),
+  actorEmail: z.string().email().openapi({
+    description: 'Email of the user who performed the action',
+    example: 'admin@example.com',
+  }),
   actorName: z
     .string()
     .openapi({ description: 'Name of the user who performed the action', example: 'Admin User' }),
@@ -301,12 +290,10 @@ export const AuditLogSchema = z.object({
   resourceId: z
     .string()
     .openapi({ description: 'ID of the affected resource', example: 'user_xyz789' }),
-  description: z
-    .string()
-    .openapi({
-      description: 'Human-readable description of the action',
-      example: 'Updated user john@example.com',
-    }),
+  description: z.string().openapi({
+    description: 'Human-readable description of the action',
+    example: 'Updated user john@example.com',
+  }),
   changes: AuditLogChangesSchema.optional().openapi({ description: 'Details of what changed' }),
   ipAddress: z
     .string()

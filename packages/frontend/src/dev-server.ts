@@ -66,6 +66,9 @@ async function bundle() {
     define: {
       'process.env.NODE_ENV': '"development"',
       ...envVars,
+      // Catch-all: unmatched process.env.X → ({}).X → undefined (safe in browser)
+      'process.env': '{}',
+      process: '{"env":{}}',
     },
   });
 

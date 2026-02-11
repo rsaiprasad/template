@@ -16,7 +16,13 @@ interface LiveSession {
   isSetup: boolean;
 }
 
-const liveSessions = new Map<WSContext, LiveSession>();
+// Key by raw WebSocket (stable), not WSContext (recreated per event)
+// biome-ignore lint/suspicious/noExplicitAny: raw ws type varies by runtime
+const liveSessions = new Map<any, LiveSession>();
+// biome-ignore lint/suspicious/noExplicitAny: raw ws type varies by runtime
+function wsKey(ws: WSContext): any {
+  return ws.raw;
+}
 
 function buildGeminiLiveUrl(): string {
   return `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${config.gemini.apiKey}`;
@@ -29,7 +35,7 @@ export async function startVoiceSession(ws: WSContext, session: Session): Promis
 
     const geminiWs = new WebSocket(buildGeminiLiveUrl());
     const liveSession: LiveSession = { geminiWs, isSetup: false };
-    liveSessions.set(ws, liveSession);
+    liveSessions.set(wsKey(ws), liveSession);
 
     geminiWs.on('open', () => {
       // Send setup message with model config, tools, and system instruction
@@ -150,7 +156,7 @@ export async function startVoiceSession(ws: WSContext, session: Session): Promis
     });
 
     geminiWs.on('close', () => {
-      liveSessions.delete(ws);
+      liveSessions.delete(wsKey(ws));
       send(ws, { type: 'status', status: 'idle' });
     });
   } catch (error) {
@@ -161,7 +167,7 @@ export async function startVoiceSession(ws: WSContext, session: Session): Promis
 }
 
 export function relayAudioChunk(ws: WSContext, base64Audio: string): void {
-  const liveSession = liveSessions.get(ws);
+  const liveSession = liveSessions.get(wsKey(ws));
   if (!liveSession?.isSetup) return;
 
   liveSession.geminiWs.send(
@@ -185,9 +191,9 @@ export function endVoiceAudio(_ws: WSContext): void {
 }
 
 export function stopVoiceSession(ws: WSContext): void {
-  const liveSession = liveSessions.get(ws);
+  const liveSession = liveSessions.get(wsKey(ws));
   if (liveSession) {
     liveSession.geminiWs.close();
-    liveSessions.delete(ws);
+    liveSessions.delete(wsKey(ws));
   }
 }

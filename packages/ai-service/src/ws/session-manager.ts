@@ -25,8 +25,16 @@ const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_SESSION_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
-const sessions = new Map<WSContext, Session>();
+// Key sessions by the underlying raw WebSocket (stable across events),
+// NOT by the WSContext wrapper (Hono creates a new one per event).
+// biome-ignore lint/suspicious/noExplicitAny: raw ws type varies by runtime
+const sessions = new Map<any, Session>();
 const rateLimits = new Map<string, RateLimitEntry>();
+
+// biome-ignore lint/suspicious/noExplicitAny: raw ws type varies by runtime
+function wsKey(ws: WSContext): any {
+  return ws.raw;
+}
 
 export interface UserData {
   uid: string;
@@ -52,12 +60,12 @@ export function createSession(ws: WSContext, userData: UserData): Session {
     messageCount: 0,
     abortController: null,
   };
-  sessions.set(ws, session);
+  sessions.set(wsKey(ws), session);
   return session;
 }
 
 export function getSession(ws: WSContext): Session | undefined {
-  const session = sessions.get(ws);
+  const session = sessions.get(wsKey(ws));
   if (!session) return undefined;
 
   // Check max session duration
@@ -70,11 +78,12 @@ export function getSession(ws: WSContext): Session | undefined {
 }
 
 export function destroySession(ws: WSContext): void {
-  const session = sessions.get(ws);
+  const key = wsKey(ws);
+  const session = sessions.get(key);
   if (session?.abortController) {
     session.abortController.abort();
   }
-  sessions.delete(ws);
+  sessions.delete(key);
 }
 
 export function checkRateLimit(session: Session): boolean {
