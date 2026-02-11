@@ -3,6 +3,26 @@
 
 locals {
   ai_service_enabled = var.ai_service.enabled
+  ai_service_image = var.ai_service.image != "" ? var.ai_service.image : "${var.region}-docker.pkg.dev/${local.project_id}/ai-service/ai-service:latest"
+}
+
+# =============================================================================
+# ARTIFACT REGISTRY - Docker Image Repository
+# =============================================================================
+
+resource "google_artifact_registry_repository" "ai_service" {
+  provider = google-beta
+  count    = local.ai_service_enabled ? 1 : 0
+
+  project       = local.project_id
+  location      = var.region
+  repository_id = "ai-service"
+  format        = "DOCKER"
+  description   = "Docker images for the AI service"
+
+  depends_on = [
+    google_project_service.apis["artifactregistry.googleapis.com"],
+  ]
 }
 
 # =============================================================================
@@ -55,10 +75,10 @@ resource "google_cloud_run_v2_service" "ai_service" {
     }
 
     containers {
-      image = var.ai_service.image
+      image = local.ai_service_image
 
       ports {
-        container_port = 3001
+        container_port = 8080
       }
 
       env {
@@ -79,11 +99,6 @@ resource "google_cloud_run_v2_service" "ai_service" {
       env {
         name  = "CORS_ORIGINS"
         value = var.ai_service.cors_origins
-      }
-
-      env {
-        name  = "PORT"
-        value = "3001"
       }
 
       env {
@@ -111,6 +126,7 @@ resource "google_cloud_run_v2_service" "ai_service" {
   depends_on = [
     google_project_service.apis["run.googleapis.com"],
     google_secret_manager_secret_version.gemini_api_key,
+    google_artifact_registry_repository.ai_service,
   ]
 }
 

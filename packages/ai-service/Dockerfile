@@ -5,7 +5,7 @@ COPY packages/ai-service/package.json packages/ai-service/bun.lock* ./packages/a
 COPY packages/shared/ ./packages/shared/
 COPY packages/backend/openapi.json ./packages/backend/openapi.json
 COPY package.json bun.lock* ./
-RUN bun install --frozen-lockfile
+RUN bun install
 COPY packages/ai-service/ ./packages/ai-service/
 RUN cd packages/ai-service && bun run build
 

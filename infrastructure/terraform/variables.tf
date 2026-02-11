@@ -151,6 +151,6 @@ variable "ai_service" {
     cors_origins   = optional(string, "")
   })
   default = {
-    enabled = false
+    enabled = true
   }
 }
