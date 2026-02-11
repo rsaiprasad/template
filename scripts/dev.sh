@@ -158,6 +158,18 @@ cd "$PROJECT_ROOT/packages/frontend"
 bun run dev &
 FE_PID=$!
 
+# Start AI service if configured (.env with GEMINI_API_KEY exists)
+AI_PID=""
+AI_ENV="$PROJECT_ROOT/packages/ai-service/.env"
+if [ -f "$AI_ENV" ] && grep -q "GEMINI_API_KEY=." "$AI_ENV"; then
+    echo -e "${BLUE}Starting AI Service...${NC}"
+    cd "$PROJECT_ROOT/packages/ai-service"
+    bun run dev &
+    AI_PID=$!
+else
+    echo -e "${YELLOW}AI Service skipped (no packages/ai-service/.env with GEMINI_API_KEY)${NC}"
+fi
+
 sleep 3
 
 echo ""
@@ -168,6 +180,9 @@ echo ""
 echo "  Frontend:     http://localhost:5173"
 echo "  Emulator UI:  http://localhost:4000"
 echo "  API:          http://localhost:5001/${PROJECT_ID}/us-central1/api"
+if [ -n "$AI_PID" ]; then
+echo "  AI Service:   http://localhost:3001"
+fi
 echo ""
 echo "Press Ctrl+C to stop all services"
 
@@ -175,6 +190,7 @@ echo "Press Ctrl+C to stop all services"
 cleanup() {
     echo 'Shutting down...'
     [ -n "$FE_PID" ] && kill "$FE_PID" 2>/dev/null
+    [ -n "$AI_PID" ] && kill "$AI_PID" 2>/dev/null
     [ -n "$EMU_PID" ] && kill "$EMU_PID" 2>/dev/null
     exit 0
 }
