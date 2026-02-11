@@ -1,7 +1,7 @@
 import { api } from '@/api';
 import { BulkActionBar } from '@/components/features/bulk-action-bar';
 import { DeleteConfirmationDialog } from '@/components/features/delete-confirmation-dialog';
-import { ListHeader } from '@/components/features/list-header';
+import { PageHeader } from '@/components/features/page-header';
 import { WithPermission } from '@/components/features/permission-gate';
 import { SearchFilterBar } from '@/components/features/search-filter-bar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -311,12 +311,9 @@ export function UserList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <ListHeader
+      <PageHeader
         title="Users"
         description="Manage user accounts and their permissions."
-        permission="users:create"
-        buttonLabel="Add User"
-        buttonHref="/users/new"
       />
 
       {/* Filters */}

@@ -54,13 +54,12 @@ export function UserDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const isNew = id === 'new';
 
   // Fetch user data
   const { data: userData, isLoading: userLoading } = useQuery({
     queryKey: queryKeys.users.detail(id!),
     queryFn: () => api.getUser(id!),
-    enabled: !isNew && !!id,
+    enabled: !!id,
   });
 
   // Fetch available groups
@@ -167,7 +166,7 @@ export function UserDetail() {
   // Groups not yet assigned
   const unassignedGroups = availableGroups.filter((g) => !formGroupIds.includes(g.id));
 
-  if (userLoading && !isNew) {
+  if (userLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -182,7 +181,7 @@ export function UserDetail() {
     );
   }
 
-  if (!(user || isNew)) {
+  if (!user) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <p className="text-lg text-muted-foreground">User not found</p>
@@ -202,27 +201,21 @@ export function UserDetail() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-4">
-            {user && (
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={user.photoURL || undefined} />
-                <AvatarFallback>{getInitials(user.displayName || user.email)}</AvatarFallback>
-              </Avatar>
-            )}
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={user.photoURL || undefined} />
+              <AvatarFallback>{getInitials(user.displayName || user.email)}</AvatarFallback>
+            </Avatar>
             <div>
               <h1 className="text-2xl font-bold tracking-tight">
-                {isNew ? 'New User' : user?.displayName || 'User Details'}
+                {user.displayName || 'User Details'}
               </h1>
-              <p className="text-muted-foreground">
-                {isNew ? 'Create a new user account' : user?.email}
-              </p>
+              <p className="text-muted-foreground">{user.email}</p>
             </div>
           </div>
         </div>
-        {user && (
-          <Badge variant={user.status === 'active' ? 'success' : 'destructive'}>
-            {user.status}
-          </Badge>
-        )}
+        <Badge variant={user.status === 'active' ? 'success' : 'destructive'}>
+          {user.status}
+        </Badge>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -233,9 +226,7 @@ export function UserDetail() {
               <Card>
                 <CardHeader>
                   <CardTitle>User Information</CardTitle>
-                  <CardDescription>
-                    {isNew ? 'Enter the details for the new user' : 'View and edit user details'}
-                  </CardDescription>
+                  <CardDescription>View and edit user details</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <FormField
@@ -263,12 +254,10 @@ export function UserDetail() {
                             type="email"
                             placeholder="john@example.com"
                             {...field}
-                            disabled={!isNew}
+                            disabled
                           />
                         </FormControl>
-                        {!isNew && (
-                          <FormDescription>Email cannot be changed after creation</FormDescription>
-                        )}
+                        <FormDescription>Email cannot be changed after creation</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -357,15 +346,13 @@ export function UserDetail() {
               </Card>
 
               {/* Notification Preferences */}
-              {!isNew && <NotificationsCard control={form.control} />}
+              <NotificationsCard control={form.control} />
 
               {/* Appearance Settings */}
-              {!isNew && (
-                <AppearanceCard
-                  theme={form.watch('theme')}
-                  onThemeChange={(t) => form.setValue('theme', t, { shouldDirty: true })}
-                />
-              )}
+              <AppearanceCard
+                theme={form.watch('theme')}
+                onThemeChange={(t) => form.setValue('theme', t, { shouldDirty: true })}
+              />
 
               {/* Save button */}
               <WithPermission permission="users:update">
@@ -383,22 +370,18 @@ export function UserDetail() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Permissions card */}
-          {user && (
-            <PermissionsCard permissions={user.permissions} isSuperAdmin={user.isSuperAdmin} />
-          )}
+          <PermissionsCard permissions={user.permissions} isSuperAdmin={user.isSuperAdmin} />
 
           {/* Metadata card */}
-          {user && (
-            <MetadataCard
-              title="Details"
-              items={[
-                { icon: UserIcon, label: 'User ID', value: user.id, mono: true },
-                { icon: Mail, label: 'Email', value: user.email, mono: true },
-                { icon: Calendar, label: 'Created', value: formatDateTime(user.createdAt) },
-                { icon: Calendar, label: 'Last Updated', value: formatDateTime(user.updatedAt) },
-              ]}
-            />
-          )}
+          <MetadataCard
+            title="Details"
+            items={[
+              { icon: UserIcon, label: 'User ID', value: user.id, mono: true },
+              { icon: Mail, label: 'Email', value: user.email, mono: true },
+              { icon: Calendar, label: 'Created', value: formatDateTime(user.createdAt) },
+              { icon: Calendar, label: 'Last Updated', value: formatDateTime(user.updatedAt) },
+            ]}
+          />
         </div>
       </div>
     </div>
