@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/stores/ai-chat-store';
 import { Bot, User } from 'lucide-react';
@@ -17,14 +18,16 @@ export function AiChatMessage({ message }: AiChatMessageProps) {
   return (
     <div className={cn('group flex gap-2', isUser ? 'flex-row-reverse' : 'flex-row')}>
       {/* Avatar */}
-      <div
-        className={cn(
-          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
-          isUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-        )}
-      >
-        {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-      </div>
+      <Avatar className={cn('h-7 w-7', isUser ? 'bg-primary' : 'bg-muted')}>
+        <AvatarFallback
+          className={cn(
+            'h-7 w-7',
+            isUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+          )}
+        >
+          {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+        </AvatarFallback>
+      </Avatar>
 
       {/* Content */}
       <div className={cn('flex max-w-[80%] flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
