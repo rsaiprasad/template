@@ -93,33 +93,32 @@ export function useAiChat(): UseAiChat {
 
         case 'text': {
           const store = useAiChatStore.getState();
-          const lastMsg = store.messages[store.messages.length - 1];
-          // If no assistant message is currently being streamed, start one
-          if (!lastMsg || lastMsg.role !== 'user' || store.streamingContent !== '') {
-            // We're already streaming — append
-            if (store.streamingContent !== '' || (lastMsg && lastMsg.role === 'assistant')) {
-              appendStreamingContent(msg.content ?? '');
-            } else {
-              // New assistant response
-              const newMsg: ChatMessage = {
-                id: crypto.randomUUID(),
-                role: 'assistant',
-                content: msg.content ?? '',
-                timestamp: Date.now(),
-              };
-              addMessage(newMsg);
-              useAiChatStore.setState({ streamingContent: msg.content ?? '' });
-            }
+          const lastTextMsg = store.messages[store.messages.length - 1];
+          const chunk = msg.content ?? '';
+
+          if (store.streamingContent !== '') {
+            // Already streaming — append chunk
+            appendStreamingContent(chunk);
+          } else if (lastTextMsg?.role === 'assistant' && lastTextMsg.content === '') {
+            // Empty assistant message exists (from tool_call) — fill it in
+            useAiChatStore.setState({
+              messages: store.messages.map((m, i) =>
+                i === store.messages.length - 1 ? { ...m, content: chunk } : m
+              ),
+              ...(msg.done ? {} : { streamingContent: chunk }),
+            });
           } else {
-            // First chunk after a user message — create assistant message
-            const newMsg: ChatMessage = {
+            // New assistant message
+            addMessage({
               id: crypto.randomUUID(),
               role: 'assistant',
-              content: msg.content ?? '',
+              content: chunk,
               timestamp: Date.now(),
-            };
-            addMessage(newMsg);
-            useAiChatStore.setState({ streamingContent: msg.content ?? '' });
+            });
+            // Only track streaming state if more chunks are coming
+            if (!msg.done) {
+              useAiChatStore.setState({ streamingContent: chunk });
+            }
           }
 
           if (msg.done) {
@@ -140,6 +139,17 @@ export function useAiChat(): UseAiChat {
         case 'tool_call': {
           if (msg.name && msg.status) {
             const status = msg.status as 'calling' | 'done' | 'error';
+            // Create an assistant message if one doesn't exist yet (so tool indicators show)
+            const toolStore = useAiChatStore.getState();
+            const lastToolMsg = toolStore.messages[toolStore.messages.length - 1];
+            if (!lastToolMsg || lastToolMsg.role !== 'assistant') {
+              addMessage({
+                id: crypto.randomUUID(),
+                role: 'assistant',
+                content: '',
+                timestamp: Date.now(),
+              });
+            }
             addToolCall(msg.name, status);
           }
           break;

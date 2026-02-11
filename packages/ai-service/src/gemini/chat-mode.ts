@@ -113,8 +113,17 @@ export async function handleTextMessage(
       response = result.response;
     }
 
-    // Extract and filter the final text
-    const text = response.text();
+    // Extract text from response parts, deduplicating consecutive identical parts.
+    // Gemini can return the same text in multiple parts after function calling.
+    const parts = response.candidates?.[0]?.content?.parts ?? [];
+    const textParts: string[] = [];
+    for (const part of parts) {
+      if ('text' in part && part.text) {
+        textParts.push(part.text);
+      }
+    }
+    const uniqueParts = textParts.filter((p, i) => i === 0 || p !== textParts[i - 1]);
+    const text = uniqueParts.join('') || response.text();
     const filteredText = filterContent(text);
 
     // Add model response to history
