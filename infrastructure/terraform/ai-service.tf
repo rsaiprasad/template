@@ -92,6 +92,11 @@ resource "google_cloud_run_v2_service" "ai_service" {
       }
 
       env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = local.project_id
+      }
+
+      env {
         name  = "BACKEND_URL"
         value = var.ai_service.backend_url
       }

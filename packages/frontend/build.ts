@@ -30,6 +30,7 @@ const result = await Bun.build({
     'process.env.PUBLIC_FIREBASE_STORAGE_BUCKET': env('PUBLIC_FIREBASE_STORAGE_BUCKET'),
     'process.env.PUBLIC_FIREBASE_MESSAGING_SENDER_ID': env('PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
     'process.env.PUBLIC_FIREBASE_APP_ID': env('PUBLIC_FIREBASE_APP_ID'),
+    'process.env.PUBLIC_AI_SERVICE_URL': env('PUBLIC_AI_SERVICE_URL'),
     'process.env': '{}',
     process: '{"env":{}}',
   },
