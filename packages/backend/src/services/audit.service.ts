@@ -166,10 +166,7 @@ export class AuditService {
     const totalLogs = countSnapshot.data().count;
 
     // Cap the breakdown query to prevent OOM on large datasets
-    const snapshot = await baseQuery
-      .orderBy('timestamp', 'desc')
-      .limit(10000)
-      .get();
+    const snapshot = await baseQuery.orderBy('timestamp', 'desc').limit(10000).get();
     const logs = convertFirestoreDocs<AuditLog>(snapshot);
 
     const byAction: Record<string, number> = {};

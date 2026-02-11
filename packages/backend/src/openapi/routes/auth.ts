@@ -16,7 +16,8 @@ export const loginRoute = createRoute({
   operationId: 'login',
   tags: ['Auth'],
   summary: 'User login',
-  description: 'Authenticates a user using a Firebase ID token. Creates or updates the user record on successful authentication.',
+  description:
+    'Authenticates a user using a Firebase ID token. Creates or updates the user record on successful authentication.',
   request: {
     body: {
       content: {
@@ -114,7 +115,7 @@ export const getMeRoute = createRoute({
   operationId: 'getCurrentUser',
   tags: ['Auth'],
   summary: 'Get current user',
-  description: 'Returns the current authenticated user\'s information including their permissions.',
+  description: "Returns the current authenticated user's information including their permissions.",
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
@@ -151,7 +152,8 @@ export const verifyRoute = createRoute({
   operationId: 'verifyAuth',
   tags: ['Auth'],
   summary: 'Verify authentication status',
-  description: 'Checks if the current token is valid and returns basic user information if authenticated.',
+  description:
+    'Checks if the current token is valid and returns basic user information if authenticated.',
   responses: {
     200: {
       description: 'Verification result',

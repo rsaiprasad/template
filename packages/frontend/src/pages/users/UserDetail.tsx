@@ -213,9 +213,7 @@ export function UserDetail() {
             </div>
           </div>
         </div>
-        <Badge variant={user.status === 'active' ? 'success' : 'destructive'}>
-          {user.status}
-        </Badge>
+        <Badge variant={user.status === 'active' ? 'success' : 'destructive'}>{user.status}</Badge>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -250,12 +248,7 @@ export function UserDetail() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="john@example.com"
-                            {...field}
-                            disabled
-                          />
+                          <Input type="email" placeholder="john@example.com" {...field} disabled />
                         </FormControl>
                         <FormDescription>Email cannot be changed after creation</FormDescription>
                         <FormMessage />

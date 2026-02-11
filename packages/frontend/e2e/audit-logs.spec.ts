@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures/auth';
+import { expect, test } from './fixtures/auth';
 import { AuditLogsPage } from './pages/audit-logs';
 
 test.describe('Audit Logs', () => {
@@ -17,9 +17,9 @@ test.describe('Audit Logs', () => {
     await auditLogs.goto();
 
     // Should show Filters card
-    await expect(
-      authenticatedPage.getByRole('heading', { name: 'Filters' })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(authenticatedPage.getByRole('heading', { name: 'Filters' })).toBeVisible({
+      timeout: 10000,
+    });
 
     // Should show date inputs
     await expect(auditLogs.startDateInput).toBeVisible();
@@ -40,7 +40,9 @@ test.describe('Audit Logs', () => {
     await expect(authenticatedPage.getByRole('columnheader', { name: 'Action' })).toBeVisible();
     await expect(authenticatedPage.getByRole('columnheader', { name: 'Resource' })).toBeVisible();
     await expect(authenticatedPage.getByRole('columnheader', { name: 'User' })).toBeVisible();
-    await expect(authenticatedPage.getByRole('columnheader', { name: 'Description' })).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole('columnheader', { name: 'Description' })
+    ).toBeVisible();
   });
 
   test('should display audit log entries from login activity', async ({ authenticatedPage }) => {
@@ -58,9 +60,7 @@ test.describe('Audit Logs', () => {
     // There should be at least one row (the login from auth fixture)
     // or an "empty" message
     if (rowCount === 0) {
-      await expect(
-        authenticatedPage.getByText(/no audit logs found/i)
-      ).toBeVisible();
+      await expect(authenticatedPage.getByText(/no audit logs found/i)).toBeVisible();
     } else {
       expect(rowCount).toBeGreaterThan(0);
     }
@@ -128,7 +128,9 @@ test.describe('Audit Logs', () => {
     await expect(authenticatedPage).toHaveURL(/actorId=some-actor-id/);
   });
 
-  test('should show Clear filters button when filters are active', async ({ authenticatedPage }) => {
+  test('should show Clear filters button when filters are active', async ({
+    authenticatedPage,
+  }) => {
     const auditLogs = new AuditLogsPage(authenticatedPage);
     await auditLogs.goto();
 
@@ -197,7 +199,10 @@ test.describe('Audit Logs', () => {
     await authenticatedPage.waitForTimeout(2000);
 
     // Check if any row has a "View" button (only rows with changes data have it)
-    const viewButton = authenticatedPage.locator('table tbody').getByRole('button', { name: /view/i }).first();
+    const viewButton = authenticatedPage
+      .locator('table tbody')
+      .getByRole('button', { name: /view/i })
+      .first();
     if (await viewButton.isVisible()) {
       await viewButton.click();
 

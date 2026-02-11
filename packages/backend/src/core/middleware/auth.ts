@@ -8,11 +8,7 @@ import { ErrorCodes, errorResponse, unauthorized } from '../utils/response';
 /**
  * Build an AuthUser object from a User record and permissions
  */
-export function buildAuthUser(
-  uid: string,
-  userRecord: User,
-  permissions: string[]
-): AuthUser {
+export function buildAuthUser(uid: string, userRecord: User, permissions: string[]): AuthUser {
   return {
     uid,
     email: userRecord.email,

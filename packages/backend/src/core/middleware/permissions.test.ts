@@ -1,5 +1,5 @@
-import { Hono } from 'hono';
 import { describe, expect, it } from 'bun:test';
+import { Hono } from 'hono';
 import type { AppEnv, AuthUser } from '../types/context';
 import {
   canModifyUser,

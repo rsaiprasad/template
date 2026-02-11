@@ -1,5 +1,5 @@
-import { test, expect } from './fixtures/auth';
-import { GroupListPage, GroupDetailPage } from './pages/groups';
+import { expect, test } from './fixtures/auth';
+import { GroupDetailPage, GroupListPage } from './pages/groups';
 
 test.describe('Group Management', () => {
   test.describe('Group List', () => {
@@ -28,9 +28,13 @@ test.describe('Group Management', () => {
 
       // Table should have column headers
       await expect(authenticatedPage.getByRole('columnheader', { name: 'Group' })).toBeVisible();
-      await expect(authenticatedPage.getByRole('columnheader', { name: 'Description' })).toBeVisible();
+      await expect(
+        authenticatedPage.getByRole('columnheader', { name: 'Description' })
+      ).toBeVisible();
       await expect(authenticatedPage.getByRole('columnheader', { name: 'Members' })).toBeVisible();
-      await expect(authenticatedPage.getByRole('columnheader', { name: 'Permissions' })).toBeVisible();
+      await expect(
+        authenticatedPage.getByRole('columnheader', { name: 'Permissions' })
+      ).toBeVisible();
     });
 
     test('should search groups', async ({ authenticatedPage }) => {
@@ -81,9 +85,7 @@ test.describe('Group Management', () => {
         await actionBtns.first().click();
 
         // Should show Edit option
-        await expect(
-          authenticatedPage.getByRole('menuitem', { name: /edit/i })
-        ).toBeVisible();
+        await expect(authenticatedPage.getByRole('menuitem', { name: /edit/i })).toBeVisible();
       }
     });
 
@@ -137,9 +139,9 @@ test.describe('Group Management', () => {
       await groupDetail.gotoNew();
 
       // Should show "Create Group" heading
-      await expect(
-        authenticatedPage.getByRole('heading', { name: /create group/i })
-      ).toBeVisible({ timeout: 10000 });
+      await expect(authenticatedPage.getByRole('heading', { name: /create group/i })).toBeVisible({
+        timeout: 10000,
+      });
 
       // Should show form fields
       await expect(groupDetail.nameInput).toBeVisible();
@@ -157,9 +159,7 @@ test.describe('Group Management', () => {
       await groupDetail.createButton.click();
 
       // Should show validation error
-      await expect(
-        authenticatedPage.getByText(/name is required/i)
-      ).toBeVisible();
+      await expect(authenticatedPage.getByText(/name is required/i)).toBeVisible();
     });
 
     test('should display permissions section', async ({ authenticatedPage }) => {
@@ -167,14 +167,12 @@ test.describe('Group Management', () => {
       await groupDetail.gotoNew();
 
       // Should show Permissions card
-      await expect(
-        authenticatedPage.getByRole('heading', { name: 'Permissions' })
-      ).toBeVisible({ timeout: 10000 });
+      await expect(authenticatedPage.getByRole('heading', { name: 'Permissions' })).toBeVisible({
+        timeout: 10000,
+      });
 
       // Should show permission description
-      await expect(
-        authenticatedPage.getByText(/configure what members/i)
-      ).toBeVisible();
+      await expect(authenticatedPage.getByText(/configure what members/i)).toBeVisible();
     });
 
     test('should display permissions grouped by resource', async ({ authenticatedPage }) => {
@@ -211,9 +209,9 @@ test.describe('Group Management', () => {
         await authenticatedPage.waitForLoadState('networkidle');
 
         // Should show Group Information card
-        await expect(
-          authenticatedPage.getByText('Group Information')
-        ).toBeVisible({ timeout: 10000 });
+        await expect(authenticatedPage.getByText('Group Information')).toBeVisible({
+          timeout: 10000,
+        });
 
         // Should show form fields with existing data
         await expect(authenticatedPage.getByLabel('Name')).toBeVisible();
@@ -235,9 +233,9 @@ test.describe('Group Management', () => {
         await firstGroupLink.click();
         await authenticatedPage.waitForLoadState('networkidle');
 
-        await expect(
-          authenticatedPage.getByRole('button', { name: /save changes/i })
-        ).toBeVisible({ timeout: 10000 });
+        await expect(authenticatedPage.getByRole('button', { name: /save changes/i })).toBeVisible({
+          timeout: 10000,
+        });
       }
     });
 
@@ -257,9 +255,7 @@ test.describe('Group Management', () => {
         await authenticatedPage.waitForLoadState('networkidle');
 
         // Should show Details card with Group ID, Created date, etc.
-        await expect(
-          authenticatedPage.getByText('Group ID')
-        ).toBeVisible({ timeout: 10000 });
+        await expect(authenticatedPage.getByText('Group ID')).toBeVisible({ timeout: 10000 });
       }
     });
   });
@@ -287,9 +283,7 @@ test.describe('Group Management', () => {
           await deleteOption.click();
 
           // Should show confirmation dialog
-          await expect(
-            authenticatedPage.getByText(/are you sure/i)
-          ).toBeVisible();
+          await expect(authenticatedPage.getByText(/are you sure/i)).toBeVisible();
         }
       }
     });

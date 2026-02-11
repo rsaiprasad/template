@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures/auth';
+import { expect, test } from './fixtures/auth';
 
 test.describe('Authentication Flow', () => {
   test('should redirect unauthenticated users to login', async ({ page }) => {
@@ -29,9 +29,9 @@ test.describe('Authentication Flow', () => {
     await expect(authenticatedPage).not.toHaveURL(/.*login/);
 
     // Should see the dashboard greeting
-    await expect(
-      authenticatedPage.getByRole('heading', { name: /hello/i })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(authenticatedPage.getByRole('heading', { name: /hello/i })).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('should persist auth state across page reloads', async ({ authenticatedPage }) => {

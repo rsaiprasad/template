@@ -166,17 +166,15 @@ const server = Bun.serve({
     const indexHtml = await Bun.file('./index.html').text();
 
     // Update script references for dev build
-    const devHtml = indexHtml
-      .replace('/src/main.tsx', '/main.js')
-      .replace(
-        '</head>',
-        `  <link rel="stylesheet" href="/styles.css">
+    const devHtml = indexHtml.replace('/src/main.tsx', '/main.js').replace(
+      '</head>',
+      `  <link rel="stylesheet" href="/styles.css">
     <script>
       // Simple hot reload via polling
       setInterval(() => fetch('/__ping').catch(() => location.reload()), 2000);
     </script>
   </head>`
-      );
+    );
 
     return new Response(devHtml, {
       headers: { 'Content-Type': 'text/html' },

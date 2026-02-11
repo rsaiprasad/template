@@ -18,7 +18,8 @@ export const listUsersRoute = createRoute({
   operationId: 'listUsers',
   tags: ['Users'],
   summary: 'List all users',
-  description: 'Retrieves a paginated list of users with optional filtering by status, group, and search query. Supports cursor-based pagination.',
+  description:
+    'Retrieves a paginated list of users with optional filtering by status, group, and search query. Supports cursor-based pagination.',
   security: [{ bearerAuth: [] }],
   request: {
     query: UserSearchQuerySchema,
@@ -130,7 +131,8 @@ export const updateUserRoute = createRoute({
   operationId: 'updateUser',
   tags: ['Users'],
   summary: 'Update user',
-  description: 'Updates a user\'s display name, photo URL, or preferences. Cannot modify super administrator accounts unless you are also a super admin.',
+  description:
+    "Updates a user's display name, photo URL, or preferences. Cannot modify super administrator accounts unless you are also a super admin.",
   security: [{ bearerAuth: [] }],
   request: {
     params: IdParamSchema,
@@ -168,7 +170,8 @@ export const updateUserRoute = createRoute({
       },
     },
     403: {
-      description: 'Forbidden - User lacks required permission (users:update) or trying to modify super admin',
+      description:
+        'Forbidden - User lacks required permission (users:update) or trying to modify super admin',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,
@@ -201,7 +204,8 @@ export const deleteUserRoute = createRoute({
   operationId: 'deleteUser',
   tags: ['Users'],
   summary: 'Delete user',
-  description: 'Permanently deletes a user. Cannot delete yourself or super administrator accounts.',
+  description:
+    'Permanently deletes a user. Cannot delete yourself or super administrator accounts.',
   security: [{ bearerAuth: [] }],
   request: {
     params: IdParamSchema,
@@ -232,7 +236,8 @@ export const deleteUserRoute = createRoute({
       },
     },
     403: {
-      description: 'Forbidden - User lacks required permission (users:delete) or trying to delete super admin',
+      description:
+        'Forbidden - User lacks required permission (users:delete) or trying to delete super admin',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,
@@ -385,7 +390,8 @@ export const changeUserGroupRoute = createRoute({
   operationId: 'changeUserGroup',
   tags: ['Users'],
   summary: 'Change user group',
-  description: 'Changes the group a user belongs to, affecting their permissions. Cannot modify super administrator accounts unless you are also a super admin.',
+  description:
+    'Changes the group a user belongs to, affecting their permissions. Cannot modify super administrator accounts unless you are also a super admin.',
   security: [{ bearerAuth: [] }],
   request: {
     params: IdParamSchema,
@@ -423,7 +429,8 @@ export const changeUserGroupRoute = createRoute({
       },
     },
     403: {
-      description: 'Forbidden - User lacks required permission (users:update) or trying to modify super admin',
+      description:
+        'Forbidden - User lacks required permission (users:update) or trying to modify super admin',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,

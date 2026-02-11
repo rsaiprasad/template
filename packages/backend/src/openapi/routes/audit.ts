@@ -21,7 +21,8 @@ export const listAuditLogsRoute = createRoute({
   operationId: 'listAuditLogs',
   tags: ['Audit'],
   summary: 'List audit logs',
-  description: 'Retrieves a paginated list of audit logs with optional filtering by action, resource, actor, and date range.',
+  description:
+    'Retrieves a paginated list of audit logs with optional filtering by action, resource, actor, and date range.',
   security: [{ bearerAuth: [] }],
   request: {
     query: AuditSearchQuerySchema,
@@ -85,7 +86,8 @@ export const getAuditStatsRoute = createRoute({
   operationId: 'getAuditStats',
   tags: ['Audit'],
   summary: 'Get audit statistics',
-  description: 'Returns aggregated statistics about audit logs including counts by action type, resource, and most active users.',
+  description:
+    'Returns aggregated statistics about audit logs including counts by action type, resource, and most active users.',
   security: [{ bearerAuth: [] }],
   request: {
     query: AuditStatsQuerySchema,
@@ -141,7 +143,8 @@ export const getAuditActionsRoute = createRoute({
   operationId: 'getAuditActions',
   tags: ['Audit'],
   summary: 'Get valid audit actions',
-  description: 'Returns a list of all valid audit action types with their categories and descriptions.',
+  description:
+    'Returns a list of all valid audit action types with their categories and descriptions.',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
@@ -231,7 +234,8 @@ export const getAuditLogsForUserRoute = createRoute({
   operationId: 'getAuditLogsForUser',
   tags: ['Audit'],
   summary: 'Get audit logs for a user',
-  description: 'Retrieves audit logs where the specified user was the actor (performer of the action).',
+  description:
+    'Retrieves audit logs where the specified user was the actor (performer of the action).',
   security: [{ bearerAuth: [] }],
   request: {
     params: UserIdParamSchema,
@@ -280,7 +284,8 @@ export const getAuditLogsForResourceRoute = createRoute({
   operationId: 'getAuditLogsForResource',
   tags: ['Audit'],
   summary: 'Get audit logs for a resource',
-  description: 'Retrieves audit logs related to a specific resource (e.g., a particular user, group, or settings).',
+  description:
+    'Retrieves audit logs related to a specific resource (e.g., a particular user, group, or settings).',
   security: [{ bearerAuth: [] }],
   request: {
     params: AuditResourceParamSchema,

@@ -76,7 +76,8 @@ export const createGroupRoute = createRoute({
   operationId: 'createGroup',
   tags: ['Groups'],
   summary: 'Create a new group',
-  description: 'Creates a new group with the specified name, description, and optional initial permissions.',
+  description:
+    'Creates a new group with the specified name, description, and optional initial permissions.',
   security: [{ bearerAuth: [] }],
   request: {
     body: {
@@ -194,7 +195,7 @@ export const updateGroupRoute = createRoute({
   operationId: 'updateGroup',
   tags: ['Groups'],
   summary: 'Update group',
-  description: 'Updates a group\'s name and/or description.',
+  description: "Updates a group's name and/or description.",
   security: [{ bearerAuth: [] }],
   request: {
     params: IdParamSchema,
@@ -265,7 +266,8 @@ export const deleteGroupRoute = createRoute({
   operationId: 'deleteGroup',
   tags: ['Groups'],
   summary: 'Delete group',
-  description: 'Permanently deletes a group. Cannot delete system groups or the default group. Cannot delete groups that still have users.',
+  description:
+    'Permanently deletes a group. Cannot delete system groups or the default group. Cannot delete groups that still have users.',
   security: [{ bearerAuth: [] }],
   request: {
     params: IdParamSchema,

@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures/auth';
+import { expect, test } from './fixtures/auth';
 import { DashboardPage } from './pages/dashboard';
 
 test.describe('Dashboard', () => {
@@ -16,9 +16,9 @@ test.describe('Dashboard', () => {
     const dashboard = new DashboardPage(authenticatedPage);
     await dashboard.goto();
 
-    await expect(
-      authenticatedPage.getByText(/welcome to your admin dashboard/i)
-    ).toBeVisible({ timeout: 10000 });
+    await expect(authenticatedPage.getByText(/welcome to your admin dashboard/i)).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('should display stat cards for super admin', async ({ authenticatedPage }) => {

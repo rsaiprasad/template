@@ -295,7 +295,9 @@ export class UserService {
       }
 
       // Enforce super admin status based on SUPER_ADMIN_EMAIL env var on every login
-      const shouldBeSuperAdmin = !!(config.superAdminEmail && firebaseUser.email.toLowerCase() === config.superAdminEmail);
+      const shouldBeSuperAdmin = !!(
+        config.superAdminEmail && firebaseUser.email.toLowerCase() === config.superAdminEmail
+      );
       if (shouldBeSuperAdmin !== existingUser.isSuperAdmin) {
         updates.isSuperAdmin = shouldBeSuperAdmin;
       }
@@ -316,7 +318,9 @@ export class UserService {
     const defaultGroupId = settingsDoc.exists ? settingsDoc.data()?.defaultGroupId : 'users';
 
     // Check if this user's email matches the configured super admin email
-    const isSuperAdmin = !!(config.superAdminEmail && firebaseUser.email.toLowerCase() === config.superAdminEmail);
+    const isSuperAdmin = !!(
+      config.superAdminEmail && firebaseUser.email.toLowerCase() === config.superAdminEmail
+    );
 
     // Create new user
     const newUser: Omit<User, 'id'> = {
@@ -596,7 +600,9 @@ export class UserService {
       }
 
       if (user.groupIds.length <= 1) {
-        throw new ValidationError('Cannot remove the last group. Users must belong to at least one group.');
+        throw new ValidationError(
+          'Cannot remove the last group. Users must belong to at least one group.'
+        );
       }
 
       const newGroupIds = user.groupIds.filter((gid) => gid !== groupId);

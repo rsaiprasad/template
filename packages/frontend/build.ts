@@ -31,7 +31,7 @@ const result = await Bun.build({
     'process.env.PUBLIC_FIREBASE_MESSAGING_SENDER_ID': env('PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
     'process.env.PUBLIC_FIREBASE_APP_ID': env('PUBLIC_FIREBASE_APP_ID'),
     'process.env': '{}',
-    'process': '{"env":{}}',
+    process: '{"env":{}}',
   },
   loader: {
     '.tsx': 'tsx',
@@ -59,8 +59,8 @@ if (!result.success) {
 }
 
 // Find the hashed entry point filename from build outputs
-const mainEntry = result.outputs.find(o => o.kind === 'entry-point');
-const mainCss = result.outputs.find(o => o.path.endsWith('.css'));
+const mainEntry = result.outputs.find((o) => o.kind === 'entry-point');
+const mainCss = result.outputs.find((o) => o.path.endsWith('.css'));
 const mainJsName = mainEntry ? mainEntry.path.split('/').pop()! : 'main.js';
 const mainCssName = mainCss ? mainCss.path.split('/').pop()! : 'main.css';
 
@@ -68,7 +68,10 @@ const mainCssName = mainCss ? mainCss.path.split('/').pop()! : 'main.css';
 const indexHtml = await Bun.file('./index.html').text();
 const updatedHtml = indexHtml
   .replace('/src/main.tsx', `/${mainJsName}`)
-  .replace('</head>', `  <link rel="stylesheet" href="/styles.css">\n  <link rel="stylesheet" href="/${mainCssName}">\n  </head>`);
+  .replace(
+    '</head>',
+    `  <link rel="stylesheet" href="/styles.css">\n  <link rel="stylesheet" href="/${mainCssName}">\n  </head>`
+  );
 
 await Bun.write(join(outdir, 'index.html'), updatedHtml);
 

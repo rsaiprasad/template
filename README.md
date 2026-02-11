@@ -11,6 +11,7 @@ A production-ready, fully-typed admin dashboard template built with modern techn
 - **Audit Logging**: Track all sensitive operations with detailed logs
 - **Security**: Rate limiting, CORS whitelist, token validation, super admin protection
 - **Theme Support**: Light/dark mode with system preference detection
+- **AI Assistant**: Conversational AI for dashboard operations with voice (Gemini Live API) and text chat (Gemini text API) modes
 - **OpenAPI Compliant**: Full OpenAPI 3.1 spec with generated TypeScript client
 
 ## Tech Stack
@@ -116,8 +117,39 @@ bun run dev:full     # Start emulators + frontend + backend
 | `bun run deploy` | Deploy to Firebase (default project) |
 | `bun run deploy:staging` | Deploy to staging |
 | `bun run deploy:prod` | Deploy to production |
+| `bun run dev:ai` | Start dev servers + AI service |
+| `bun run dev:ai-service` | Start AI service only |
+| `bun run build:ai-service` | Build AI service |
 | `bun run dev:full` | Start emulators + dev servers together |
 | `bun run emulators` | Start Firebase emulators only |
+
+## AI Assistant
+
+The template includes an optional AI Assistant that lets users perform dashboard operations through natural language -- either voice or text chat.
+
+### Setup
+
+1. Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/)
+2. Add it to the AI service environment:
+   ```bash
+   # packages/ai-service/.env
+   GEMINI_API_KEY=your-api-key-here
+   ```
+3. Start the development environment with AI enabled:
+   ```bash
+   bun run dev:ai    # Starts frontend + backend + AI service
+   ```
+
+### Configuration
+
+| Setting | Where | Description |
+|---------|-------|-------------|
+| `aiAssistant` | App Settings (Firestore) | Set to `'voice'`, `'chat'`, or `'disabled'` |
+| `ai:use` | Group permissions | Users must have this permission to access the assistant |
+| `GEMINI_API_KEY` | `packages/ai-service/.env` | Required API key for Gemini models |
+| `AI_SYSTEM_PROMPT` | `packages/ai-service/.env` | Optional custom system prompt |
+
+The AI auto-generates tools from the backend's OpenAPI spec, so any new API endpoint becomes available to the assistant automatically. See [docs/EXTENDING.md](./docs/EXTENDING.md) for customization details.
 
 ## Using This Template
 

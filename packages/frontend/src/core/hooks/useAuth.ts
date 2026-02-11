@@ -7,9 +7,9 @@ import {
 import { parseDisplayName } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import type { AuthUser } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface UseAuthReturn {
   user: AuthUser | null;
@@ -61,51 +61,54 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   // Fetch full user data from backend, registering the user if needed
-  const fetchUserData = useCallback(async (firebaseUser: FirebaseUser): Promise<AuthUser> => {
-    // Ensure the user document exists in Firestore (creates on first login,
-    // updates lastLoginAt on subsequent logins). This is idempotent.
-    await ensureBackendUser(firebaseUser);
+  const fetchUserData = useCallback(
+    async (firebaseUser: FirebaseUser): Promise<AuthUser> => {
+      // Ensure the user document exists in Firestore (creates on first login,
+      // updates lastLoginAt on subsequent logins). This is idempotent.
+      await ensureBackendUser(firebaseUser);
 
-    try {
-      const response = await api.getMe();
-      const userData = response.data;
+      try {
+        const response = await api.getMe();
+        const userData = response.data;
 
-      const backendName = parseDisplayName(userData.displayName);
-      const firebaseName = parseDisplayName(firebaseUser.displayName);
-      const typedUserData = userData as {
-        permissions?: string[];
-        isSuperAdmin?: boolean;
-        groupIds?: string[];
-        groupNames?: string[];
-      };
-      return {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        displayName: firebaseUser.displayName,
-        photoURL: firebaseUser.photoURL,
-        firstName: backendName.firstName || firebaseName.firstName,
-        lastName: backendName.lastName || firebaseName.lastName,
-        permissions: typedUserData.permissions || [],
-        isSuperAdmin: typedUserData.isSuperAdmin ?? false,
-        groupIds: typedUserData.groupIds,
-        groupNames: typedUserData.groupNames,
-      };
-    } catch (err) {
-      // If backend is unavailable, use basic Firebase user data
-      console.warn('Could not fetch user data from backend:', err);
-      const partialUser = parseFirebaseUser(firebaseUser);
-      return {
-        ...partialUser,
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        displayName: firebaseUser.displayName,
-        photoURL: firebaseUser.photoURL,
-        firstName: partialUser.firstName || '',
-        lastName: partialUser.lastName || '',
-        permissions: [],
-      };
-    }
-  }, [ensureBackendUser]);
+        const backendName = parseDisplayName(userData.displayName);
+        const firebaseName = parseDisplayName(firebaseUser.displayName);
+        const typedUserData = userData as {
+          permissions?: string[];
+          isSuperAdmin?: boolean;
+          groupIds?: string[];
+          groupNames?: string[];
+        };
+        return {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          firstName: backendName.firstName || firebaseName.firstName,
+          lastName: backendName.lastName || firebaseName.lastName,
+          permissions: typedUserData.permissions || [],
+          isSuperAdmin: typedUserData.isSuperAdmin ?? false,
+          groupIds: typedUserData.groupIds,
+          groupNames: typedUserData.groupNames,
+        };
+      } catch (err) {
+        // If backend is unavailable, use basic Firebase user data
+        console.warn('Could not fetch user data from backend:', err);
+        const partialUser = parseFirebaseUser(firebaseUser);
+        return {
+          ...partialUser,
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          firstName: partialUser.firstName || '',
+          lastName: partialUser.lastName || '',
+          permissions: [],
+        };
+      }
+    },
+    [ensureBackendUser]
+  );
 
   // Auth state initialization is handled by AuthInitializer (single listener).
   // This hook only exposes auth actions and state — no duplicate listener.

@@ -16,7 +16,8 @@ export const listPermissionsRoute = createRoute({
   operationId: 'listPermissions',
   tags: ['Permissions'],
   summary: 'List all permissions',
-  description: 'Returns all available permissions in the system. Super admins and users with groups:update permission see all permissions. Regular users only see their own permissions.',
+  description:
+    'Returns all available permissions in the system. Super admins and users with groups:update permission see all permissions. Regular users only see their own permissions.',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
@@ -53,7 +54,7 @@ export const getMyPermissionsRoute = createRoute({
   operationId: 'getMyPermissions',
   tags: ['Permissions'],
   summary: 'Get my permissions',
-  description: 'Returns the current user\'s permissions. Super admins receive all permissions.',
+  description: "Returns the current user's permissions. Super admins receive all permissions.",
   security: [{ bearerAuth: [] }],
   responses: {
     200: {

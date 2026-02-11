@@ -311,10 +311,7 @@ export function UserList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <PageHeader
-        title="Users"
-        description="Manage user accounts and their permissions."
-      />
+      <PageHeader title="Users" description="Manage user accounts and their permissions." />
 
       {/* Filters */}
       <SearchFilterBar

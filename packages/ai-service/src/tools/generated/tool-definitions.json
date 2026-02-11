@@ -1,0 +1,664 @@
+[
+  {
+    "name": "getCurrentUser",
+    "description": "Get current user. Returns the current authenticated user's information including their permissions.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/auth/me",
+      "requiredPermission": null
+    }
+  },
+  {
+    "name": "listUsers",
+    "description": "List all users. Retrieves a paginated list of users with optional filtering by status, group, and search query. Supports cursor-based pagination.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "string",
+          "description": "Page number (1-indexed)"
+        },
+        "limit": {
+          "type": "string",
+          "description": "Number of items per page (max 100)"
+        },
+        "status": {
+          "type": "string",
+          "description": "Filter by user status",
+          "enum": ["active", "disabled", "all"]
+        },
+        "groupId": {
+          "type": "string",
+          "description": "Filter by group ID"
+        },
+        "query": {
+          "type": "string",
+          "description": "Search query for email or name"
+        },
+        "sortBy": {
+          "type": "string",
+          "description": "Field to sort by"
+        },
+        "sortOrder": {
+          "type": "string",
+          "description": "Sort order",
+          "enum": ["asc", "desc"]
+        },
+        "cursor": {
+          "type": "string",
+          "description": "Cursor for pagination"
+        }
+      }
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/users",
+      "requiredPermission": "users:read"
+    }
+  },
+  {
+    "name": "getUser",
+    "description": "Get user by ID. Retrieves detailed information about a specific user including their permissions.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        }
+      },
+      "required": ["id"]
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/users/{id}",
+      "requiredPermission": "users:read"
+    }
+  },
+  {
+    "name": "updateUser",
+    "description": "Update user. Updates a user's display name, photo URL, or preferences. Cannot modify super administrator accounts unless you are also a super admin.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User profile photo URL"
+        },
+        "preferences": {
+          "type": "object",
+          "description": "User preferences",
+          "properties": {
+            "theme": {
+              "type": "string",
+              "enum": ["light", "dark", "system"]
+            }
+          }
+        }
+      },
+      "required": ["id"]
+    },
+    "metadata": {
+      "method": "PUT",
+      "path": "/users/{id}",
+      "requiredPermission": "users:write"
+    }
+  },
+  {
+    "name": "deleteUser",
+    "description": "Delete user. Permanently deletes a user. Cannot delete yourself or super administrator accounts.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        }
+      },
+      "required": ["id"]
+    },
+    "metadata": {
+      "method": "DELETE",
+      "path": "/users/{id}",
+      "requiredPermission": "users:write"
+    }
+  },
+  {
+    "name": "disableUser",
+    "description": "Disable user. Disables a user account, preventing them from logging in. Cannot disable yourself.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        }
+      },
+      "required": ["id"]
+    },
+    "metadata": {
+      "method": "POST",
+      "path": "/users/{id}/disable",
+      "requiredPermission": "users:write"
+    }
+  },
+  {
+    "name": "enableUser",
+    "description": "Enable user. Re-enables a previously disabled user account.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        }
+      },
+      "required": ["id"]
+    },
+    "metadata": {
+      "method": "POST",
+      "path": "/users/{id}/enable",
+      "requiredPermission": "users:write"
+    }
+  },
+  {
+    "name": "changeUserGroup",
+    "description": "Change user group. Changes the group a user belongs to, affecting their permissions. Cannot modify super administrator accounts unless you are also a super admin.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        },
+        "groupId": {
+          "type": "string",
+          "description": "ID of the new group"
+        }
+      },
+      "required": ["id", "groupId"]
+    },
+    "metadata": {
+      "method": "PUT",
+      "path": "/users/{id}/group",
+      "requiredPermission": "users:write"
+    }
+  },
+  {
+    "name": "listGroups",
+    "description": "List all groups. Retrieves a list of all groups. Optionally includes user counts for each group.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "includeUserCounts": {
+          "type": "string",
+          "description": "Include user count for each group",
+          "enum": ["true", "false"]
+        }
+      }
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/groups",
+      "requiredPermission": "groups:read"
+    }
+  },
+  {
+    "name": "createGroup",
+    "description": "Create a new group. Creates a new group with the specified name, description, and optional initial permissions.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Group name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Group description"
+        },
+        "permissions": {
+          "type": "array",
+          "description": "List of permissions to assign",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["name"]
+    },
+    "metadata": {
+      "method": "POST",
+      "path": "/groups",
+      "requiredPermission": "groups:write"
+    }
+  },
+  {
+    "name": "getGroup",
+    "description": "Get group by ID. Retrieves detailed information about a specific group.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        }
+      },
+      "required": ["id"]
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/groups/{id}",
+      "requiredPermission": "groups:read"
+    }
+  },
+  {
+    "name": "updateGroup",
+    "description": "Update group. Updates a group's name and/or description.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Group name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Group description"
+        }
+      },
+      "required": ["id"]
+    },
+    "metadata": {
+      "method": "PUT",
+      "path": "/groups/{id}",
+      "requiredPermission": "groups:write"
+    }
+  },
+  {
+    "name": "deleteGroup",
+    "description": "Delete group. Permanently deletes a group. Cannot delete system groups or the default group. Cannot delete groups that still have users.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        }
+      },
+      "required": ["id"]
+    },
+    "metadata": {
+      "method": "DELETE",
+      "path": "/groups/{id}",
+      "requiredPermission": "groups:write"
+    }
+  },
+  {
+    "name": "getGroupUsers",
+    "description": "Get users in group. Retrieves a list of all users that belong to the specified group.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        }
+      },
+      "required": ["id"]
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/groups/{id}/users",
+      "requiredPermission": "groups:read"
+    }
+  },
+  {
+    "name": "updateGroupPermissions",
+    "description": "Update group permissions. Replaces all permissions for a group with the specified list of permissions.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        },
+        "permissions": {
+          "type": "array",
+          "description": "New list of permissions",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["id", "permissions"]
+    },
+    "metadata": {
+      "method": "PUT",
+      "path": "/groups/{id}/permissions",
+      "requiredPermission": "groups:write"
+    }
+  },
+  {
+    "name": "listPermissions",
+    "description": "List all permissions. Returns all available permissions in the system. Super admins and users with groups:update permission see all permissions. Regular users only see their own permissions.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/permissions",
+      "requiredPermission": null
+    }
+  },
+  {
+    "name": "getMyPermissions",
+    "description": "Get my permissions. Returns the current user's permissions. Super admins receive all permissions.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/permissions/my",
+      "requiredPermission": null
+    }
+  },
+  {
+    "name": "checkPermission",
+    "description": "Check permission. Checks if the current user has a specific permission.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "permission": {
+          "type": "string",
+          "description": "Permission to check"
+        }
+      },
+      "required": ["permission"]
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/permissions/check/{permission}",
+      "requiredPermission": null
+    }
+  },
+  {
+    "name": "listPermissionResources",
+    "description": "List permission resources. Returns all permission resource types with their associated permissions.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/permissions/resources",
+      "requiredPermission": null
+    }
+  },
+  {
+    "name": "getSettings",
+    "description": "Get application settings. Retrieves the current application settings including the default group details.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/settings",
+      "requiredPermission": "settings:read"
+    }
+  },
+  {
+    "name": "updateSettings",
+    "description": "Update application settings. Updates application settings including app name, default group, and feature flags.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "appName": {
+          "type": "string",
+          "description": "Application name"
+        },
+        "defaultGroupId": {
+          "type": "string",
+          "description": "Default group ID for new users"
+        },
+        "features": {
+          "type": "object",
+          "description": "Feature flags",
+          "properties": {
+            "auditLogging": {
+              "type": "boolean"
+            },
+            "userRegistration": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "method": "PUT",
+      "path": "/settings",
+      "requiredPermission": "settings:write"
+    }
+  },
+  {
+    "name": "getFeatures",
+    "description": "Get feature flags. Retrieves the current state of all feature flags.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/settings/features",
+      "requiredPermission": "settings:read"
+    }
+  },
+  {
+    "name": "toggleFeature",
+    "description": "Toggle feature flag. Enables or disables a specific feature flag.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "feature": {
+          "type": "string",
+          "description": "Feature name",
+          "enum": ["auditLogging", "userRegistration"]
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether to enable the feature"
+        }
+      },
+      "required": ["feature", "enabled"]
+    },
+    "metadata": {
+      "method": "PUT",
+      "path": "/settings/features/{feature}",
+      "requiredPermission": "settings:write"
+    }
+  },
+  {
+    "name": "listAuditLogs",
+    "description": "List audit logs. Retrieves a paginated list of audit logs with optional filtering by action, resource, actor, and date range.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "string",
+          "description": "Page number (1-indexed)"
+        },
+        "limit": {
+          "type": "string",
+          "description": "Number of items per page (max 100)"
+        },
+        "action": {
+          "type": "string",
+          "description": "Filter by action type"
+        },
+        "resource": {
+          "type": "string",
+          "description": "Filter by resource type"
+        },
+        "actorId": {
+          "type": "string",
+          "description": "Filter by actor ID"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Filter by start date (ISO 8601)"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "Filter by end date (ISO 8601)"
+        },
+        "sortOrder": {
+          "type": "string",
+          "description": "Sort order",
+          "enum": ["asc", "desc"]
+        }
+      }
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/audit",
+      "requiredPermission": "audit:read"
+    }
+  },
+  {
+    "name": "getAuditStats",
+    "description": "Get audit statistics. Returns aggregated statistics about audit logs including counts by action type, resource, and most active users.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "startDate": {
+          "type": "string",
+          "description": "Start date for stats (ISO 8601)"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "End date for stats (ISO 8601)"
+        }
+      }
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/audit/stats",
+      "requiredPermission": "audit:read"
+    }
+  },
+  {
+    "name": "getAuditActions",
+    "description": "Get valid audit actions. Returns a list of all valid audit action types with their categories and descriptions.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/audit/actions",
+      "requiredPermission": "audit:read"
+    }
+  },
+  {
+    "name": "getAuditResources",
+    "description": "Get valid audit resources. Returns a list of all valid audit resource types.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/audit/resources",
+      "requiredPermission": "audit:read"
+    }
+  },
+  {
+    "name": "getAuditLogsForUser",
+    "description": "Get audit logs for a user. Retrieves audit logs where the specified user was the actor (performer of the action).",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User unique identifier"
+        },
+        "limit": {
+          "type": "string",
+          "description": "Maximum number of logs to return"
+        }
+      },
+      "required": ["userId"]
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/audit/user/{userId}",
+      "requiredPermission": "audit:read"
+    }
+  },
+  {
+    "name": "getAuditLogsForResource",
+    "description": "Get audit logs for a resource. Retrieves audit logs related to a specific resource (e.g., a particular user, group, or settings).",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "description": "Resource type"
+        },
+        "resourceId": {
+          "type": "string",
+          "description": "Resource ID"
+        },
+        "limit": {
+          "type": "string",
+          "description": "Maximum number of logs to return"
+        }
+      },
+      "required": ["resource", "resourceId"]
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/audit/resource/{resource}/{resourceId}",
+      "requiredPermission": "audit:read"
+    }
+  },
+  {
+    "name": "getAuditLog",
+    "description": "Get audit log by ID. Retrieves detailed information about a specific audit log entry.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        }
+      },
+      "required": ["id"]
+    },
+    "metadata": {
+      "method": "GET",
+      "path": "/audit/{id}",
+      "requiredPermission": "audit:read"
+    }
+  }
+]

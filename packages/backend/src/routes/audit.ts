@@ -3,9 +3,9 @@ import { Hono } from 'hono';
 import { config } from '../config';
 import { authMiddleware } from '../core/middleware/auth';
 import { requirePermission } from '../core/middleware/permissions';
-import { auditService } from '../services';
 import type { AppEnv } from '../core/types/context';
 import { badRequest, notFound, paginatedResponse, successResponse } from '../core/utils/response';
+import { auditService } from '../services';
 
 const auditRoutes = new Hono<AppEnv>();
 

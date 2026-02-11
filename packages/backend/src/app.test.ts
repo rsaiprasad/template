@@ -1,6 +1,6 @@
+import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { describe, expect, it } from 'bun:test';
 import { AppError } from './core/errors';
 import { ErrorCodes, errorResponse } from './core/utils/response';
 

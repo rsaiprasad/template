@@ -73,11 +73,12 @@ export function DataTable<TData, TValue>({
     onPaginationChange,
     onRowSelectionChange,
     getRowId,
-    enableRowSelection: enableRowSelectionProp !== undefined
-      ? (typeof enableRowSelectionProp === 'function'
-        ? (row: { original: TData }) => enableRowSelectionProp(row.original)
-        : enableRowSelectionProp)
-      : !!onRowSelectionChange,
+    enableRowSelection:
+      enableRowSelectionProp !== undefined
+        ? typeof enableRowSelectionProp === 'function'
+          ? (row: { original: TData }) => enableRowSelectionProp(row.original)
+          : enableRowSelectionProp
+        : !!onRowSelectionChange,
   });
 
   const colCount = columns.length;

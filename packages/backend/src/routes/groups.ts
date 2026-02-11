@@ -1,19 +1,13 @@
 import type { Permission } from '@admin-dashboard/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { AppError } from '../core/errors';
 import { logAuditAction } from '../core/middleware/audit';
 import { authMiddleware } from '../core/middleware/auth';
 import { requirePermission } from '../core/middleware/permissions';
 import { getAllPermissions } from '../core/permissions';
-import { groupService } from '../services';
 import type { AppEnv } from '../core/types/context';
-import {
-  badRequest,
-  notFound,
-  paginatedResponse,
-  successResponse,
-} from '../core/utils/response';
+import { badRequest, notFound, paginatedResponse, successResponse } from '../core/utils/response';
+import { groupService } from '../services';
 
 const groupRoutes = new Hono<AppEnv>();
 
@@ -50,12 +44,21 @@ groupRoutes.get('/', requirePermission('groups:list'), async (c) => {
   }
 
   const page = Number.parseInt(c.req.query('page') || '1');
-  const limit = Math.min(Number.parseInt(c.req.query('limit') || c.req.query('pageSize') || '20'), 100);
+  const limit = Math.min(
+    Number.parseInt(c.req.query('limit') || c.req.query('pageSize') || '20'),
+    100
+  );
   const query = c.req.query('query') || c.req.query('search') || undefined;
   const sortBy = c.req.query('sortBy') || 'name';
   const sortOrder = (c.req.query('sortOrder') as 'asc' | 'desc') || 'asc';
 
-  const { groups, total } = await groupService.searchGroups({ page, limit, query, sortBy, sortOrder });
+  const { groups, total } = await groupService.searchGroups({
+    page,
+    limit,
+    query,
+    sortBy,
+    sortOrder,
+  });
 
   return paginatedResponse(c, groups, { page, limit, total });
 });
@@ -91,7 +94,10 @@ groupRoutes.post('/', requirePermission('groups:create'), async (c) => {
   }
 
   // Create group - permissions are validated above, safe to cast
-  const input = { ...result.data, permissions: result.data.permissions as Permission[] | undefined };
+  const input = {
+    ...result.data,
+    permissions: result.data.permissions as Permission[] | undefined,
+  };
   const group = await groupService.createGroup(input, currentUser.uid);
 
   // Log audit
@@ -282,100 +288,108 @@ groupRoutes.put('/:id/permissions', requirePermission('groups:update'), async (c
  * POST /api/v1/groups/:id/permissions/:permissionId
  * Add a single permission to a group
  */
-groupRoutes.post('/:id/permissions/:permissionId', requirePermission('groups:update'), async (c) => {
-  const groupId = c.req.param('id');
-  const permissionId = c.req.param('permissionId') as Permission;
-  const currentUser = c.get('user');
+groupRoutes.post(
+  '/:id/permissions/:permissionId',
+  requirePermission('groups:update'),
+  async (c) => {
+    const groupId = c.req.param('id');
+    const permissionId = c.req.param('permissionId') as Permission;
+    const currentUser = c.get('user');
 
-  // Validate the permission
-  if (!getAllPermissions().includes(permissionId)) {
-    return badRequest(c, 'Invalid permission', { permission: permissionId });
-  }
-
-  // Get existing group
-  const existingGroup = await groupService.getGroup(groupId);
-
-  if (!existingGroup) {
-    return notFound(c, 'Group');
-  }
-
-  // Check if permission already exists
-  if (existingGroup.permissions.includes(permissionId)) {
-    return successResponse(c, existingGroup);
-  }
-
-  // Add the permission
-  const newPermissions = [...existingGroup.permissions, permissionId];
-  const updatedGroup = await groupService.updateGroupPermissions(
-    groupId,
-    newPermissions,
-    currentUser.uid
-  );
-
-  // Log audit
-  await logAuditAction(
-    c,
-    'GROUP_PERMISSIONS_CHANGED',
-    'groups',
-    groupId,
-    `Added permission "${permissionId}" to group "${updatedGroup.name}"`,
-    {
-      before: { permissions: existingGroup.permissions },
-      after: { permissions: updatedGroup.permissions },
+    // Validate the permission
+    if (!getAllPermissions().includes(permissionId)) {
+      return badRequest(c, 'Invalid permission', { permission: permissionId });
     }
-  );
 
-  return successResponse(c, updatedGroup);
-});
+    // Get existing group
+    const existingGroup = await groupService.getGroup(groupId);
+
+    if (!existingGroup) {
+      return notFound(c, 'Group');
+    }
+
+    // Check if permission already exists
+    if (existingGroup.permissions.includes(permissionId)) {
+      return successResponse(c, existingGroup);
+    }
+
+    // Add the permission
+    const newPermissions = [...existingGroup.permissions, permissionId];
+    const updatedGroup = await groupService.updateGroupPermissions(
+      groupId,
+      newPermissions,
+      currentUser.uid
+    );
+
+    // Log audit
+    await logAuditAction(
+      c,
+      'GROUP_PERMISSIONS_CHANGED',
+      'groups',
+      groupId,
+      `Added permission "${permissionId}" to group "${updatedGroup.name}"`,
+      {
+        before: { permissions: existingGroup.permissions },
+        after: { permissions: updatedGroup.permissions },
+      }
+    );
+
+    return successResponse(c, updatedGroup);
+  }
+);
 
 /**
  * DELETE /api/v1/groups/:id/permissions/:permissionId
  * Remove a single permission from a group
  */
-groupRoutes.delete('/:id/permissions/:permissionId', requirePermission('groups:update'), async (c) => {
-  const groupId = c.req.param('id');
-  const permissionId = c.req.param('permissionId') as Permission;
-  const currentUser = c.get('user');
+groupRoutes.delete(
+  '/:id/permissions/:permissionId',
+  requirePermission('groups:update'),
+  async (c) => {
+    const groupId = c.req.param('id');
+    const permissionId = c.req.param('permissionId') as Permission;
+    const currentUser = c.get('user');
 
-  // Validate the permission
-  if (!getAllPermissions().includes(permissionId)) {
-    return badRequest(c, 'Invalid permission', { permission: permissionId });
-  }
-
-  // Get existing group
-  const existingGroup = await groupService.getGroup(groupId);
-
-  if (!existingGroup) {
-    return notFound(c, 'Group');
-  }
-
-  // Check if permission exists
-  if (!existingGroup.permissions.includes(permissionId)) {
-    return successResponse(c, existingGroup);
-  }
-
-  // Remove the permission
-  const newPermissions = existingGroup.permissions.filter((p) => p !== permissionId);
-  const updatedGroup = await groupService.updateGroupPermissions(
-    groupId,
-    newPermissions,
-    currentUser.uid
-  );
-
-  // Log audit
-  await logAuditAction(
-    c,
-    'GROUP_PERMISSIONS_CHANGED',
-    'groups',
-    groupId,
-    `Removed permission "${permissionId}" from group "${updatedGroup.name}"`,
-    {
-      before: { permissions: existingGroup.permissions },
-      after: { permissions: updatedGroup.permissions },
+    // Validate the permission
+    if (!getAllPermissions().includes(permissionId)) {
+      return badRequest(c, 'Invalid permission', { permission: permissionId });
     }
-  );
 
-  return successResponse(c, updatedGroup);
-});
+    // Get existing group
+    const existingGroup = await groupService.getGroup(groupId);
+
+    if (!existingGroup) {
+      return notFound(c, 'Group');
+    }
+
+    // Check if permission exists
+    if (!existingGroup.permissions.includes(permissionId)) {
+      return successResponse(c, existingGroup);
+    }
+
+    // Remove the permission
+    const newPermissions = existingGroup.permissions.filter((p) => p !== permissionId);
+    const updatedGroup = await groupService.updateGroupPermissions(
+      groupId,
+      newPermissions,
+      currentUser.uid
+    );
+
+    // Log audit
+    await logAuditAction(
+      c,
+      'GROUP_PERMISSIONS_CHANGED',
+      'groups',
+      groupId,
+      `Removed permission "${permissionId}" from group "${updatedGroup.name}"`,
+      {
+        before: { permissions: existingGroup.permissions },
+        after: { permissions: updatedGroup.permissions },
+      }
+    );
+
+    return successResponse(c, updatedGroup);
+  }
+);
 
 export { groupRoutes };

@@ -8,7 +8,6 @@ import { config } from './config';
 import { AppError } from './core/errors';
 import { initializeFirebaseAdmin } from './core/lib/firebase-admin';
 import { rateLimitMiddleware } from './core/middleware/rate-limit';
-import { createOpenAPIApp } from './openapi';
 import type { AppEnv } from './core/types/context';
 import {
   ErrorCodes,
@@ -17,6 +16,7 @@ import {
   getClientIp,
   getUserAgent,
 } from './core/utils/response';
+import { createOpenAPIApp } from './openapi';
 
 import { auditRoutes } from './routes/audit';
 // Import routes
@@ -52,7 +52,12 @@ app.use(
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
-    exposeHeaders: ['X-Request-ID', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+    exposeHeaders: [
+      'X-Request-ID',
+      'X-RateLimit-Limit',
+      'X-RateLimit-Remaining',
+      'X-RateLimit-Reset',
+    ],
     credentials: config.cors.credentials,
     maxAge: 86400, // 24 hours
   })
@@ -107,7 +112,12 @@ app.onError((err, c) => {
   // Handle custom AppError instances
   if (err instanceof AppError) {
     const status = err.statusCode as 400 | 401 | 403 | 404 | 409 | 500;
-    return errorResponse(c, err.code as typeof ErrorCodes[keyof typeof ErrorCodes], err.message, status);
+    return errorResponse(
+      c,
+      err.code as (typeof ErrorCodes)[keyof typeof ErrorCodes],
+      err.message,
+      status
+    );
   }
 
   // Handle Hono HTTP exceptions

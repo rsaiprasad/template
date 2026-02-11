@@ -1,5 +1,5 @@
-import { test, expect } from './fixtures/auth';
-import { UserListPage, UserDetailPage } from './pages/users';
+import { expect, test } from './fixtures/auth';
+import { UserListPage } from './pages/users';
 
 test.describe('User Management', () => {
   test.describe('User List', () => {
@@ -25,12 +25,8 @@ test.describe('User Management', () => {
       await userList.goto();
 
       // Status filter and Group filter should be visible
-      await expect(
-        authenticatedPage.getByText('All statuses')
-      ).toBeVisible({ timeout: 10000 });
-      await expect(
-        authenticatedPage.getByText('All groups')
-      ).toBeVisible();
+      await expect(authenticatedPage.getByText('All statuses')).toBeVisible({ timeout: 10000 });
+      await expect(authenticatedPage.getByText('All groups')).toBeVisible();
     });
 
     test('should display user data in table', async ({ authenticatedPage }) => {
@@ -80,7 +76,11 @@ test.describe('User Management', () => {
       await authenticatedPage.waitForTimeout(2000); // Wait for data
 
       // Click on first user link in the table
-      const firstUserLink = authenticatedPage.locator('table tbody tr').first().getByRole('link').first();
+      const firstUserLink = authenticatedPage
+        .locator('table tbody tr')
+        .first()
+        .getByRole('link')
+        .first();
       if (await firstUserLink.isVisible()) {
         await firstUserLink.click();
         await expect(authenticatedPage).toHaveURL(/\/users\/.+/);
@@ -104,9 +104,7 @@ test.describe('User Management', () => {
         await actionBtn.click();
 
         // Should show menu with Edit option
-        await expect(
-          authenticatedPage.getByRole('menuitem', { name: /edit/i })
-        ).toBeVisible();
+        await expect(authenticatedPage.getByRole('menuitem', { name: /edit/i })).toBeVisible();
       }
     });
 
@@ -127,9 +125,7 @@ test.describe('User Management', () => {
         await firstCheckbox.click();
 
         // Bulk action bar should appear
-        await expect(
-          authenticatedPage.getByText(/1 selected/i)
-        ).toBeVisible();
+        await expect(authenticatedPage.getByText(/1 selected/i)).toBeVisible();
       }
     });
 
@@ -158,9 +154,7 @@ test.describe('User Management', () => {
       await authenticatedPage.goto('/users');
       await authenticatedPage.waitForLoadState('networkidle');
 
-      await expect(
-        authenticatedPage.locator('table')
-      ).toBeVisible({ timeout: 10000 });
+      await expect(authenticatedPage.locator('table')).toBeVisible({ timeout: 10000 });
       await authenticatedPage.waitForTimeout(2000);
 
       const firstUserLink = authenticatedPage
@@ -174,9 +168,9 @@ test.describe('User Management', () => {
         await authenticatedPage.waitForLoadState('networkidle');
 
         // Should show User Information card
-        await expect(
-          authenticatedPage.getByText('User Information')
-        ).toBeVisible({ timeout: 10000 });
+        await expect(authenticatedPage.getByText('User Information')).toBeVisible({
+          timeout: 10000,
+        });
 
         // Should show form fields
         await expect(authenticatedPage.getByLabel('Display Name')).toBeVisible();
@@ -204,9 +198,7 @@ test.describe('User Management', () => {
         await expect(emailInput).toBeDisabled();
 
         // Should show helper text about email not being changeable
-        await expect(
-          authenticatedPage.getByText(/email cannot be changed/i)
-        ).toBeVisible();
+        await expect(authenticatedPage.getByText(/email cannot be changed/i)).toBeVisible();
       }
     });
 
@@ -305,14 +297,10 @@ test.describe('User Management', () => {
           await deleteOption.click();
 
           // Should show confirmation dialog
-          await expect(
-            authenticatedPage.getByText(/are you sure/i)
-          ).toBeVisible();
+          await expect(authenticatedPage.getByText(/are you sure/i)).toBeVisible();
 
           // Should show cancel button
-          await expect(
-            authenticatedPage.getByRole('button', { name: /cancel/i })
-          ).toBeVisible();
+          await expect(authenticatedPage.getByRole('button', { name: /cancel/i })).toBeVisible();
         }
       }
     });
@@ -339,9 +327,7 @@ test.describe('User Management', () => {
           await authenticatedPage.getByRole('button', { name: /cancel/i }).click();
 
           // Dialog should close
-          await expect(
-            authenticatedPage.getByText(/are you sure/i)
-          ).not.toBeVisible();
+          await expect(authenticatedPage.getByText(/are you sure/i)).not.toBeVisible();
         }
       }
     });
@@ -363,9 +349,7 @@ test.describe('User Management', () => {
         await firstCheckbox.click();
 
         // Should show bulk action bar with delete button
-        await expect(
-          authenticatedPage.getByText(/selected/i)
-        ).toBeVisible();
+        await expect(authenticatedPage.getByText(/selected/i)).toBeVisible();
       }
     });
   });

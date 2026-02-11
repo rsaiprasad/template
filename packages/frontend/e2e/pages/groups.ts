@@ -65,7 +65,10 @@ export class GroupDetailPage {
     this.descriptionInput = page.getByLabel('Description');
     this.saveButton = page.getByRole('button', { name: /save changes/i });
     this.createButton = page.getByRole('button', { name: /create group/i });
-    this.backButton = page.locator('button').filter({ has: page.locator('svg') }).first();
+    this.backButton = page
+      .locator('button')
+      .filter({ has: page.locator('svg') })
+      .first();
   }
 
   async gotoNew() {
@@ -88,7 +91,10 @@ export class GroupDetailPage {
   }
 
   async togglePermission(permissionName: string) {
-    const permRow = this.page.locator('div').filter({ hasText: permissionName }).locator('button[role="switch"]');
+    const permRow = this.page
+      .locator('div')
+      .filter({ hasText: permissionName })
+      .locator('button[role="switch"]');
     await permRow.click();
   }
 

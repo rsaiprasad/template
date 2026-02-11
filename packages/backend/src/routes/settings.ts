@@ -3,9 +3,9 @@ import { z } from 'zod';
 import { logAuditAction } from '../core/middleware/audit';
 import { authMiddleware } from '../core/middleware/auth';
 import { requireAllPermissions, requirePermission } from '../core/middleware/permissions';
-import { groupService, settingsService } from '../services';
 import type { AppEnv } from '../core/types/context';
 import { badRequest, notFound, successResponse } from '../core/utils/response';
+import { groupService, settingsService } from '../services';
 
 const settingsRoutes = new Hono<AppEnv>();
 
@@ -119,14 +119,10 @@ settingsRoutes.put('/', requireAllPermissions(['users:list', 'users:update']), a
 
   // Only log if there were actual changes
   if (Object.keys(changes).length > 0) {
-    await logAuditAction(
-      c,
-      'SETTINGS_UPDATED',
-      'settings',
-      'app',
-      'Updated application settings',
-      { before, after: changes }
-    );
+    await logAuditAction(c, 'SETTINGS_UPDATED', 'settings', 'app', 'Updated application settings', {
+      before,
+      after: changes,
+    });
   }
 
   // Return settings with default group details
@@ -151,61 +147,64 @@ settingsRoutes.get('/features', requirePermission('users:read'), async (c) => {
  * PUT /api/v1/settings/features/:feature
  * Toggle a specific feature
  */
-settingsRoutes.put('/features/:feature', requireAllPermissions(['users:list', 'users:update']), async (c) => {
-  const feature = c.req.param('feature') as 'auditLogging' | 'userRegistration';
-  const currentUser = c.get('user');
+settingsRoutes.put(
+  '/features/:feature',
+  requireAllPermissions(['users:list', 'users:update']),
+  async (c) => {
+    const feature = c.req.param('feature') as 'auditLogging' | 'userRegistration';
+    const currentUser = c.get('user');
 
-  // Validate feature name
-  const validFeatures = ['auditLogging', 'userRegistration'];
-  if (!validFeatures.includes(feature)) {
-    return badRequest(c, `Invalid feature. Valid features: ${validFeatures.join(', ')}`);
-  }
+    // Validate feature name
+    const validFeatures = ['auditLogging', 'userRegistration'];
+    if (!validFeatures.includes(feature)) {
+      return badRequest(c, `Invalid feature. Valid features: ${validFeatures.join(', ')}`);
+    }
 
-  // Parse request body
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return badRequest(c, 'Invalid JSON in request body');
-  }
-  const schema = z.object({ enabled: z.boolean() });
-  const result = schema.safeParse(body);
+    // Parse request body
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return badRequest(c, 'Invalid JSON in request body');
+    }
+    const schema = z.object({ enabled: z.boolean() });
+    const result = schema.safeParse(body);
 
-  if (!result.success) {
-    return badRequest(c, 'Invalid request body', result.error.errors);
-  }
+    if (!result.success) {
+      return badRequest(c, 'Invalid request body', result.error.errors);
+    }
 
-  // Get existing value for audit
-  const existingSettings = await settingsService.getSettings();
-  const existingValue = existingSettings.features[feature];
+    // Get existing value for audit
+    const existingSettings = await settingsService.getSettings();
+    const existingValue = existingSettings.features[feature];
 
-  // Toggle feature - throws AppError on failure (handled by global error handler)
-  const updatedSettings = await settingsService.toggleFeature(
-    feature,
-    result.data.enabled,
-    currentUser.uid
-  );
-
-  // Log audit if changed
-  if (existingValue !== result.data.enabled) {
-    await logAuditAction(
-      c,
-      'SETTINGS_UPDATED',
-      'settings',
-      'app',
-      `${result.data.enabled ? 'Enabled' : 'Disabled'} feature: ${feature}`,
-      {
-        before: { [feature]: existingValue },
-        after: { [feature]: result.data.enabled },
-      }
+    // Toggle feature - throws AppError on failure (handled by global error handler)
+    const updatedSettings = await settingsService.toggleFeature(
+      feature,
+      result.data.enabled,
+      currentUser.uid
     );
+
+    // Log audit if changed
+    if (existingValue !== result.data.enabled) {
+      await logAuditAction(
+        c,
+        'SETTINGS_UPDATED',
+        'settings',
+        'app',
+        `${result.data.enabled ? 'Enabled' : 'Disabled'} feature: ${feature}`,
+        {
+          before: { [feature]: existingValue },
+          after: { [feature]: result.data.enabled },
+        }
+      );
+    }
+
+    return successResponse(c, {
+      feature,
+      enabled: updatedSettings.features[feature],
+    });
   }
-
-  return successResponse(c, {
-    feature,
-    enabled: updatedSettings.features[feature],
-  });
-});
-
+);
 
 export { settingsRoutes };

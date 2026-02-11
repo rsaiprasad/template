@@ -135,3 +135,22 @@ variable "monitoring" {
     enabled = true
   }
 }
+
+# AI Service Configuration
+
+variable "ai_service" {
+  description = "AI Assistant service configuration"
+  type = object({
+    enabled        = bool
+    image          = optional(string, "")
+    gemini_api_key = optional(string, "")
+    backend_url    = optional(string, "")
+    system_prompt  = optional(string, "")
+    default_mode   = optional(string, "chat")
+    max_instances  = optional(number, 5)
+    cors_origins   = optional(string, "")
+  })
+  default = {
+    enabled = false
+  }
+}

@@ -51,5 +51,4 @@ describe('useThemeStore', () => {
       expect(useThemeStore.getState().resolvedTheme).toBe('light');
     });
   });
-
 });

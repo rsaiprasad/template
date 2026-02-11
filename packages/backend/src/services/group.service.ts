@@ -74,9 +74,7 @@ export class GroupService {
     let ref = this.db.collection(Collections.GROUPS) as FirebaseFirestore.Query;
 
     if (params.query) {
-      ref = ref
-        .where('name', '>=', params.query)
-        .where('name', '<', `${params.query}\uf8ff`);
+      ref = ref.where('name', '>=', params.query).where('name', '<', `${params.query}\uf8ff`);
     }
 
     // Get total count
@@ -102,11 +100,18 @@ export class GroupService {
     const groups = convertFirestoreDocs<Group>(snapshot);
 
     // Add user counts (same pattern as listGroupsWithUserCounts)
-    const usersSnapshot = await this.db.collection(Collections.USERS).select('groupIds', 'groupId').get();
+    const usersSnapshot = await this.db
+      .collection(Collections.USERS)
+      .select('groupIds', 'groupId')
+      .get();
     const groupCounts = new Map<string, number>();
     for (const doc of usersSnapshot.docs) {
       const data = doc.data();
-      const gids: string[] = Array.isArray(data.groupIds) ? data.groupIds : (data.groupId ? [data.groupId] : []);
+      const gids: string[] = Array.isArray(data.groupIds)
+        ? data.groupIds
+        : data.groupId
+          ? [data.groupId]
+          : [];
       for (const gid of gids) {
         groupCounts.set(gid, (groupCounts.get(gid) || 0) + 1);
       }
@@ -127,13 +132,20 @@ export class GroupService {
 
     // Get all users and count by group in a single query
     // This avoids N+1 queries by fetching all user group counts at once
-    const usersSnapshot = await this.db.collection(Collections.USERS).select('groupIds', 'groupId').get();
+    const usersSnapshot = await this.db
+      .collection(Collections.USERS)
+      .select('groupIds', 'groupId')
+      .get();
 
     // Count users per group (a user in multiple groups counts for each)
     const groupCounts = new Map<string, number>();
     for (const doc of usersSnapshot.docs) {
       const data = doc.data();
-      const gids: string[] = Array.isArray(data.groupIds) ? data.groupIds : (data.groupId ? [data.groupId] : []);
+      const gids: string[] = Array.isArray(data.groupIds)
+        ? data.groupIds
+        : data.groupId
+          ? [data.groupId]
+          : [];
       for (const gid of gids) {
         groupCounts.set(gid, (groupCounts.get(gid) || 0) + 1);
       }
@@ -268,7 +280,9 @@ export class GroupService {
     const userCount = userCountSnapshot.data().count;
 
     if (userCount > 0) {
-      throw new ValidationError('Cannot delete a group that has users. Please remove users from this group first.');
+      throw new ValidationError(
+        'Cannot delete a group that has users. Please remove users from this group first.'
+      );
     }
 
     await groupRef.delete();

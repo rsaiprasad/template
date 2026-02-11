@@ -16,8 +16,14 @@ export class UserListPage {
     this.page = page;
     this.heading = page.getByRole('heading', { name: 'Users' });
     this.searchInput = page.getByPlaceholder('Search users...');
-    this.statusFilter = page.locator('[data-value]').filter({ hasText: /all statuses/i }).first();
-    this.groupFilter = page.locator('[data-value]').filter({ hasText: /all groups/i }).first();
+    this.statusFilter = page
+      .locator('[data-value]')
+      .filter({ hasText: /all statuses/i })
+      .first();
+    this.groupFilter = page
+      .locator('[data-value]')
+      .filter({ hasText: /all groups/i })
+      .first();
     this.table = page.locator('table').first();
     this.addUserButton = page.getByRole('link', { name: /add user/i });
   }
@@ -70,7 +76,10 @@ export class UserDetailPage {
     this.emailInput = page.getByLabel('Email');
     this.statusSelect = page.getByLabel('Status');
     this.saveButton = page.getByRole('button', { name: /save changes/i });
-    this.backButton = page.locator('button').filter({ has: page.locator('[class*="ArrowLeft"], svg') }).first();
+    this.backButton = page
+      .locator('button')
+      .filter({ has: page.locator('[class*="ArrowLeft"], svg') })
+      .first();
   }
 
   async goto(userId: string) {

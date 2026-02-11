@@ -9,4 +9,6 @@ import type { PermissionDefinition } from '../core/types/permission';
  *   'posts:create': { resource: 'posts', action: 'create', description: 'Create blog posts' },
  *   'analytics:read': { resource: 'analytics', action: 'read', description: 'View analytics' },
  */
-export const CUSTOM_PERMISSIONS: Record<string, PermissionDefinition> = {};
+export const CUSTOM_PERMISSIONS: Record<string, PermissionDefinition> = {
+  'ai:use': { resource: 'ai', action: 'use', description: 'Use AI assistant' },
+};

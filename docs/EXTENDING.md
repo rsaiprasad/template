@@ -190,6 +190,50 @@ For most use cases, extend auth **without editing core files**:
 
 - **Add login methods**: Modify `packages/frontend/src/core/hooks/useAuth.ts`. Because this is a core file, future template updates to this file will require manual merging. Only do this if you need a fundamentally different auth flow (e.g., adding email/password alongside Google OAuth).
 
+## Customizing the AI System Prompt
+
+The AI Assistant uses a default system prompt that describes the dashboard and available operations. To customize it for your project, set the `AI_SYSTEM_PROMPT` environment variable in the AI service configuration:
+
+```bash
+# packages/ai-service/.env
+AI_SYSTEM_PROMPT="You are a helpful assistant for MyApp. You help users manage orders, products, and inventory."
+```
+
+When set, this replaces the default system prompt. The tool definitions (auto-generated from your OpenAPI spec) are always appended regardless of the prompt.
+
+## Enabling/Disabling AI Assistant
+
+The AI Assistant is controlled by the `aiAssistant` application setting, which can be changed by an admin via the Settings page or directly in Firestore:
+
+| Value | Behavior |
+|-------|----------|
+| `'voice'` | Voice mode enabled (Gemini Live API with real-time audio) |
+| `'chat'` | Text chat mode enabled (Gemini text API) |
+| `'disabled'` | AI Assistant hidden from the UI entirely |
+
+Users also need the `ai:use` permission assigned to their group to access the assistant. Add this permission to the appropriate groups via the Group Management screen.
+
+## Adding Custom Tools to the AI Assistant
+
+The AI Assistant auto-generates its tool definitions from the backend's OpenAPI spec. To make a new capability available to the AI:
+
+1. Add a new API endpoint to the backend (see "Adding a New Resource" above)
+2. Ensure the endpoint has OpenAPI documentation (Hono OpenAPI decorators)
+3. Rebuild the AI service -- tool definitions regenerate automatically on build (`bun run build:ai-service`)
+
+No manual tool registration is needed. Any endpoint documented in the OpenAPI spec becomes a callable tool.
+
+## Voice vs Chat Mode
+
+| Aspect | Voice Mode | Chat Mode |
+|--------|-----------|-----------|
+| **API** | Gemini Live API (`gemini-2.0-flash-live-001`) | Gemini text API (`gemini-2.0-flash`) |
+| **Interaction** | Real-time spoken conversation | Text input/output |
+| **Best for** | Hands-free operation, quick queries | Detailed instructions, structured responses |
+| **Requirements** | Microphone access, modern browser | Text input only |
+
+Choose voice mode for hands-free dashboard operation and quick administrative queries. Choose chat mode when users prefer text interaction or when audio is not practical.
+
 ## Customizing the UI Theme
 
 - shadcn/ui components in `packages/frontend/src/components/ui/` are freely editable

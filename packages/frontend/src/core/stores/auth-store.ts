@@ -80,9 +80,7 @@ export const useAuthStore = create<AuthStore>()(
       partialize: (state) => ({
         // Strip permissions and isSuperAdmin from persistence — they are
         // always fetched fresh from the backend on init via AuthInitializer
-        user: state.user
-          ? { ...state.user, permissions: [], isSuperAdmin: false }
-          : null,
+        user: state.user ? { ...state.user, permissions: [], isSuperAdmin: false } : null,
         isAuthenticated: state.isAuthenticated,
       }),
     }

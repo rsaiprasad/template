@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import * as React from 'react';
 import { Outlet } from 'react-router-dom';
+import { AiChatWidget } from '../features/ai-chat/ai-chat-widget';
 import { Header } from './header';
 import { Sidebar } from './sidebar';
 
@@ -139,6 +140,7 @@ export function AppLayout() {
           </div>
         </main>
       </div>
+      <AiChatWidget />
     </div>
   );
 }

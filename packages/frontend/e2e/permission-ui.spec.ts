@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures/auth';
+import { expect, test } from './fixtures/auth';
 
 test.describe('Permission-based UI', () => {
   test.describe('Sidebar visibility based on permissions', () => {
@@ -23,7 +23,9 @@ test.describe('Permission-based UI', () => {
   });
 
   test.describe('Action buttons gated by permissions', () => {
-    test('should show Add User button if user has create permission', async ({ authenticatedPage }) => {
+    test('should show Add User button if user has create permission', async ({
+      authenticatedPage,
+    }) => {
       await authenticatedPage.goto('/users');
       await authenticatedPage.waitForLoadState('networkidle');
 
@@ -32,19 +34,21 @@ test.describe('Permission-based UI', () => {
 
       // It's either visible (has permission) or not (no permission)
       // Just verify the page loaded correctly
-      await expect(
-        authenticatedPage.getByRole('heading', { name: 'Users' })
-      ).toBeVisible({ timeout: 10000 });
+      await expect(authenticatedPage.getByRole('heading', { name: 'Users' })).toBeVisible({
+        timeout: 10000,
+      });
     });
 
-    test('should show Create Group button if user has create permission', async ({ authenticatedPage }) => {
+    test('should show Create Group button if user has create permission', async ({
+      authenticatedPage,
+    }) => {
       await authenticatedPage.goto('/groups');
       await authenticatedPage.waitForLoadState('networkidle');
 
       // The "Create Group" link is gated by groups:create permission
-      await expect(
-        authenticatedPage.getByRole('heading', { name: 'Groups' })
-      ).toBeVisible({ timeout: 10000 });
+      await expect(authenticatedPage.getByRole('heading', { name: 'Groups' })).toBeVisible({
+        timeout: 10000,
+      });
 
       const createGroupBtn = authenticatedPage.getByRole('link', { name: /create group/i });
 
@@ -52,7 +56,9 @@ test.describe('Permission-based UI', () => {
       // The test validates the page loaded without errors
     });
 
-    test('should show Save Changes button gated by update permission on user detail', async ({ authenticatedPage }) => {
+    test('should show Save Changes button gated by update permission on user detail', async ({
+      authenticatedPage,
+    }) => {
       await authenticatedPage.goto('/users');
       await authenticatedPage.waitForLoadState('networkidle');
       await authenticatedPage.waitForTimeout(2000);
@@ -69,9 +75,9 @@ test.describe('Permission-based UI', () => {
 
         // Save Changes button is gated by users:update permission
         // Just verify the detail page loaded
-        await expect(
-          authenticatedPage.getByText('User Information')
-        ).toBeVisible({ timeout: 10000 });
+        await expect(authenticatedPage.getByText('User Information')).toBeVisible({
+          timeout: 10000,
+        });
       }
     });
 
@@ -89,9 +95,7 @@ test.describe('Permission-based UI', () => {
         await actionBtn.click();
 
         // Edit should always be visible
-        await expect(
-          authenticatedPage.getByRole('menuitem', { name: /edit/i })
-        ).toBeVisible();
+        await expect(authenticatedPage.getByRole('menuitem', { name: /edit/i })).toBeVisible();
 
         // Delete is only visible with users:delete permission
         // We verify the menu opened correctly regardless

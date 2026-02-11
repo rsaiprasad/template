@@ -107,3 +107,10 @@ output "monitoring_config_summary" {
     slack_enabled      = var.monitoring.enabled ? var.monitoring.notifications.slack_webhook != null : null
   }
 }
+
+# AI Service
+
+output "ai_service_url" {
+  description = "AI service Cloud Run URL"
+  value       = var.ai_service.enabled ? google_cloud_run_v2_service.ai_service[0].uri : null
+}

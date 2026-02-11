@@ -312,7 +312,7 @@ export const CUSTOM_PERMISSIONS: Record<string, PermissionDefinition> = {
 };
 ```
 
-**For developers building on this template**: To add permissions for a new feature, add entries to `CUSTOM_PERMISSIONS`. They will automatically merge with core permissions and appear in the Group Management UI. See [Section 16.3](#163-template-customization-points) for a step-by-step guide.
+**For developers building on this template**: To add permissions for a new feature, add entries to `CUSTOM_PERMISSIONS`. They will automatically merge with core permissions and appear in the Group Management UI. See [Section 16.4](#164-template-customization-points) for a step-by-step guide.
 
 #### Permission Structure
 
@@ -1281,7 +1281,40 @@ bun run deploy:prod      # Deploy to production
 - [ ] API rate limiting
 - [ ] Webhooks for events
 
-### 16.3 Template Customization Points
+### 16.3 AI Assistant (FR-AI)
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-AI-01 | Conversational AI assistant for dashboard operations | Must Have |
+| FR-AI-02 | Two interaction modes: voice (Gemini Live API) and text chat (Gemini text API) | Must Have |
+| FR-AI-03 | Configurable per-project via `aiAssistant` app setting (`'voice'` \| `'chat'` \| `'disabled'`) | Must Have |
+| FR-AI-04 | Permission-gated: requires `ai:use` permission | Must Have |
+| FR-AI-05 | Tool auto-generation from OpenAPI spec — AI can call any documented API endpoint | Must Have |
+| FR-AI-06 | Guardrails: stays on-topic, confirms destructive actions, respects user permissions | Must Have |
+| FR-AI-07 | Runs as a separate Cloud Run service communicating via WebSocket | Must Have |
+
+#### Architecture
+
+The AI Assistant runs as a standalone service (`packages/ai-service/`) deployed to Cloud Run. The frontend connects to it over WebSocket (`/ws/chat`). On build, tool definitions are auto-generated from the backend's OpenAPI spec, so any new API endpoint automatically becomes available as an AI tool.
+
+- **Voice mode** uses the Gemini Live API (`gemini-2.0-flash-live-001`) for real-time spoken interaction
+- **Chat mode** uses the Gemini text API (`gemini-2.0-flash`) for text-based conversation
+- The AI respects the calling user's permissions -- it cannot perform actions the user is not authorized to do
+- Destructive actions (delete, disable) require explicit user confirmation before execution
+
+#### User Stories
+
+```
+AS AN admin
+I WANT TO use the AI assistant to manage users via natural language
+SO THAT I can perform dashboard operations faster
+
+AS A project owner
+I WANT TO configure the AI assistant mode (voice/chat/disabled)
+SO THAT I can control how the feature is exposed to users
+```
+
+### 16.4 Template Customization Points
 
 When using this template for new projects, customize:
 

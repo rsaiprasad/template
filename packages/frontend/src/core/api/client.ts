@@ -46,12 +46,7 @@ export class ApiRequestError extends Error {
   public code?: string;
   public details?: Record<string, unknown>;
 
-  constructor(
-    message: string,
-    status: number,
-    code?: string,
-    details?: Record<string, unknown>
-  ) {
+  constructor(message: string, status: number, code?: string, details?: Record<string, unknown>) {
     super(message);
     this.name = 'ApiRequestError';
     this.status = status;
@@ -77,10 +72,7 @@ function isRetryableError(error: unknown): boolean {
     return true;
   }
   // Retry network errors
-  return (
-    error instanceof TypeError ||
-    (error instanceof Error && error.name === 'AbortError')
-  );
+  return error instanceof TypeError || (error instanceof Error && error.name === 'AbortError');
 }
 
 /**
@@ -407,9 +399,12 @@ export class AdminDashboardApi {
    * Add permission to group
    */
   async addPermissionToGroup(groupId: string, permissionId: string): Promise<ApiResponse<void>> {
-    return this.fetchWithAuth<ApiResponse<void>>(`/groups/${groupId}/permissions/${encodeURIComponent(permissionId)}`, {
-      method: 'POST',
-    });
+    return this.fetchWithAuth<ApiResponse<void>>(
+      `/groups/${groupId}/permissions/${encodeURIComponent(permissionId)}`,
+      {
+        method: 'POST',
+      }
+    );
   }
 
   /**
@@ -419,9 +414,12 @@ export class AdminDashboardApi {
     groupId: string,
     permissionId: string
   ): Promise<ApiResponse<void>> {
-    return this.fetchWithAuth<ApiResponse<void>>(`/groups/${groupId}/permissions/${encodeURIComponent(permissionId)}`, {
-      method: 'DELETE',
-    });
+    return this.fetchWithAuth<ApiResponse<void>>(
+      `/groups/${groupId}/permissions/${encodeURIComponent(permissionId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
   }
 
   // ==========================================================================

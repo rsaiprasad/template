@@ -3,11 +3,11 @@ import {
   type Auth,
   type User as FirebaseUser,
   GoogleAuthProvider,
+  connectAuthEmulator,
   signOut as firebaseSignOut,
   getAuth,
   onAuthStateChanged,
   signInWithPopup,
-  connectAuthEmulator,
 } from 'firebase/auth';
 
 // Firebase configuration from environment variables

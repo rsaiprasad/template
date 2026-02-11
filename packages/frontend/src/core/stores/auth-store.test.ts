@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import type { AuthUser } from '@/types';
-import {
-  hasAllPermissions,
-  hasAnyPermission,
-  hasPermission,
-  useAuthStore,
-} from './auth-store';
+import { hasAllPermissions, hasAnyPermission, hasPermission, useAuthStore } from './auth-store';
 
 const mockUser: AuthUser = {
   uid: 'user-123',
@@ -100,7 +95,6 @@ describe('useAuthStore', () => {
       expect(useAuthStore.getState().user).toBeNull();
     });
   });
-
 });
 
 describe('hasPermission', () => {

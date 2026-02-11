@@ -1,6 +1,7 @@
 export interface AppFeatures {
   auditLogging: boolean;
   userRegistration: boolean;
+  aiAssistant: 'voice' | 'chat' | 'disabled';
 }
 
 export interface AppSettings {

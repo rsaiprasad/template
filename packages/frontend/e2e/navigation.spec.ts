@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures/auth';
+import { expect, test } from './fixtures/auth';
 import { SidebarPage } from './pages/sidebar';
 
 test.describe('Navigation', () => {
@@ -22,9 +22,7 @@ test.describe('Navigation', () => {
       if (await sidebar.usersLink.isVisible()) {
         await sidebar.usersLink.click();
         await expect(authenticatedPage).toHaveURL('/users');
-        await expect(
-          authenticatedPage.getByRole('heading', { name: 'Users' })
-        ).toBeVisible();
+        await expect(authenticatedPage.getByRole('heading', { name: 'Users' })).toBeVisible();
       }
     });
 
@@ -36,9 +34,7 @@ test.describe('Navigation', () => {
       if (await sidebar.groupsLink.isVisible()) {
         await sidebar.groupsLink.click();
         await expect(authenticatedPage).toHaveURL('/groups');
-        await expect(
-          authenticatedPage.getByRole('heading', { name: 'Groups' })
-        ).toBeVisible();
+        await expect(authenticatedPage.getByRole('heading', { name: 'Groups' })).toBeVisible();
       }
     });
 
@@ -50,9 +46,7 @@ test.describe('Navigation', () => {
       if (await sidebar.auditLogsLink.isVisible()) {
         await sidebar.auditLogsLink.click();
         await expect(authenticatedPage).toHaveURL('/audit-logs');
-        await expect(
-          authenticatedPage.getByRole('heading', { name: 'Audit Logs' })
-        ).toBeVisible();
+        await expect(authenticatedPage.getByRole('heading', { name: 'Audit Logs' })).toBeVisible();
       }
     });
 
@@ -94,9 +88,7 @@ test.describe('Navigation', () => {
       await authenticatedPage.waitForLoadState('networkidle');
 
       // Should display 404 content or redirect to 404
-      await expect(
-        authenticatedPage.getByText(/page not found/i)
-      ).toBeVisible({ timeout: 10000 });
+      await expect(authenticatedPage.getByText(/page not found/i)).toBeVisible({ timeout: 10000 });
     });
 
     test('should have navigation back from 404', async ({ authenticatedPage }) => {

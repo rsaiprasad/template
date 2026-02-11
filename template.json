@@ -27,7 +27,8 @@
       "packages/frontend/src/stores/",
       "packages/frontend/src/types/",
       "packages/frontend/src/App.tsx",
-      "packages/frontend/src/main.tsx"
+      "packages/frontend/src/main.tsx",
+      "packages/ai-service/"
     ]
   }
 }

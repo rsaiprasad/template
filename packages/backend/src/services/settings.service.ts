@@ -107,6 +107,7 @@ export class SettingsService {
       features: {
         auditLogging: true,
         userRegistration: true,
+        aiAssistant: 'disabled',
       },
       updatedAt: new Date(),
       updatedBy: 'system',
@@ -135,17 +136,19 @@ export class SettingsService {
   /**
    * Check if a feature is enabled
    */
-  async isFeatureEnabled(feature: keyof AppSettings['features']): Promise<boolean> {
+  async isFeatureEnabled(
+    feature: keyof AppSettings['features']
+  ): Promise<AppSettings['features'][typeof feature]> {
     const settings = await this.getSettings();
-    return settings.features[feature] ?? false;
+    return settings.features[feature];
   }
 
   /**
    * Toggle a feature
    */
-  async toggleFeature(
-    feature: keyof AppSettings['features'],
-    enabled: boolean,
+  async toggleFeature<K extends keyof AppSettings['features']>(
+    feature: K,
+    enabled: AppSettings['features'][K],
     updaterId: string
   ): Promise<AppSettings> {
     return this.updateSettings(

@@ -174,6 +174,11 @@ bun run typecheck        # TypeScript
 bun run lint             # Biome
 bun run test             # Unit tests
 
+# AI Service
+bun run dev:ai           # All services + AI service
+bun run dev:ai-service   # AI service only
+bun run build:ai-service # Build AI service
+
 # Build & Deploy
 bun run build            # Production build
 npx playwright test      # Frontend e2e tests
@@ -241,6 +246,16 @@ Before adding any new UI to a page, check `packages/frontend/src/components/feat
 - API client: 30s timeout, retry with exponential backoff, token refresh on 401
 - Accessibility: focus trap, escape key, ARIA attributes
 - Performance: memoized rows, debounce cleanup, TanStack Query caching
+
+### AI Service
+
+- **Package location**: `packages/ai-service/`
+- **Dev command**: `bun run dev:ai` starts all three services (frontend + backend + AI service)
+- **WebSocket endpoint**: `/ws/chat` — the frontend connects here for AI interactions
+- **Tool definitions**: Auto-generated from the backend's OpenAPI spec on build. Adding a new documented API endpoint automatically makes it available as an AI tool
+- **Config**: Environment variables in `packages/ai-service/.env` (see `.env.example`). Key vars: `GEMINI_API_KEY`, `AI_SYSTEM_PROMPT`
+- **Gemini models**: `gemini-2.0-flash` (chat mode), `gemini-2.0-flash-live-001` (voice mode)
+- **Permission**: Requires `ai:use` permission. The AI service forwards the user's auth token and respects their permissions when executing tools
 
 ## Environment
 - `cp` and `rm` have `-i` aliases on this system — use `/bin/cp` and `yes | /bin/rm` to bypass

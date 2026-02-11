@@ -11,7 +11,7 @@ test.describe('UI Components and Styling', () => {
 
       // Set to light mode by clicking until we see 'light' class
       for (let i = 0; i < 3; i++) {
-        const currentClass = await html.getAttribute('class') || '';
+        const currentClass = (await html.getAttribute('class')) || '';
         if (currentClass.includes('light') || !currentClass.includes('dark')) {
           break;
         }

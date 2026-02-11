@@ -29,53 +29,50 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
   const { setUser, setLoading, setInitialized, setError, clearAuth } = useAuthStore();
 
   // Fetch full user data from backend
-  const fetchUserData = useCallback(
-    async (firebaseUser: FirebaseUser): Promise<AuthUser> => {
-      try {
-        const response = await api.getMe();
-        if (!response.success) {
-          throw new Error(response.error.message);
-        }
-        const userData = response.data;
-
-        const backendName = parseDisplayName(userData.displayName);
-        const firebaseName = parseDisplayName(firebaseUser.displayName);
-        const typedUserData = userData as {
-          permissions?: string[];
-          isSuperAdmin?: boolean;
-          groupIds?: string[];
-          groupNames?: string[];
-        };
-        return {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-          firstName: backendName.firstName || firebaseName.firstName,
-          lastName: backendName.lastName || firebaseName.lastName,
-          permissions: typedUserData.permissions || [],
-          isSuperAdmin: typedUserData.isSuperAdmin ?? false,
-          groupIds: typedUserData.groupIds,
-          groupNames: typedUserData.groupNames,
-        };
-      } catch (err) {
-        // If backend is unavailable, use basic Firebase user data
-        console.warn('Could not fetch user data from backend:', err);
-        const partialUser = parseFirebaseUser(firebaseUser);
-        return {
-          ...partialUser,
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-          firstName: partialUser.firstName || '',
-          lastName: partialUser.lastName || '',
-          permissions: [],
-        };
+  const fetchUserData = useCallback(async (firebaseUser: FirebaseUser): Promise<AuthUser> => {
+    try {
+      const response = await api.getMe();
+      if (!response.success) {
+        throw new Error(response.error.message);
       }
-    },
-    []
-  );
+      const userData = response.data;
+
+      const backendName = parseDisplayName(userData.displayName);
+      const firebaseName = parseDisplayName(firebaseUser.displayName);
+      const typedUserData = userData as {
+        permissions?: string[];
+        isSuperAdmin?: boolean;
+        groupIds?: string[];
+        groupNames?: string[];
+      };
+      return {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+        photoURL: firebaseUser.photoURL,
+        firstName: backendName.firstName || firebaseName.firstName,
+        lastName: backendName.lastName || firebaseName.lastName,
+        permissions: typedUserData.permissions || [],
+        isSuperAdmin: typedUserData.isSuperAdmin ?? false,
+        groupIds: typedUserData.groupIds,
+        groupNames: typedUserData.groupNames,
+      };
+    } catch (err) {
+      // If backend is unavailable, use basic Firebase user data
+      console.warn('Could not fetch user data from backend:', err);
+      const partialUser = parseFirebaseUser(firebaseUser);
+      return {
+        ...partialUser,
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+        photoURL: firebaseUser.photoURL,
+        firstName: partialUser.firstName || '',
+        lastName: partialUser.lastName || '',
+        permissions: [],
+      };
+    }
+  }, []);
 
   // Initialize auth state on mount
   useEffect(() => {

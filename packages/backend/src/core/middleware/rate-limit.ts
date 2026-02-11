@@ -66,9 +66,7 @@ export function rateLimitMiddleware() {
     const path = c.req.path;
 
     // Use stricter limits for auth endpoints
-    const maxRequests = isAuthEndpoint(path)
-      ? config.rateLimit.authMax
-      : config.rateLimit.max;
+    const maxRequests = isAuthEndpoint(path) ? config.rateLimit.authMax : config.rateLimit.max;
     const windowMs = config.rateLimit.windowMs;
 
     let entry = rateLimitStore.get(key);

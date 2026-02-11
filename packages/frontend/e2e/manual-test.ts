@@ -5,11 +5,11 @@ async function manualTest() {
 
   const browser = await chromium.launch({
     headless: false,
-    slowMo: 500 // Slow down actions so we can see what's happening
+    slowMo: 500, // Slow down actions so we can see what's happening
   });
 
   const context = await browser.newContext({
-    viewport: { width: 1280, height: 800 }
+    viewport: { width: 1280, height: 800 },
   });
 
   const page = await context.newPage();
@@ -27,7 +27,10 @@ async function manualTest() {
     const googleButton = await page.locator('button:has-text("Continue with Google")').isVisible();
     console.log(`   ✓ Google sign-in button visible: ${googleButton}`);
 
-    const themeToggle = await page.locator('button[aria-label*="theme" i], button:has-text("Toggle theme")').first().isVisible();
+    const themeToggle = await page
+      .locator('button[aria-label*="theme" i], button:has-text("Toggle theme")')
+      .first()
+      .isVisible();
     console.log(`   ✓ Theme toggle visible: ${themeToggle}`);
 
     // Take screenshot
@@ -40,10 +43,15 @@ async function manualTest() {
     console.log(`   Initial theme class: "${htmlBefore || 'none'}"`);
 
     // Click theme toggle
-    await page.locator('button').filter({ hasText: /toggle theme/i }).first().click().catch(() => {
-      // Try alternative selector
-      return page.locator('[aria-label*="theme" i]').first().click();
-    });
+    await page
+      .locator('button')
+      .filter({ hasText: /toggle theme/i })
+      .first()
+      .click()
+      .catch(() => {
+        // Try alternative selector
+        return page.locator('[aria-label*="theme" i]').first().click();
+      });
     await page.waitForTimeout(500);
 
     const htmlAfter = await page.locator('html').getAttribute('class');
@@ -61,7 +69,9 @@ async function manualTest() {
       await page.waitForLoadState('networkidle');
       const currentUrl = page.url();
       const redirectedToLogin = currentUrl.includes('/login');
-      console.log(`   Route ${route}: ${redirectedToLogin ? '✓ Redirected to login' : '✗ NOT redirected (URL: ' + currentUrl + ')'}`);
+      console.log(
+        `   Route ${route}: ${redirectedToLogin ? '✓ Redirected to login' : '✗ NOT redirected (URL: ' + currentUrl + ')'}`
+      );
     }
     console.log('');
 
@@ -122,7 +132,6 @@ async function manualTest() {
     console.log('\nKeeping browser open for 10 seconds for visual inspection...');
 
     await page.waitForTimeout(10000);
-
   } catch (error) {
     console.error('❌ Test failed:', error);
     await page.screenshot({ path: './e2e/test-results/error-screenshot.png' });

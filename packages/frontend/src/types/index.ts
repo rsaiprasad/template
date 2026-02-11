@@ -8,7 +8,7 @@ export type {
   ApiResponse,
 } from '@admin-dashboard/shared';
 
-import type { User, Group } from '@admin-dashboard/shared';
+import type { Group, User } from '@admin-dashboard/shared';
 
 // Extended types for API responses with computed fields
 export interface UserWithGroups extends User {

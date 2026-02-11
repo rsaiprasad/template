@@ -6,7 +6,7 @@
  * into the browser's IndexedDB so the app treats the session as authenticated.
  */
 
-import { test as base, type Page } from '@playwright/test';
+import { type Page, test as base } from '@playwright/test';
 
 // Firebase Auth Emulator endpoint
 const AUTH_EMULATOR = 'http://localhost:9099';
@@ -28,10 +28,7 @@ interface TestUser {
 /**
  * Create a test user in the Firebase Auth emulator and get tokens
  */
-async function createEmulatorUser(
-  email: string,
-  displayName: string
-): Promise<TestUser> {
+async function createEmulatorUser(email: string, displayName: string): Promise<TestUser> {
   // Step 1: Create account via emulator's signUp endpoint
   const signUpRes = await fetch(
     `${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
@@ -80,18 +77,15 @@ async function createEmulatorUser(
   const signUpData = await signUpRes.json();
 
   // Step 2: Update the profile to set displayName
-  await fetch(
-    `${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:update?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        idToken: signUpData.idToken,
-        displayName,
-        returnSecureToken: true,
-      }),
-    }
-  );
+  await fetch(`${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:update?key=${API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      idToken: signUpData.idToken,
+      displayName,
+      returnSecureToken: true,
+    }),
+  });
 
   return {
     uid: signUpData.localId,
@@ -126,10 +120,7 @@ async function registerWithBackend(idToken: string): Promise<void> {
  * Inject Firebase auth state into the browser so the app picks up
  * the authenticated session. Firebase Auth SDK stores state in IndexedDB.
  */
-async function injectAuthState(
-  page: Page,
-  user: TestUser
-): Promise<void> {
+async function injectAuthState(page: Page, user: TestUser): Promise<void> {
   // Firebase Auth SDK stores auth state in IndexedDB under
   // the database "firebaseLocalStorageDb" with object store "firebaseLocalStorage"
   // The key pattern is: firebase:authUser:<apiKey>:<appName>
@@ -201,10 +192,9 @@ async function injectAuthState(
 async function clearEmulatorData(): Promise<void> {
   try {
     // Clear Auth emulator
-    await fetch(
-      `${AUTH_EMULATOR}/emulator/v1/projects/${PROJECT_ID}/accounts`,
-      { method: 'DELETE' }
-    );
+    await fetch(`${AUTH_EMULATOR}/emulator/v1/projects/${PROJECT_ID}/accounts`, {
+      method: 'DELETE',
+    });
   } catch {
     // Emulator might not be running
   }

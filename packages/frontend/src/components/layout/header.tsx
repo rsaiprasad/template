@@ -65,9 +65,7 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
               <div className="flex flex-col space-y-1">
                 <div className="flex items-center gap-1.5">
                   <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
-                  {user?.isSuperAdmin && (
-                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                  )}
+                  {user?.isSuperAdmin && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
                 </div>
                 <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
               </div>
