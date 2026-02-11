@@ -107,9 +107,18 @@ function formatActionLabel(action: string): string {
     .join(' ');
 }
 
+function formatDateString(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function getTodayDateString(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return formatDateString(new Date());
+}
+
+function getTomorrowDateString(): string {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return formatDateString(tomorrow);
 }
 
 export function AuditLogs() {
@@ -117,6 +126,7 @@ export function AuditLogs() {
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
 
   const today = getTodayDateString();
+  const tomorrow = getTomorrowDateString();
 
   // Parse search params
   const page = Number.parseInt(searchParams.get('page') || '1', 10);
@@ -125,7 +135,7 @@ export function AuditLogs() {
   const action = searchParams.get('action') || '';
   const resource = searchParams.get('resource') || '';
   const startDate = searchParams.get('startDate') || today;
-  const endDate = searchParams.get('endDate') || today;
+  const endDate = searchParams.get('endDate') || tomorrow;
 
   // Convert date strings to ISO for API
   const startDateISO = React.useMemo(() => {
@@ -191,7 +201,7 @@ export function AuditLogs() {
     setSearchParams(new URLSearchParams());
   };
 
-  const hasFilters = actorId || action || resource || startDate !== today || endDate !== today;
+  const hasFilters = actorId || action || resource || startDate !== today || endDate !== tomorrow;
   const totalPages = data ? Math.ceil(data.meta.total / pageSize) : 0;
 
   return (
