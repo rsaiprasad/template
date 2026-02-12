@@ -1,8 +1,7 @@
-import { SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAiChat } from '@/hooks/use-ai-chat';
 import { cn } from '@/lib/utils';
 import { useAiChatStore } from '@/stores/ai-chat-store';
-import { AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { AlertCircle, Loader2, Sparkles, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { AiChatInput } from './ai-chat-input';
 import { AiChatMessage } from './ai-chat-message';
@@ -13,7 +12,7 @@ interface AiChatPanelProps {
 }
 
 export function AiChatPanel({ mode }: AiChatPanelProps) {
-  const { messages, aiStatus, error, isConnected, isAuthenticated } = useAiChatStore();
+  const { setOpen, messages, aiStatus, error, isConnected, isAuthenticated } = useAiChatStore();
   const { sendText, startVoice, stopVoice, isRecording, cancel, connect } = useAiChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -30,21 +29,34 @@ export function AiChatPanel({ mode }: AiChatPanelProps) {
   }, [messages, aiStatus]);
 
   return (
-    <>
+    <div
+      className={cn(
+        'fixed bottom-20 right-6 z-40 flex flex-col overflow-hidden',
+        'rounded-xl border bg-background shadow-xl',
+        'transition-all duration-200',
+        // Responsive: full width on mobile, fixed on desktop
+        'w-[calc(100vw-3rem)] max-w-[400px]',
+        'h-[min(600px,calc(100vh-8rem))]'
+      )}
+      role="dialog"
+      aria-label="AI Assistant"
+    >
       {/* Header */}
-      <SheetHeader className="border-b px-4 py-3">
+      <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
-          <SheetTitle className="text-sm">AI Assistant</SheetTitle>
+          <h2 className="text-sm font-semibold">AI Assistant</h2>
           {mode === 'voice' && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
               Voice
             </span>
           )}
+        </div>
+        <div className="flex items-center gap-1">
           {/* Connection status dot */}
           <div
             className={cn(
-              'ml-auto h-2 w-2 rounded-full',
+              'h-2 w-2 rounded-full',
               isConnected && isAuthenticated
                 ? 'bg-green-500'
                 : isConnected
@@ -59,9 +71,16 @@ export function AiChatPanel({ mode }: AiChatPanelProps) {
                   : 'Disconnected'
             }
           />
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="ml-1 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label="Close AI Assistant"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <SheetDescription className="sr-only">Chat with the AI assistant</SheetDescription>
-      </SheetHeader>
+      </div>
 
       {/* Error banner */}
       {error && (
@@ -125,6 +144,6 @@ export function AiChatPanel({ mode }: AiChatPanelProps) {
         onStartVoice={startVoice}
         onStopVoice={stopVoice}
       />
-    </>
+    </div>
   );
 }
