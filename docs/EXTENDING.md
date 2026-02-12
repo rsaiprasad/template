@@ -9,25 +9,26 @@ The codebase is split into **core** (template infrastructure) and **customizable
 ```
 packages/
   shared/src/
-    core/           # Permission types, API types, utils — DON'T EDIT
-    types/          # Domain types (user, group, audit, settings) — EDIT FREELY
-    constants/      # Custom permission definitions (CUSTOM_PERMISSIONS) — EDIT FREELY
+    core/           # Permission types, API types, utils -- DON'T EDIT
+    types/          # Domain types (user, group, audit, settings) -- EDIT FREELY
+    constants/      # Custom permission definitions (CUSTOM_PERMISSIONS) -- EDIT FREELY
 
   backend/src/
-    core/           # Auth middleware, permissions, Firebase helpers — DON'T EDIT
-    routes/         # API route handlers — EDIT FREELY
-    services/       # Business logic — EDIT FREELY
-    config/         # App configuration — EDIT FREELY
-    openapi/        # API documentation — EDIT FREELY
+    core/           # Auth middleware, permissions, Firebase helpers -- DON'T EDIT
+    db/             # Drizzle schema and database connection -- EDIT FREELY
+    routes/         # API route handlers -- EDIT FREELY
+    services/       # Business logic -- EDIT FREELY
+    config/         # App configuration -- EDIT FREELY
+    openapi/        # API documentation -- EDIT FREELY
 
   frontend/src/
-    core/           # Auth hooks, permission gates, API client — DON'T EDIT
-    pages/          # Page components — EDIT FREELY
-    components/     # UI components — EDIT FREELY
-    hooks/          # Custom hooks — EDIT FREELY
-    stores/         # State stores — EDIT FREELY
-    api/            # API client configuration — EDIT FREELY
-    types/          # Frontend types — EDIT FREELY
+    core/           # Auth hooks, permission gates, API client -- DON'T EDIT
+    pages/          # Page components -- EDIT FREELY
+    components/     # UI components -- EDIT FREELY
+    hooks/          # Custom hooks -- EDIT FREELY
+    stores/         # State stores -- EDIT FREELY
+    api/            # API client configuration -- EDIT FREELY
+    types/          # Frontend types -- EDIT FREELY
 ```
 
 ## Adding a New Resource
@@ -80,37 +81,70 @@ Export from `packages/shared/src/types/index.ts`:
 export * from './product';
 ```
 
-### 3. Add Backend Service
+### 3. Add Database Table
+
+Add to `packages/backend/src/db/schema.ts`:
+
+```typescript
+export const products = pgTable('products', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  price: integer('price').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+```
+
+Push the schema change to the database:
+
+```bash
+cd packages/backend
+bun run db:push
+```
+
+### 4. Add Backend Service
 
 Create `packages/backend/src/services/product.service.ts`:
 
 ```typescript
-import type { Product, CreateProductInput } from '@admin-dashboard/shared';
-import { Collections, convertFirestoreDoc, getDb } from '../core/lib/firebase-admin';
+import { eq } from 'drizzle-orm';
+import { db } from '../db';
+import { products } from '../db/schema';
+import type { Product, CreateProductInput, UpdateProductInput } from '@admin-dashboard/shared';
 import { NotFoundError } from '../core/errors';
 
 export class ProductService {
-  private db = getDb();
-
   async list(): Promise<Product[]> {
-    const snapshot = await this.db.collection('products').get();
-    return snapshot.docs.map(doc => convertFirestoreDoc<Product>(doc)!);
+    return db.select().from(products).orderBy(products.createdAt);
   }
 
   async getById(id: string): Promise<Product> {
-    const doc = await this.db.collection('products').doc(id).get();
-    const product = convertFirestoreDoc<Product>(doc);
+    const [product] = await db.select().from(products).where(eq(products.id, id));
     if (!product) throw new NotFoundError('Product');
     return product;
   }
 
   async create(input: CreateProductInput): Promise<Product> {
-    const ref = await this.db.collection('products').add({
+    const id = crypto.randomUUID();
+    const [product] = await db.insert(products).values({
+      id,
       ...input,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    return this.getById(ref.id);
+    }).returning();
+    return product;
+  }
+
+  async update(id: string, input: UpdateProductInput): Promise<Product> {
+    const [product] = await db.update(products)
+      .set({ ...input, updatedAt: new Date() })
+      .where(eq(products.id, id))
+      .returning();
+    if (!product) throw new NotFoundError('Product');
+    return product;
+  }
+
+  async delete(id: string): Promise<void> {
+    const result = await db.delete(products).where(eq(products.id, id));
+    if (result.rowCount === 0) throw new NotFoundError('Product');
   }
 }
 ```
@@ -122,7 +156,27 @@ import { ProductService } from './product.service';
 export const productService = new ProductService();
 ```
 
-### 4. Add Backend Route
+#### Using Transactions
+
+For operations that span multiple tables, use Drizzle transactions:
+
+```typescript
+async transferProduct(productId: string, fromUserId: string, toUserId: string) {
+  return db.transaction(async (tx) => {
+    const [product] = await tx.select().from(products).where(eq(products.id, productId));
+    if (!product) throw new NotFoundError('Product');
+
+    await tx.update(products)
+      .set({ ownerId: toUserId, updatedAt: new Date() })
+      .where(eq(products.id, productId));
+
+    // Log the transfer in audit_logs within the same transaction
+    await tx.insert(auditLogs).values({ ... });
+  });
+}
+```
+
+### 5. Add Backend Route
 
 Create `packages/backend/src/routes/products.ts`:
 
@@ -142,6 +196,12 @@ productRoutes.get('/', requirePermission('products:list'), async (c) => {
   return successResponse(c, products);
 });
 
+productRoutes.post('/', requirePermission('products:create'), async (c) => {
+  const body = await c.req.json();
+  const product = await productService.create(body);
+  return successResponse(c, product, 201);
+});
+
 export { productRoutes };
 ```
 
@@ -152,7 +212,7 @@ import { productRoutes } from './routes/products';
 apiV1.route('/products', productRoutes);
 ```
 
-### 5. Add Frontend Page
+### 6. Add Frontend Page
 
 Create `packages/frontend/src/pages/Products.tsx` with your product list UI.
 
@@ -168,7 +228,7 @@ Add a route in `packages/frontend/src/App.tsx`:
 
 Add a sidebar link in `packages/frontend/src/components/layout/sidebar.tsx`.
 
-### 6. Add API Methods
+### 7. Add API Methods
 
 Add methods to the API client or create a new API module in `packages/frontend/src/api/`.
 
@@ -203,7 +263,7 @@ When set, this replaces the default system prompt. The tool definitions (auto-ge
 
 ## Enabling/Disabling AI Assistant
 
-The AI Assistant is controlled by the `aiAssistant` application setting, which can be changed by an admin via the Settings page or directly in Firestore:
+The AI Assistant is controlled by the `aiAssistant` application setting, which can be changed by an admin via the Settings page or directly in the database:
 
 | Value | Behavior |
 |-------|----------|

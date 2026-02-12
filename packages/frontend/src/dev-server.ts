@@ -1,25 +1,9 @@
-import { readFileSync, watch } from 'node:fs';
-import { extname, join, resolve } from 'node:path';
+import { watch } from 'node:fs';
+import { extname, join } from 'node:path';
 import { $ } from 'bun';
 
 const PORT = Number(process.env.PORT) || 5173;
-const API_URL = process.env.PUBLIC_API_URL || 'http://localhost:5001';
-const FIREBASE_REGION = process.env.PUBLIC_FIREBASE_REGION || 'us-central1';
-
-function getFirebaseProjectId(): string {
-  try {
-    const firebaserc = JSON.parse(
-      readFileSync(resolve(import.meta.dir, '../../../.firebaserc'), 'utf-8')
-    );
-    return firebaserc.projects?.default || 'demo-project';
-  } catch {
-    return 'demo-project';
-  }
-}
-
-const isEmulator = API_URL.includes('localhost:5001');
-const FIREBASE_PROJECT_ID = getFirebaseProjectId();
-const API_PREFIX = isEmulator ? `/${FIREBASE_PROJECT_ID}/${FIREBASE_REGION}/api` : '';
+const API_URL = process.env.PUBLIC_API_URL || 'http://localhost:3000';
 
 const mimeTypes: Record<string, string> = {
   '.html': 'text/html',
@@ -110,7 +94,7 @@ const server = Bun.serve({
     // Proxy API requests
     if (pathname.startsWith('/api/')) {
       // Use the decoded pathname directly - Hono on the backend will match it correctly
-      const targetUrl = `${API_URL}${API_PREFIX}${pathname}${url.search}`;
+      const targetUrl = `${API_URL}${pathname}${url.search}`;
       const headers = new Headers(req.headers);
       headers.delete('host');
 

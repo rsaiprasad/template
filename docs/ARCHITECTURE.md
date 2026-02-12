@@ -9,19 +9,17 @@
 1. [Executive Summary](#1-executive-summary)
 2. [Tech Stack Overview](#2-tech-stack-overview)
 3. [System Architecture](#3-system-architecture)
-4. [Infrastructure (GCP + Terraform)](#4-infrastructure-gcp--terraform)
-5. [Authentication Flow](#5-authentication-flow)
-6. [Authorization & Permission System](#6-authorization--permission-system)
-7. [API Request Lifecycle](#7-api-request-lifecycle)
-8. [Database Design](#8-database-design)
-9. [Backend Architecture](#9-backend-architecture)
-10. [Frontend Architecture](#10-frontend-architecture)
-11. [AI Service Architecture](#11-ai-service-architecture)
-12. [Libraries, Frameworks & Design Philosophy](#12-libraries-frameworks--design-philosophy)
-13. [Project Structure](#13-project-structure)
-14. [Terraform Resources](#14-terraform-resources)
-15. [Deployment & Operations](#15-deployment--operations)
-16. [Security Model](#16-security-model)
+4. [Authentication Flow](#4-authentication-flow)
+5. [Authorization & Permission System](#5-authorization--permission-system)
+6. [API Request Lifecycle](#6-api-request-lifecycle)
+7. [Database Design](#7-database-design)
+8. [Backend Architecture](#8-backend-architecture)
+9. [Frontend Architecture](#9-frontend-architecture)
+10. [AI Service Architecture](#10-ai-service-architecture)
+11. [Libraries, Frameworks & Design Philosophy](#11-libraries-frameworks--design-philosophy)
+12. [Project Structure](#12-project-structure)
+13. [Deployment & Operations](#13-deployment--operations)
+14. [Security Model](#14-security-model)
 
 ---
 
@@ -29,7 +27,7 @@
 
 ### What Is This?
 
-The **Admin Dashboard Template** is a production-ready, reusable foundation for building B2C and B2B SaaS administration interfaces. It provides user management, group-based permissions, audit logging, application settings, and an AI assistant — all deployable to Google Cloud Platform with a single Terraform command.
+The **Admin Dashboard Template** is a production-ready, reusable foundation for building B2C and B2B SaaS administration interfaces. It provides user management, group-based permissions, audit logging, application settings, and an AI assistant -- all running on your desktop with PostgreSQL for zero monthly cost.
 
 ### Who Is It For?
 
@@ -46,12 +44,11 @@ The **Admin Dashboard Template** is a production-ready, reusable foundation for 
 | **Permission System** | 12 built-in permissions across 4 resources, extensible with custom permissions |
 | **Audit Logging** | Every admin action logged with actor, action, resource, timestamp, and before/after diffs |
 | **AI Assistant** | Text and voice chat powered by Gemini, with permission-aware tool calling |
-| **Infrastructure as Code** | Full GCP deployment via Terraform: Firebase, Cloud Functions, Firestore, Cloud Run, monitoring |
 | **Template System** | Fork-and-customize architecture with upstream sync for core updates |
 
 ### Architecture at a Glance
 
-The system is a **monorepo with three packages** (shared, backend, frontend) plus an optional AI service. The backend runs on Firebase Cloud Functions (Hono framework), the frontend is a React SPA hosted on Firebase Hosting, and the AI service runs on Cloud Run. All data lives in Firestore. Authentication uses Google OAuth via Firebase Auth.
+The system is a **monorepo with three packages** (shared, backend, frontend) plus an optional AI service. The backend runs as a standalone Bun server (Hono framework), the frontend is a React SPA deployed to Cloudflare Pages, and the database is PostgreSQL accessed via Drizzle ORM. Authentication uses Google OAuth via Firebase Auth (free tier). The backend is exposed to the internet via Cloudflare Tunnel.
 
 ---
 
@@ -66,20 +63,21 @@ The system is a **monorepo with three packages** (shared, backend, frontend) plu
 | **Server State** | TanStack Query | 5.17.19 | Data fetching, caching, mutations |
 | **Tables** | TanStack Table | 8.21.3 | Headless table rendering with sorting, selection |
 | **Forms** | React Hook Form | 7.50.1 | Form state management with Zod validation |
-| **Validation** | Zod | 3.22–3.23 | Schema validation (shared across frontend/backend) |
+| **Validation** | Zod | 3.22-3.23 | Schema validation (shared across frontend/backend) |
 | **CSS Framework** | Tailwind CSS | 3.4.1 | Utility-first styling |
 | **UI Components** | shadcn/ui + Radix UI | Latest | Accessible, composable primitives |
 | **Icons** | Lucide React | 0.323.0 | Icon library |
-| **Backend Framework** | Hono | 4.6.0 | Lightweight web framework for Cloud Functions |
+| **Backend Framework** | Hono | 4.6.0 | Lightweight web framework on Bun |
 | **API Documentation** | @hono/zod-openapi | 0.18.0 | OpenAPI spec generation from Zod schemas |
-| **Database** | Cloud Firestore | — | NoSQL document database |
-| **Authentication** | Firebase Auth | 10.8.0 (client) / 12.7.0 (admin) | Google OAuth provider |
-| **Cloud Functions** | Firebase Functions | 7.0.5 | Serverless backend runtime (Node.js 20) |
+| **Database** | PostgreSQL | >=14 | Relational database |
+| **ORM** | Drizzle ORM | 0.45.1 | Type-safe SQL query builder |
+| **Database Driver** | postgres.js | 3.4.8 | PostgreSQL client for Node.js/Bun |
+| **Authentication** | Firebase Auth | 10.8.0 (client) / 12.7.0 (admin) | Google OAuth provider (free tier) |
 | **AI Models** | Google Gemini | 2.0 Flash | Text chat and voice interaction |
 | **AI SDK** | @google/generative-ai | 0.21.0 | Gemini API client |
 | **Linting** | Biome | Latest | Linter + formatter (replaces ESLint + Prettier) |
-| **IaC** | Terraform | >= 1.0 | Infrastructure provisioning for GCP |
-| **Cloud Provider** | Google Cloud Platform | — | Hosting, compute, storage, monitoring |
+| **Frontend Hosting** | Cloudflare Pages | -- | Static site hosting with CDN |
+| **Backend Exposure** | Cloudflare Tunnel | -- | Secure tunnel to localhost |
 
 ---
 
@@ -93,17 +91,19 @@ flowchart TB
         FE["Frontend<br/>React 18 + Tailwind<br/>Port 5173"]
     end
 
-    subgraph Firebase["Firebase Platform"]
-        FH["Firebase Hosting<br/>(CDN + SPA serving)"]
+    subgraph CF["Cloudflare"]
+        CFP["Cloudflare Pages<br/>(CDN + Static SPA)"]
+        CFT["Cloudflare Tunnel"]
+    end
+
+    subgraph Desktop["Desktop Machine"]
+        BE["Backend API<br/>Bun + Hono<br/>Port 3000"]
+        PG[("PostgreSQL<br/>5 Tables:<br/>users, groups,<br/>user_groups, audit_logs,<br/>settings")]
+        AI["AI Service<br/>Hono + WebSocket<br/>Port 3001"]
+    end
+
+    subgraph Firebase["Firebase (Free Tier)"]
         FA["Firebase Auth<br/>(Google OAuth)"]
-    end
-
-    subgraph GCF["Google Cloud Functions"]
-        BE["Backend API<br/>Hono on Node.js 20<br/>/api/v1/*"]
-    end
-
-    subgraph CloudRun["Google Cloud Run"]
-        AI["AI Service<br/>Hono + WebSocket<br/>Port 8080"]
     end
 
     subgraph Google["Google APIs"]
@@ -111,146 +111,38 @@ flowchart TB
         GML["Gemini Live API<br/>2.0 Flash Live"]
     end
 
-    subgraph Data["Data Layer"]
-        FS[("Cloud Firestore<br/>4 Collections:<br/>users, groups,<br/>auditLogs, settings")]
-        SM["Secret Manager<br/>(Gemini API Key)"]
-    end
-
-    subgraph Monitoring["Cloud Monitoring"]
-        LOG["Cloud Logging"]
-        ALERT["Alert Policies"]
-        UP["Uptime Checks"]
-    end
-
-    FE -->|"HTTPS /api/v1/*"| FH
-    FH -->|"Rewrite rule"| BE
+    FE -->|"HTTPS"| CFP
     FE -->|"OAuth popup"| FA
+    FE -->|"API calls via tunnel"| CFT
+    CFT -->|"localhost:3000"| BE
     FE -->|"WebSocket /ws/chat"| AI
 
-    BE -->|"Admin SDK"| FS
+    BE -->|"Drizzle ORM"| PG
     BE -->|"Verify tokens"| FA
 
     AI -->|"REST API"| GM
     AI -->|"WebSocket"| GML
     AI -->|"HTTP calls<br/>(tool execution)"| BE
     AI -->|"Verify tokens"| FA
-    AI -->|"Read secret"| SM
-
-    BE -->|"Write logs"| LOG
-    LOG -->|"Log-based metrics"| ALERT
-    UP -->|"Health checks"| BE
 
     style Client fill:#e1f5fe
-    style Firebase fill:#fff3e0
-    style GCF fill:#e8f5e9
-    style CloudRun fill:#f3e5f5
-    style Data fill:#fce4ec
-    style Monitoring fill:#f1f8e9
+    style CF fill:#fff3e0
+    style Desktop fill:#e8f5e9
+    style Firebase fill:#fce4ec
     style Google fill:#fff9c4
 ```
 
-> **[View in Mermaid Live Editor](https://mermaid.live)** — Paste the diagram code above to interact with it.
-
 ### Data Flow Summary
 
-1. **Browser** loads the React SPA from Firebase Hosting (CDN-backed)
-2. **Authentication**: User clicks "Sign in with Google" → Firebase Auth popup → returns ID token
-3. **API calls**: Frontend sends HTTPS requests to `/api/v1/*` → Firebase Hosting rewrites to Cloud Functions → Hono backend processes request
-4. **AI chat**: Frontend opens WebSocket to Cloud Run AI service → authenticates with Firebase token → sends text/audio → AI service calls Gemini → executes tools via backend API → streams response back
-5. **Data**: All state stored in Firestore. Backend uses Admin SDK (bypasses security rules). Frontend never writes directly.
-6. **Monitoring**: Cloud Logging captures function logs → log-based metrics trigger alert policies → notifications via email/Slack
+1. **Browser** loads the React SPA from Cloudflare Pages (CDN-backed)
+2. **Authentication**: User clicks "Sign in with Google" -> Firebase Auth popup -> returns ID token
+3. **API calls**: Frontend sends HTTPS requests -> Cloudflare Tunnel -> Bun backend on localhost:3000 -> Hono processes request -> Drizzle queries PostgreSQL
+4. **AI chat**: Frontend opens WebSocket to AI service -> authenticates with Firebase token -> sends text/audio -> AI service calls Gemini -> executes tools via backend API -> streams response back
+5. **Data**: All state stored in PostgreSQL. Backend uses Drizzle ORM for type-safe queries.
 
 ---
 
-## 4. Infrastructure (GCP + Terraform)
-
-### Diagram
-
-```mermaid
-flowchart TB
-    subgraph TF["Terraform Configuration"]
-        direction TB
-        VARS["variables.tf<br/>project_id, region,<br/>super_admin_email,<br/>monitoring, ai_service"]
-    end
-
-    subgraph Project["GCP Project"]
-        direction TB
-
-        subgraph APIs["Enabled APIs (11)"]
-            API1["firebase.googleapis.com"]
-            API2["firestore.googleapis.com"]
-            API3["identitytoolkit.googleapis.com"]
-            API4["cloudfunctions.googleapis.com"]
-            API5["cloudbuild.googleapis.com"]
-            API6["run.googleapis.com"]
-            API7["secretmanager.googleapis.com"]
-            API8["artifactregistry.googleapis.com"]
-            API9["serviceusage.googleapis.com"]
-            API10["iam.googleapis.com"]
-            API11["cloudresourcemanager.googleapis.com"]
-        end
-
-        subgraph Core["Core Resources"]
-            FBP["Firebase Project"]
-            FWA["Firebase Web App"]
-            IPC["Identity Platform<br/>(Auth Config)"]
-            FSDB["Firestore Database<br/>(Native mode)"]
-            FSR["Firestore Rules"]
-            SA["Service Account<br/>(admin-dashboard-dev)"]
-        end
-
-        subgraph Optional["Conditional Resources"]
-            subgraph GoogleSignIn["Google Sign-In"]
-                OAUTH["Google OAuth<br/>IDP Config"]
-            end
-
-            subgraph AIService["AI Service (Cloud Run)"]
-                AR["Artifact Registry<br/>(Docker repo)"]
-                SEC["Secret Manager<br/>(Gemini API key)"]
-                CR["Cloud Run Service<br/>(ai-service)"]
-                AISA["Service Account<br/>(ai-service)"]
-            end
-
-            subgraph Mon["Monitoring"]
-                AUDIT["Audit Logging<br/>(Firestore + Auth)"]
-                METRICS["Log-Based Metrics (4)"]
-                NC["Notification Channels<br/>(Email + Slack)"]
-                ALERTS["Alert Policies (5)"]
-                UTC["Uptime Check"]
-            end
-        end
-    end
-
-    VARS --> Project
-    FBP --> FWA
-    FBP --> IPC
-    FBP --> FSDB
-    FSDB --> FSR
-    METRICS --> ALERTS
-    NC --> ALERTS
-
-    style TF fill:#e3f2fd
-    style Core fill:#e8f5e9
-    style Optional fill:#fff3e0
-    style GoogleSignIn fill:#fce4ec
-    style AIService fill:#f3e5f5
-    style Mon fill:#f1f8e9
-```
-
-### Resource Summary
-
-The Terraform configuration provisions **20+ GCP resources** organized into:
-
-- **Core** (always created): Firebase project, web app, Identity Platform, Firestore database + security rules, development service account
-- **Google Sign-In** (conditional on `enable_google_signin`): Google OAuth Identity Provider configuration
-- **AI Service** (conditional on `ai_service.enabled`): Artifact Registry, Secret Manager, Cloud Run service, dedicated service account
-- **Monitoring** (conditional on `monitoring.enabled`): Cloud audit logs, 4 log-based metrics, notification channels, 5 alert policies, uptime check
-
-See [Section 14: Terraform Resources](#14-terraform-resources) for the complete resource inventory.
-
----
-
-## 5. Authentication Flow
+## 4. Authentication Flow
 
 ### Diagram
 
@@ -260,7 +152,7 @@ sequenceDiagram
     participant Browser as React SPA
     participant Firebase as Firebase Auth
     participant Backend as Hono Backend
-    participant Firestore as Cloud Firestore
+    participant DB as PostgreSQL
 
     User->>Browser: Click "Sign in with Google"
     Browser->>Firebase: signInWithPopup(GoogleAuthProvider)
@@ -270,29 +162,29 @@ sequenceDiagram
     Backend->>Firebase: verifyIdToken(token)
     Firebase-->>Backend: Decoded token (uid, email)
 
-    Backend->>Firestore: Get user document (uid)
+    Backend->>DB: SELECT user WHERE id = uid
 
     alt New User
-        Backend->>Firestore: Create user document<br/>(email, displayName, photoURL,<br/>groupIds: [defaultGroup])
-        Backend->>Firestore: Initialize default groups<br/>(admin + users) if missing
+        Backend->>DB: INSERT user<br/>(email, displayName, photoURL,<br/>groupIds via user_groups)
+        Backend->>DB: Initialize default groups if missing
     else Existing User
-        Backend->>Firestore: Update lastLoginAt,<br/>displayName, photoURL
+        Backend->>DB: UPDATE lastLoginAt,<br/>displayName, photoURL
     end
 
     alt Email matches SUPER_ADMIN_EMAIL
-        Backend->>Firestore: Set isSuperAdmin: true<br/>Add to admin group
+        Backend->>DB: UPDATE isSuperAdmin = true<br/>INSERT into admin group
     end
 
     Backend-->>Browser: 200 OK { user, token }
 
     Browser->>Backend: GET /api/v1/auth/me<br/>Authorization: Bearer {idToken}
-    Backend->>Firestore: Get user + all group permissions
+    Backend->>DB: SELECT user + JOIN groups for permissions
     Backend-->>Browser: { user, permissions[], groupNames[] }
 
     Browser->>Browser: Store in Zustand auth store<br/>(sessionStorage persistence)
     Browser->>Browser: Redirect to dashboard (or original URL)
 
-    Note over Browser,Firestore: Subsequent requests include<br/>Authorization: Bearer {idToken}
+    Note over Browser,DB: Subsequent requests include<br/>Authorization: Bearer {idToken}
 ```
 
 ### Step-by-Step Explanation
@@ -300,33 +192,33 @@ sequenceDiagram
 1. **Google OAuth Popup**: The React app calls `signInWithPopup()` with `GoogleAuthProvider`. Firebase handles the OAuth flow entirely.
 2. **Token Acquisition**: Firebase returns a Firebase User object. The app extracts an ID token (JWT signed by Google).
 3. **Backend Login**: The app sends the ID token to `POST /auth/login`. The backend verifies the token using Firebase Admin SDK.
-4. **User Upsert**: If the user doesn't exist in Firestore, a new document is created with default group assignments. If the user exists, their last login time and profile info are updated.
+4. **User Upsert**: If the user doesn't exist in PostgreSQL, a new row is created with default group assignments via the `user_groups` junction table. If the user exists, their last login time and profile info are updated.
 5. **Super Admin Check**: On every login, the backend checks if the user's email matches `SUPER_ADMIN_EMAIL`. If so, the user gets `isSuperAdmin: true` and is added to the admin group.
 6. **Permission Fetch**: The app calls `GET /auth/me` to get the full user profile including merged permissions from all assigned groups.
 7. **Client State**: User data (including permissions and group memberships) is stored in the Zustand auth store, persisted to `sessionStorage` (excluding permissions and `isSuperAdmin`, which are always fetched fresh).
 
 ### Key Design Decisions
 
-- **Google OAuth only** — No email/password authentication. Even in development with emulators, Firebase Auth shows a Google sign-in popup.
-- **Super Admin by email** — Determined by `SUPER_ADMIN_EMAIL` environment variable, not by first login or self-registration.
-- **Token refresh** — The API client automatically refreshes tokens on 401 responses using `getIdToken(forceRefresh: true)`.
-- **Logout** — Calls Firebase `signOut()`, clears the auth store, clears TanStack Query cache (prevents data leaks between sessions), and redirects to `/login`.
+- **Google OAuth only** -- No email/password authentication. Even in development with emulators, Firebase Auth shows a Google sign-in popup.
+- **Super Admin by email** -- Determined by `SUPER_ADMIN_EMAIL` environment variable, not by first login or self-registration.
+- **Token refresh** -- The API client automatically refreshes tokens on 401 responses using `getIdToken(forceRefresh: true)`.
+- **Logout** -- Calls Firebase `signOut()`, clears the auth store, clears TanStack Query cache (prevents data leaks between sessions), and redirects to `/login`.
 
 ---
 
-## 6. Authorization & Permission System
+## 5. Authorization & Permission System
 
 ### Permission Model
 
 The system uses a **multi-group, permission-based** authorization model:
 
 ```
-User → belongs to N Groups → each Group has M Permissions → User's effective permissions = union of all group permissions
+User -> belongs to N Groups -> each Group has M Permissions -> User's effective permissions = union of all group permissions
 ```
 
 ### Permission Definitions
 
-**Core Permissions** (11 — template infrastructure, defined in `packages/backend/src/core/permissions.ts`):
+**Core Permissions** (11 -- template infrastructure, defined in `packages/backend/src/core/permissions.ts`):
 
 | Permission | Resource | Action | Description |
 |---|---|---|---|
@@ -367,19 +259,18 @@ sequenceDiagram
     participant MW as Auth Middleware
     participant PMW as Permission Middleware
     participant Handler as Route Handler
-    participant FS as Firestore
+    participant DB as PostgreSQL
 
     Client->>MW: Request with Bearer token
     MW->>MW: Verify Firebase ID token
-    MW->>FS: Fetch user document
-    MW->>FS: Fetch all user's groups<br/>(parallel queries)
+    MW->>DB: SELECT user + JOIN user_groups + JOIN groups
     MW->>MW: Merge permissions<br/>(Set union of all group permissions)
     MW->>MW: Attach AuthUser to context<br/>(uid, email, permissions[], isSuperAdmin)
 
     MW->>PMW: Pass to permission middleware
 
     alt Super Admin
-        PMW->>Handler: Bypass — always allowed
+        PMW->>Handler: Bypass -- always allowed
     else Has Required Permission
         PMW->>Handler: Allow request
     else Missing Permission
@@ -400,15 +291,15 @@ The backend provides four permission middleware factories:
 
 ### Frontend Permission Enforcement
 
-The frontend mirrors backend checks for UI rendering (not security — the backend is the authoritative enforcer):
+The frontend mirrors backend checks for UI rendering (not security -- the backend is the authoritative enforcer):
 
 | Component | Purpose |
 |---|---|
-| `RequireAuth` | Route guard — redirects to `/login` if unauthenticated |
-| `RequirePermission` | Route guard — redirects to `/forbidden` if missing permission |
-| `PermissionGate` | Conditional render — shows children only if user has permission |
-| `WithPermission` | Inline conditional — renders fallback if no permission |
-| `withPermission(Comp, perm)` | HOC — wraps component with permission check |
+| `RequireAuth` | Route guard -- redirects to `/login` if unauthenticated |
+| `RequirePermission` | Route guard -- redirects to `/forbidden` if missing permission |
+| `PermissionGate` | Conditional render -- shows children only if user has permission |
+| `WithPermission` | Inline conditional -- renders fallback if no permission |
+| `withPermission(Comp, perm)` | HOC -- wraps component with permission check |
 
 The `usePermissions()` hook provides convenience methods:
 
@@ -418,7 +309,7 @@ const { hasPermission, hasAnyPermission, isAdmin, canManageUsers } = usePermissi
 
 ---
 
-## 7. API Request Lifecycle
+## 6. API Request Lifecycle
 
 ### Middleware Chain
 
@@ -434,7 +325,7 @@ sequenceDiagram
     participant Val as Zod Validation
     participant Handler as Route Handler
     participant Audit as Audit Logger
-    participant FS as Firestore
+    participant DB as PostgreSQL
     participant Resp as Response Helper
 
     Client->>CORS: HTTPS Request
@@ -449,7 +340,7 @@ sequenceDiagram
     end
     RL->>Auth: Pass
 
-    Note over Auth: Extract Bearer token<br/>Verify Firebase ID token<br/>Fetch user from Firestore<br/>Merge group permissions
+    Note over Auth: Extract Bearer token<br/>Verify Firebase ID token<br/>Fetch user from PostgreSQL<br/>Merge group permissions
 
     alt Invalid/Expired Token
         Auth-->>Client: 401 Unauthorized
@@ -473,11 +364,11 @@ sequenceDiagram
     end
     Val->>Handler: Pass (validated data)
 
-    Handler->>FS: Business logic<br/>(read/write Firestore)
-    FS-->>Handler: Result
+    Handler->>DB: Business logic<br/>(Drizzle ORM queries)
+    DB-->>Handler: Result
 
     Handler->>Audit: Log action<br/>(actor, action, resource,<br/>changes, IP, user-agent)
-    Audit->>FS: Write to auditLogs
+    Audit->>DB: INSERT into audit_logs
 
     Handler->>Resp: Format response
     Resp-->>Client: 200 OK<br/>{success: true, data: {...}}
@@ -538,65 +429,75 @@ All API responses follow a consistent envelope:
 
 ---
 
-## 8. Database Design
+## 7. Database Design
 
-### Firestore Collections
+### PostgreSQL Tables
 
-The application uses 4 Firestore collections. All data is accessed server-side via the Firebase Admin SDK (which bypasses security rules). Firestore security rules provide defense-in-depth for any potential direct client access.
+The application uses 5 PostgreSQL tables managed by Drizzle ORM. All data access goes through the backend service layer using type-safe Drizzle queries.
 
-#### `users` Collection
+#### `users` Table
 
-| Field | Type | Required | Description |
+| Column | Type | Constraints | Description |
 |---|---|---|---|
-| `id` | string | Yes | Firebase Auth UID (document ID) |
-| `email` | string | Yes | User email (lowercased) |
-| `displayName` | string | Yes | Full name from Google profile |
-| `photoURL` | string \| null | Yes | Google profile photo URL |
-| `groupIds` | string[] | Yes | IDs of all assigned groups |
-| `isSuperAdmin` | boolean | Yes | Whether this user is super admin |
-| `status` | `'active'` \| `'disabled'` | Yes | Account status |
-| `disabledAt` | Date | No | When the account was disabled |
-| `disabledBy` | string | No | UID of admin who disabled the account |
-| `createdAt` | Date | Yes | Account creation timestamp |
-| `updatedAt` | Date | Yes | Last modification timestamp |
-| `lastLoginAt` | Date | Yes | Last login timestamp |
-| `preferences` | object | Yes | `{ theme: 'light' \| 'dark' \| 'system' }` |
+| `id` | TEXT | PRIMARY KEY | Firebase Auth UID |
+| `email` | TEXT | NOT NULL, UNIQUE | User email (lowercased) |
+| `display_name` | TEXT | NOT NULL | Full name from Google profile |
+| `photo_url` | TEXT | NULL | Google profile photo URL |
+| `status` | TEXT | NOT NULL, DEFAULT 'active' | `'active'` or `'disabled'` |
+| `is_super_admin` | BOOLEAN | NOT NULL, DEFAULT false | Whether this user is super admin |
+| `disabled_at` | TIMESTAMP | NULL | When the account was disabled |
+| `disabled_by` | TEXT | NULL | UID of admin who disabled the account |
+| `preferences` | JSONB | DEFAULT `{theme: 'system'}` | User preferences (theme, etc.) |
+| `created_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Account creation timestamp |
+| `updated_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Last modification timestamp |
+| `last_login_at` | TIMESTAMP | NULL | Last login timestamp |
 
-**Indexes**:
-- `status` ASC + `createdAt` DESC — For listing active/disabled users
-- `groupIds` ARRAY_CONTAINS + `createdAt` DESC — For filtering users by group
+**Indexes**: `users_status_idx` on `status`
 
-#### `groups` Collection
+#### `groups` Table
 
-| Field | Type | Required | Description |
+| Column | Type | Constraints | Description |
 |---|---|---|---|
-| `id` | string | Yes | Auto-generated document ID |
-| `name` | string | Yes | Unique group name |
-| `description` | string | Yes | Group description |
-| `permissions` | string[] | Yes | Assigned permission strings |
-| `isDefault` | boolean | Yes | Whether new users join this group |
-| `isSystem` | boolean | Yes | Whether this is a system group (cannot delete) |
-| `createdAt` | Date | Yes | Creation timestamp |
-| `updatedAt` | Date | Yes | Last modification timestamp |
-| `createdBy` | string | Yes | UID of creator |
-| `updatedBy` | string | Yes | UID of last modifier |
+| `id` | TEXT | PRIMARY KEY | Group identifier (e.g., 'admin', 'users') |
+| `name` | TEXT | NOT NULL, UNIQUE | Display name |
+| `description` | TEXT | NOT NULL, DEFAULT '' | Group description |
+| `permissions` | TEXT[] | NOT NULL, DEFAULT `{}` | Array of permission strings |
+| `is_default` | BOOLEAN | NOT NULL, DEFAULT false | Whether new users join this group |
+| `is_system` | BOOLEAN | NOT NULL, DEFAULT false | Whether this is a system group (cannot delete) |
+| `created_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Creation timestamp |
+| `updated_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Last modification timestamp |
+| `created_by` | TEXT | NOT NULL | UID of creator |
+| `updated_by` | TEXT | NOT NULL | UID of last modifier |
 
-#### `auditLogs` Collection
+#### `user_groups` Junction Table
 
-| Field | Type | Required | Description |
+| Column | Type | Constraints | Description |
 |---|---|---|---|
-| `id` | string | Yes | Auto-generated document ID |
-| `timestamp` | Date | Yes | When the action occurred |
-| `actorId` | string | Yes | UID of the user who performed the action |
-| `actorEmail` | string | Yes | Email of the actor |
-| `actorName` | string | Yes | Display name of the actor |
-| `action` | AuditAction | Yes | What was done (see below) |
-| `resource` | AuditResource | Yes | What was acted on (users/groups/settings/auth) |
-| `resourceId` | string | Yes | ID of the affected resource |
-| `description` | string | Yes | Human-readable description |
-| `changes` | object | No | `{ before: {...}, after: {...} }` — state diff |
-| `ipAddress` | string | No | Client IP address |
-| `userAgent` | string | No | Client user-agent string |
+| `user_id` | TEXT | NOT NULL, FK -> users.id ON DELETE CASCADE | User reference |
+| `group_id` | TEXT | NOT NULL, FK -> groups.id ON DELETE CASCADE | Group reference |
+
+**Primary Key**: (`user_id`, `group_id`)
+
+This junction table replaces the Firestore `groupIds` array pattern, enabling proper relational JOINs for permission resolution.
+
+#### `audit_logs` Table
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | TEXT | PRIMARY KEY | Unique log entry ID |
+| `timestamp` | TIMESTAMP | NOT NULL, DEFAULT NOW() | When the action occurred |
+| `actor_id` | TEXT | NOT NULL | UID of the user who performed the action |
+| `actor_email` | TEXT | NOT NULL | Email of the actor |
+| `actor_name` | TEXT | NOT NULL | Display name of the actor |
+| `action` | TEXT | NOT NULL | What was done (e.g., USER_CREATED, GROUP_DELETED) |
+| `resource` | TEXT | NOT NULL | What was acted on (users/groups/settings/auth) |
+| `resource_id` | TEXT | NOT NULL | ID of the affected resource |
+| `description` | TEXT | NOT NULL | Human-readable description |
+| `changes` | JSONB | NULL | `{ before: {...}, after: {...} }` -- state diff |
+| `ip_address` | TEXT | NULL | Client IP address |
+| `user_agent` | TEXT | NULL | Client user-agent string |
+
+**Indexes**: `timestamp`, `actor_id`, `action`, `resource`, `(resource, resource_id)`
 
 **Audit Actions** (15 total):
 
@@ -607,22 +508,16 @@ The application uses 4 Firestore collections. All data is accessed server-side v
 | Groups | `GROUP_CREATED`, `GROUP_UPDATED`, `GROUP_DELETED`, `GROUP_PERMISSIONS_CHANGED` |
 | Settings | `SETTINGS_UPDATED` |
 
-**Indexes**:
-- `actorId` ASC + `timestamp` DESC — Logs by actor
-- `action` ASC + `timestamp` DESC — Logs by action type
-- `resource` ASC + `timestamp` DESC — Logs by resource type
-- `resourceId` ASC + `timestamp` DESC — Logs for specific resource
+#### `settings` Table
 
-#### `settings` Collection
-
-| Field | Type | Required | Description |
+| Column | Type | Constraints | Description |
 |---|---|---|---|
-| `id` | string | Yes | Always `'app'` (singleton document) |
-| `appName` | string | Yes | Application display name |
-| `defaultGroupId` | string | Yes | Group assigned to new users |
-| `features` | object | Yes | Feature flags (see below) |
-| `updatedAt` | Date | Yes | Last modification timestamp |
-| `updatedBy` | string | Yes | UID of last modifier |
+| `id` | TEXT | PRIMARY KEY | Always `'app'` (singleton row) |
+| `app_name` | TEXT | NOT NULL, DEFAULT 'Admin Dashboard' | Application display name |
+| `default_group_id` | TEXT | NOT NULL, DEFAULT 'users' | Group assigned to new users |
+| `features` | JSONB | NOT NULL | Feature flags (see below) |
+| `updated_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Last modification timestamp |
+| `updated_by` | TEXT | NOT NULL, DEFAULT 'system' | UID of last modifier |
 
 **Feature Flags**:
 
@@ -632,27 +527,23 @@ The application uses 4 Firestore collections. All data is accessed server-side v
 | `userRegistration` | boolean | `true` | Allow new user creation |
 | `aiAssistant` | `'voice'` \| `'chat'` \| `'disabled'` | `'disabled'` | AI assistant mode |
 
-### Firestore Security Rules
+### Schema Definition (Drizzle ORM)
 
-The security rules provide defense-in-depth (the Admin SDK bypasses them, but they protect against any direct client access):
+The database schema is defined in `packages/backend/src/db/schema.ts` using Drizzle's `pgTable` builder. The database connection is configured in `packages/backend/src/db/index.ts` using the `DATABASE_URL` environment variable.
 
-| Collection | Read | Create | Update | Delete |
-|---|---|---|---|---|
-| `users/{userId}` | Self or Admin | Admin only | Admin or Self (non-sensitive fields) | Admin only (not super admin) |
-| `groups/{groupId}` | All active users | Admin only | Admin only | Admin only (not default) |
-| `auditLogs/{logId}` | Admin only | **No client writes** | **No client writes** | **No client writes** |
-| `settings/{doc}` | All active users | Admin only | Admin only | Admin only |
-| Everything else | Deny | Deny | Deny | Deny |
-
-**Protected fields** (users cannot modify on their own profile): `groupIds`, `isSuperAdmin`, `status`.
+Migrations are managed via `drizzle-kit`:
+- `bun run db:push` -- Push schema changes directly (development)
+- `bun run db:generate` -- Generate SQL migration files
+- `bun run db:migrate` -- Run pending migrations
+- `bun run db:studio` -- Open Drizzle Studio GUI
 
 ---
 
-## 9. Backend Architecture
+## 8. Backend Architecture
 
-### Framework: Hono
+### Framework: Hono on Bun
 
-The backend uses [Hono](https://hono.dev), a lightweight web framework that runs on Firebase Cloud Functions (Node.js 20). Hono provides Express-like routing with middleware, but is optimized for edge/serverless environments.
+The backend uses [Hono](https://hono.dev), a lightweight web framework running as a standalone Bun server on port 3000. The entry point (`packages/backend/src/index.ts`) creates a `Bun.serve()` instance that delegates to the Hono app.
 
 ### Application Setup
 
@@ -662,7 +553,7 @@ The Hono app is configured in `packages/backend/src/app.ts`:
 2. Request ID generation (attached to context)
 3. Rate limiting middleware
 4. Route registration (all route groups mounted under `/api/v1`)
-5. Global error handler (catches AppError, HTTPException, ZodError, Firebase errors)
+5. Global error handler (catches AppError, HTTPException, ZodError, database errors)
 6. OpenAPI documentation endpoints (`/swagger`, `/doc`)
 7. Health check endpoint (`/health`)
 
@@ -751,6 +642,8 @@ Business logic is encapsulated in singleton services (`packages/backend/src/serv
 | **AuditService** | `createAuditLog`, `listAuditLogs`, `getAuditStats`, `getAuditLogsForResource`, `getAuditLogsForUser`, `cleanupOldLogs` |
 | **SettingsService** | `getSettings`, `updateSettings`, `initializeSettings`, `isFeatureEnabled`, `toggleFeature` |
 
+All services use Drizzle ORM for database access with type-safe queries. Transactions use `db.transaction()` for multi-table operations.
+
 ### Configuration
 
 All environment-specific settings in `packages/backend/src/config/index.ts`:
@@ -758,11 +651,12 @@ All environment-specific settings in `packages/backend/src/config/index.ts`:
 | Setting | Environment Variable | Default |
 |---|---|---|
 | `cors.origins` | `CORS_ORIGINS` | `["http://localhost:5173", "http://localhost:4173"]` |
-| `rateLimit.windowMs` | — | `60000` (1 minute) |
-| `rateLimit.max` | — | `100` requests per window |
-| `rateLimit.authMax` | — | `10` requests per window |
+| `rateLimit.windowMs` | -- | `60000` (1 minute) |
+| `rateLimit.max` | -- | `100` requests per window |
+| `rateLimit.authMax` | -- | `10` requests per window |
 | `audit.maxHistoryDays` | `AUDIT_MAX_HISTORY_DAYS` | `90` days |
 | `superAdminEmail` | `SUPER_ADMIN_EMAIL` | Required |
+| `database.url` | `DATABASE_URL` | `postgresql://admin_user:admin_local_dev@localhost:5432/admin_dashboard` |
 
 ### Rate Limiting
 
@@ -777,7 +671,7 @@ Response headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Res
 
 ---
 
-## 10. Frontend Architecture
+## 9. Frontend Architecture
 
 ### Routing
 
@@ -785,18 +679,18 @@ React Router v6 with data router pattern. All routes defined in `packages/fronte
 
 ```
 RootLayout (NavigationProgress + Outlet + Toaster)
-├── /login                → Login
-└── ProtectedLayout (RequireAuth → AppLayout)
-    ├── /                 → Dashboard
-    ├── /users            → UserList (requires users:list)
-    ├── /users/:id        → UserDetail (requires users:read)
-    ├── /groups           → GroupList (requires groups:list)
-    ├── /groups/new       → GroupDetail (requires groups:create)
-    ├── /groups/:id       → GroupDetail (requires groups:read)
-    ├── /audit-logs       → AuditLogs (requires audit:list)
-    ├── /profile          → Settings
-    ├── /forbidden        → Forbidden (403)
-    └── /404              → NotFound (404)
++-- /login                -> Login
++-- ProtectedLayout (RequireAuth -> AppLayout)
+    +-- /                 -> Dashboard
+    +-- /users            -> UserList (requires users:list)
+    +-- /users/:id        -> UserDetail (requires users:read)
+    +-- /groups           -> GroupList (requires groups:list)
+    +-- /groups/new       -> GroupDetail (requires groups:create)
+    +-- /groups/:id       -> GroupDetail (requires groups:read)
+    +-- /audit-logs       -> AuditLogs (requires audit:list)
+    +-- /profile          -> Settings
+    +-- /forbidden        -> Forbidden (403)
+    +-- /404              -> NotFound (404)
 ```
 
 ### State Management
@@ -805,28 +699,11 @@ Three Zustand stores manage client-side state:
 
 #### Auth Store (`core/stores/auth-store.ts`)
 
-```typescript
-interface AuthState {
-  user: AuthUser | null;       // Current user with permissions
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  isInitialized: boolean;      // True after first auth check
-  error: string | null;
-}
-```
-
-- **Persisted** to `sessionStorage` (excludes permissions and `isSuperAdmin` — always fetched fresh)
+- **Persisted** to `sessionStorage` (excludes permissions and `isSuperAdmin` -- always fetched fresh)
 - Super admins always return `true` for any permission check
 - Supports wildcard permissions (`*`, `resource:*`)
 
 #### Theme Store (`stores/theme-store.ts`)
-
-```typescript
-interface ThemeState {
-  theme: 'light' | 'dark' | 'system';
-  resolvedTheme: 'light' | 'dark';
-}
-```
 
 - **Persisted** to `localStorage`
 - Listens to system `prefers-color-scheme` media query
@@ -834,50 +711,12 @@ interface ThemeState {
 
 #### AI Chat Store (`stores/ai-chat-store.ts`)
 
-```typescript
-interface AiChatState {
-  isOpen: boolean;
-  isConnected: boolean;
-  isAuthenticated: boolean;
-  messages: ChatMessage[];
-  aiStatus: 'thinking' | 'speaking' | 'listening' | 'idle';
-  streamingContent: string;
-  error: string | null;
-}
-```
-
 - **Not persisted** (in-memory only, reset on page refresh)
 - Manages WebSocket connection state and message history
 
 ### TanStack Query (Server State)
 
-Data fetching uses TanStack Query v5 with a query key factory:
-
-```typescript
-const queryKeys = {
-  users: {
-    all: ['users'],
-    list: (params) => ['users', 'list', params],
-    detail: (id) => ['users', 'detail', id],
-  },
-  groups: {
-    all: ['groups'],
-    list: (params) => ['groups', 'list', params],
-    detail: (id) => ['groups', 'detail', id],
-  },
-  permissions: {
-    all: ['permissions'],
-    list: () => ['permissions', 'list'],
-  },
-  auditLogs: {
-    all: ['auditLogs'],
-    list: (params) => ['auditLogs', 'list', params],
-  },
-  currentUser: ['currentUser'],
-};
-```
-
-**Defaults**: 5-minute stale time, 1 retry, no auto-refetch on window focus. Cache is cleared on logout.
+Data fetching uses TanStack Query v5 with a query key factory. **Defaults**: 5-minute stale time, 1 retry, no auto-refetch on window focus. Cache is cleared on logout.
 
 **Invalidation pattern**: After mutations, invalidate the `all` key to refetch lists, and the specific `detail` key if applicable.
 
@@ -885,7 +724,7 @@ const queryKeys = {
 
 The `AdminDashboardApi` class (`core/api/client.ts`) handles all backend communication:
 
-- **Base URL**: From `PUBLIC_API_BASE_URL` env var (e.g., `/api/v1`)
+- **Base URL**: From `PUBLIC_API_BASE_URL` env var (e.g., `/api/v1` in dev, `https://api.yourdomain.com/api/v1` in prod)
 - **Timeout**: 30 seconds per request
 - **Retry**: Up to 3 retries with exponential backoff (1s, 2s, 4s) for GET/HEAD/OPTIONS/PUT on network errors, 5xx, and 429
 - **Token management**: Automatically attaches `Authorization: Bearer {token}` header. On 401, force-refreshes the token and retries once.
@@ -923,16 +762,6 @@ Reusable components in `components/features/`:
 | `ErrorStatePage` | Full-page error layout (404, 403) |
 | `ThemeToggle` | Light/dark mode toggle button |
 
-### Layout
-
-The `AppLayout` component provides:
-
-- **Desktop sidebar** — Navigation links with icons, permission-gated visibility
-- **Mobile sidebar** — Overlay with focus trap and escape key handling
-- **Header** — Logo, user profile dropdown, theme toggle, mobile menu button
-- **Main content** — Scrollable area with max-width constraint
-- **AI chat widget** — Floating button that opens the chat panel
-
 ### Build Configuration
 
 The frontend builds with **Bun's bundler** (`packages/frontend/build.ts`):
@@ -947,11 +776,11 @@ The frontend builds with **Bun's bundler** (`packages/frontend/build.ts`):
 
 ---
 
-## 11. AI Service Architecture
+## 10. AI Service Architecture
 
 ### Overview
 
-The AI service is a standalone Hono server running on Cloud Run that provides an AI assistant with text and voice modes. It connects the frontend to Google Gemini via WebSocket, with permission-aware tool calling that executes admin operations through the backend API.
+The AI service is a standalone Hono server running on port 3001 that provides an AI assistant with text and voice modes. It connects the frontend to Google Gemini via WebSocket, with permission-aware tool calling that executes admin operations through the backend API.
 
 ### WebSocket Protocol
 
@@ -959,7 +788,7 @@ The AI service is a standalone Hono server running on Cloud Run that provides an
 sequenceDiagram
     actor User
     participant Browser as React SPA
-    participant AI as AI Service<br/>(Cloud Run)
+    participant AI as AI Service<br/>(Port 3001)
     participant Gemini as Gemini API
     participant Backend as Hono Backend
 
@@ -991,62 +820,14 @@ sequenceDiagram
     AI-->>Browser: {type: "status", status: "idle"}
 ```
 
-### Message Types
-
-**Client to Server**:
-
-| Type | Fields | Purpose |
-|---|---|---|
-| `auth` | `token` | Initial Firebase token authentication |
-| `text` | `content` | Send text message to AI |
-| `audio_chunk` | `data` (base64) | Stream audio data for voice mode |
-| `audio_end` | — | Signal end of audio stream |
-| `auth_refresh` | `token` | Refresh expired Firebase token |
-| `cancel` | — | Cancel ongoing AI response |
-
-**Server to Client**:
-
-| Type | Fields | Purpose |
-|---|---|---|
-| `authenticated` | `user` | Auth success confirmation |
-| `greeting` | `content` | Initial AI greeting |
-| `text` | `content`, `done` | AI text response (streaming or complete) |
-| `audio_chunk` | `data` (base64) | AI audio response chunk (voice mode) |
-| `tool_call` | `name`, `status`, `result?` | Tool execution status updates |
-| `error` | `message`, `code?` | Error with optional code |
-| `status` | `status` | AI activity (`thinking`, `speaking`, `listening`, `idle`) |
-
-### Session Management
-
-Each WebSocket connection gets a session:
-
-| Property | Value |
-|---|---|
-| Max duration | 1 hour |
-| Rate limit | 30 messages per 60 seconds |
-| History | Maintained for session lifetime (Gemini `Content[]` format) |
-| Cancellation | Per-message `AbortController` |
-
 ### Tool Registry
 
 Tools are **auto-generated at build time** from the backend's OpenAPI spec:
 
 1. `scripts/generate-tools.ts` reads `packages/backend/openapi.json`
 2. Each API operation becomes a Gemini function declaration
-3. Permissions are inferred from tag + HTTP method (e.g., `users` + GET → `users:read`)
-4. Skipped operations: `login`, `logout`, `verifyAuth`, `initializeSettings`
-
-At runtime, `getToolsForUser(permissions, isSuperAdmin)` filters tools to only those the user has permission to use. Super admins see all tools.
-
-### Tool Execution
-
-When Gemini requests a tool call:
-
-1. Look up tool definition by name
-2. Extract HTTP method and path from metadata
-3. Bind parameters: path params via URL template, query params for GET, JSON body for POST/PUT/DELETE
-4. Call the backend API with the user's Firebase token
-5. Return the JSON response to Gemini for the next turn
+3. Permissions are inferred from tag + HTTP method
+4. At runtime, `getToolsForUser(permissions, isSuperAdmin)` filters tools to only those the user has permission to use
 
 ### Gemini Integration
 
@@ -1058,278 +839,117 @@ When Gemini requests a tool call:
 | Voice | N/A | Prebuilt voice "Aoede" |
 | Audio format | N/A | PCM 16kHz |
 
-### System Prompt
-
-The AI service uses a hardcoded base prompt that:
-
-- Describes available operations (user/group/settings/audit management)
-- Instructs the AI to confirm before destructive operations
-- Requires readable summaries instead of raw JSON
-- Stays focused on dashboard administration tasks
-
-Dynamic additions include user context (name, email, super admin status) and an optional custom prompt from the `AI_SYSTEM_PROMPT` environment variable.
-
-### Content Filter
-
-Post-processing strips code blocks from AI responses (since the UI doesn't render markdown code blocks well) and provides a fallback message if the filtered response is empty.
-
 ---
 
-## 12. Libraries, Frameworks & Design Philosophy
+## 11. Libraries, Frameworks & Design Philosophy
 
 ### Why Hono (Backend)?
 
-Hono is a lightweight, TypeScript-first web framework designed for edge/serverless environments. It provides Express-like routing with middleware but is significantly smaller and faster. Key benefits for this project:
+Hono is a lightweight, TypeScript-first web framework. Key benefits:
 
-- **Cloud Functions compatible** — Works as a single exported function
-- **Zod-OpenAPI integration** — Route schemas generate API documentation automatically
-- **Middleware ecosystem** — CORS, rate limiting, error handling all built-in
-- **Type safety** — Context variables (AuthUser, requestId) are fully typed
+- **Bun-native** -- Runs directly on Bun's HTTP server with excellent performance
+- **Zod-OpenAPI integration** -- Route schemas generate API documentation automatically
+- **Middleware ecosystem** -- CORS, rate limiting, error handling all built-in
+- **Type safety** -- Context variables (AuthUser, requestId) are fully typed
 
-### Why Zustand (State)?
+### Why PostgreSQL + Drizzle ORM (Database)?
 
-Zustand provides simple, hook-based state management without the boilerplate of Redux. Three small stores (auth, theme, AI chat) are easier to reason about than a single global store. Zustand's `persist` middleware handles sessionStorage/localStorage automatically.
+PostgreSQL provides a full-featured relational database:
 
-### Why TanStack Query (Server State)?
+- **ACID transactions** -- Proper multi-table consistency for user-group operations
+- **Native arrays** -- `TEXT[]` for permission lists, cleaner than JSON
+- **JSONB** -- Flexible storage for preferences and feature flags with indexing
+- **JOINs** -- Proper relational queries for user-group-permission resolution
+- **pg_dump** -- Simple, reliable backups
+- **Free** -- Runs locally on your desktop
 
-TanStack Query separates server state from client state. It handles caching, background refetching, optimistic updates, and pagination. The 5-minute stale time means most admin operations see cached data, reducing API calls. Cache invalidation on mutations keeps data fresh.
+Drizzle ORM provides type-safe SQL:
 
-### Why Tailwind + shadcn/ui (Styling)?
+- **Schema-first** -- TypeScript table definitions generate types automatically
+- **Lightweight** -- Thin query builder, not a heavy ORM
+- **Migration tooling** -- `drizzle-kit` for schema evolution
+- **Studio** -- Built-in database GUI for development
 
-Tailwind provides utility-first CSS that co-locates styles with components. shadcn/ui provides pre-built, accessible components based on Radix UI primitives. Unlike component libraries (MUI, Ant Design), shadcn/ui copies components into your project — you own the code and can customize freely.
+### Why Cloudflare Pages + Tunnel?
 
-### Why Bun (Runtime)?
+- **Cloudflare Pages** -- Free CDN-backed static hosting with instant deploys
+- **Cloudflare Tunnel** -- Free, secure exposure of localhost to the internet without port forwarding
+- **Zero cost** -- Both services are free for personal use
+- **Custom domains** -- Full SSL support with automatic certificate management
 
-Bun replaces Node.js for development, testing, and building:
+### Why Keep Firebase Auth?
 
-- **Fast installs** — Significantly faster than npm/yarn
-- **Native bundler** — Replaces Vite/webpack for frontend builds
-- **Test runner** — Built-in test runner replaces Jest/Vitest
-- **Hot reload** — `--hot` flag for development
+- **Completely free** -- No usage limits for authentication
+- **Google OAuth** -- Handles the entire OAuth flow (popup, token management, session persistence)
+- **Minimal coupling** -- Only used for `signInWithPopup()` on frontend and `verifyIdToken()` on backend
+- **Maximum code reuse** -- Frontend auth hooks and backend auth middleware work unchanged
 
-Note: Firebase Cloud Functions still run on Node.js 20. Bun is used for development tooling only.
+### Why Zustand, TanStack Query, Tailwind, Bun, Biome?
 
-### Why Biome (Linting)?
-
-Biome replaces both ESLint and Prettier with a single, faster tool. It provides linting and formatting with zero configuration needed. Runs significantly faster than ESLint on large codebases.
-
-### Why Firestore (Database)?
-
-Firestore is a natural fit for this use case:
-
-- **Serverless** — No database to provision or manage
-- **Real-time capable** — Can add real-time listeners in the future
-- **Firebase integration** — Works seamlessly with Firebase Auth and Cloud Functions
-- **Free tier** — Sufficient for most admin dashboards
-- **Security rules** — Defense-in-depth for data access
-
-### Why Terraform (IaC)?
-
-Terraform manages the entire GCP infrastructure declaratively:
-
-- **Reproducible** — Same config produces same infrastructure
-- **Version controlled** — Infrastructure changes are code-reviewed
-- **Conditional resources** — Monitoring, AI service, Google Sign-In can be toggled
-- **Environment management** — Supports staging/production variants via tfvars
+See the frontend and backend architecture sections above for detailed rationale on each library choice.
 
 ---
 
-## 13. Project Structure
+## 12. Project Structure
 
 ```
 admin-dashboard-template/
-├── docs/
-│   ├── ARCHITECTURE.md         # This document
-│   ├── BRD.md                  # Business Requirements Document
-│   ├── EXTENDING.md            # How to add features
-│   ├── UPGRADING.md            # How to pull template updates
-│   └── CONFIGURATION.md        # Environment variables reference
-│
-├── infrastructure/
-│   ├── terraform/
-│   │   ├── main.tf             # Provider configuration
-│   │   ├── project.tf          # GCP project + Firebase setup
-│   │   ├── apis.tf             # API enablement (11 APIs)
-│   │   ├── auth.tf             # Identity Platform + Google Sign-In
-│   │   ├── firestore.tf        # Firestore database + security rules
-│   │   ├── iam.tf              # Service accounts + IAM bindings
-│   │   ├── webapp.tf           # Firebase web app + SDK config
-│   │   ├── ai-service.tf       # Cloud Run AI service (conditional)
-│   │   ├── monitoring.tf       # Logging, metrics, alerts (conditional)
-│   │   ├── variables.tf        # Input variables with validation
-│   │   ├── outputs.tf          # Output values (Firebase config, URLs)
-│   │   └── versions.tf         # Provider version constraints
-│   └── scripts/
-│       └── setup-terraform.sh  # Interactive setup wizard
-│
-├── firebase/
-│   ├── firestore.rules         # Firestore security rules
-│   └── firestore.indexes.json  # Composite indexes
-│
-├── packages/
-│   ├── shared/src/                         # Shared types & utilities
-│   │   ├── core/                           # Template infrastructure (don't edit)
-│   │   │   ├── types/
-│   │   │   │   ├── api.ts                  # ApiResponse, pagination, search params
-│   │   │   │   └── permission.ts           # CorePermission, Permission types
-│   │   │   └── utils/
-│   │   │       ├── permissions.ts          # hasPermission, hasAnyPermission, etc.
-│   │   │       └── validation.ts           # isValidEmail, sanitizeDisplayName
-│   │   ├── types/                          # Domain types (customizable)
-│   │   │   ├── user.ts                     # User, CreateUserInput, UpdateUserInput
-│   │   │   ├── group.ts                    # Group, CreateGroupInput, DEFAULT_GROUPS
-│   │   │   ├── audit.ts                    # AuditLog, AuditAction, AuditResource
-│   │   │   └── settings.ts                # AppSettings, AppFeatures
-│   │   └── constants/
-│   │       └── permissions.ts              # CUSTOM_PERMISSIONS (add yours here)
-│   │
-│   ├── backend/src/                        # Hono API on Cloud Functions
-│   │   ├── core/                           # Template infrastructure (don't edit)
-│   │   │   ├── middleware/
-│   │   │   │   ├── auth.ts                 # authMiddleware, optionalAuthMiddleware
-│   │   │   │   ├── permissions.ts          # requirePermission, requireAnyPermission, etc.
-│   │   │   │   ├── audit.ts               # auditLog, logAuditAction
-│   │   │   │   └── rate-limit.ts          # In-memory rate limiter
-│   │   │   ├── errors/
-│   │   │   │   └── index.ts               # AppError, NotFoundError, ForbiddenError, etc.
-│   │   │   ├── utils/
-│   │   │   │   └── response.ts            # successResponse, paginatedResponse, errorResponse
-│   │   │   ├── lib/
-│   │   │   │   └── firebase-admin.ts      # Firebase Admin SDK singleton
-│   │   │   ├── permissions.ts             # Core permission definitions + helpers
-│   │   │   └── types/
-│   │   │       └── context.ts             # AuthUser, AppVariables, AppContext types
-│   │   ├── routes/                         # API route handlers (customizable)
-│   │   │   ├── auth.ts
-│   │   │   ├── users.ts
-│   │   │   ├── groups.ts
-│   │   │   ├── permissions.ts
-│   │   │   ├── audit.ts
-│   │   │   └── settings.ts
-│   │   ├── services/                       # Business logic (customizable)
-│   │   │   ├── user.service.ts
-│   │   │   ├── group.service.ts
-│   │   │   ├── audit.service.ts
-│   │   │   ├── settings.service.ts
-│   │   │   └── index.ts                   # Singleton exports
-│   │   ├── config/
-│   │   │   └── index.ts                   # Runtime configuration
-│   │   ├── app.ts                         # Hono app setup + middleware chain
-│   │   └── index.ts                       # Cloud Functions entry point
-│   │
-│   ├── frontend/src/                       # React SPA
-│   │   ├── core/                           # Template infrastructure (don't edit)
-│   │   │   ├── api/
-│   │   │   │   └── client.ts              # AdminDashboardApi class
-│   │   │   ├── components/
-│   │   │   │   └── permission-gate.tsx    # RequireAuth, RequirePermission, etc.
-│   │   │   ├── hooks/
-│   │   │   │   ├── useAuth.ts             # Authentication hook
-│   │   │   │   └── usePermissions.ts      # Permission checking hook
-│   │   │   ├── lib/
-│   │   │   │   ├── firebase.ts            # Firebase SDK init + auth helpers
-│   │   │   │   └── utils.ts              # cn() class utility
-│   │   │   └── stores/
-│   │   │       └── auth-store.ts          # Zustand auth store
-│   │   ├── pages/                          # Page components (customizable)
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── Login.tsx
-│   │   │   ├── Settings.tsx
-│   │   │   ├── AuditLogs.tsx
-│   │   │   ├── Forbidden.tsx
-│   │   │   ├── NotFound.tsx
-│   │   │   ├── users/
-│   │   │   │   ├── UserList.tsx
-│   │   │   │   └── UserDetail.tsx
-│   │   │   └── groups/
-│   │   │       ├── GroupList.tsx
-│   │   │       └── GroupDetail.tsx
-│   │   ├── components/                     # Shared components (customizable)
-│   │   │   ├── layout/
-│   │   │   │   ├── app-layout.tsx
-│   │   │   │   ├── header.tsx
-│   │   │   │   └── sidebar.tsx
-│   │   │   ├── features/                  # Reusable feature components
-│   │   │   │   ├── page-header.tsx
-│   │   │   │   ├── list-header.tsx
-│   │   │   │   ├── search-filter-bar.tsx
-│   │   │   │   ├── bulk-action-bar.tsx
-│   │   │   │   ├── delete-confirmation-dialog.tsx
-│   │   │   │   ├── permissions-card.tsx
-│   │   │   │   ├── metadata-card.tsx
-│   │   │   │   ├── ai-chat/              # AI chat widget components
-│   │   │   │   │   ├── ai-chat-widget.tsx
-│   │   │   │   │   ├── ai-chat-panel.tsx
-│   │   │   │   │   ├── ai-chat-message.tsx
-│   │   │   │   │   ├── ai-chat-input.tsx
-│   │   │   │   │   ├── ai-chat-tool-status.tsx
-│   │   │   │   │   └── ai-chat-voice-indicator.tsx
-│   │   │   │   └── ...
-│   │   │   └── ui/                        # shadcn/ui primitives
-│   │   │       ├── avatar.tsx
-│   │   │       ├── badge.tsx
-│   │   │       ├── button.tsx
-│   │   │       ├── card.tsx
-│   │   │       ├── dialog.tsx
-│   │   │       ├── dropdown-menu.tsx
-│   │   │       ├── form.tsx
-│   │   │       ├── input.tsx
-│   │   │       ├── select.tsx
-│   │   │       ├── table.tsx
-│   │   │       └── ...
-│   │   ├── stores/
-│   │   │   ├── theme-store.ts
-│   │   │   └── ai-chat-store.ts
-│   │   ├── hooks/
-│   │   │   ├── useDebouncedSearch.ts
-│   │   │   ├── use-ai-chat.ts
-│   │   │   └── useToast.ts
-│   │   ├── types/
-│   │   │   └── index.ts                   # Query key factory + local interfaces
-│   │   ├── App.tsx                        # Route definitions
-│   │   ├── main.tsx                       # Entry point
-│   │   └── index.css                      # Tailwind + global styles
-│   │
-│   └── ai-service/                         # AI assistant service (customizable)
-│       ├── src/
-│       │   ├── index.ts                    # Hono server + WebSocket endpoint
-│       │   ├── config/
-│       │   │   └── index.ts               # Environment configuration
-│       │   ├── auth/
-│       │   │   └── verify-token.ts        # Firebase token verification
-│       │   ├── ws/
-│       │   │   ├── message-types.ts       # WebSocket message type definitions
-│       │   │   └── session-manager.ts     # Session lifecycle management
-│       │   ├── gemini/
-│       │   │   ├── client.ts              # Gemini API client setup
-│       │   │   ├── chat-mode.ts           # Text chat processing
-│       │   │   └── voice-mode.ts          # Voice streaming via Gemini Live
-│       │   ├── guardrails/
-│       │   │   ├── system-prompt.ts       # System prompt generation
-│       │   │   └── content-filter.ts      # Response post-processing
-│       │   └── tools/
-│       │       ├── tool-registry.ts       # Permission-filtered tool loading
-│       │       ├── tool-executor.ts       # HTTP-based tool execution
-│       │       └── generated/
-│       │           └── tool-definitions.json  # Auto-generated from OpenAPI
-│       ├── scripts/
-│       │   └── generate-tools.ts          # OpenAPI → Gemini tool converter
-│       ├── Dockerfile                     # Two-stage Bun build
-│       ├── build.ts                       # esbuild configuration
-│       └── package.json
-│
-├── scripts/
-│   ├── dev.sh                  # Start all dev services
-│   ├── dev-ai-service.sh       # Start AI service only
-│   ├── init-project.sh         # Rename template for new project
-│   └── sync-template.sh        # Pull upstream template updates
-│
-├── template.json               # Core vs. customizable path manifest
-├── firebase.json               # Firebase hosting, functions, emulators config
-├── .firebaserc                 # Firebase project aliases
-├── package.json                # Root workspace scripts
-├── biome.json                  # Biome linter + formatter config
-└── CLAUDE.md                   # AI assistant project guidelines
++-- docs/
+|   +-- ARCHITECTURE.md         # This document
+|   +-- BRD.md                  # Business Requirements Document
+|   +-- DEPLOYMENT.md           # Production deployment guide
+|   +-- EXTENDING.md            # How to add features
+|   +-- UPGRADING.md            # How to pull template updates
+|   +-- CONFIGURATION.md        # Environment variables reference
+|   +-- TROUBLESHOOTING.md      # Common errors and fixes
+|   +-- LOCAL_DEVELOPMENT.md    # Dev environment and testing
+|   +-- MIGRATION_PLAN.md       # Historical: Firebase -> PostgreSQL migration
+|
++-- infrastructure/
+|   +-- cloudflare/
+|   |   +-- tunnel-config.example.yml  # Cloudflare Tunnel config template
+|   +-- systemd/
+|   |   +-- admin-dashboard.service    # Backend systemd service
+|   |   +-- cloudflared.service        # Tunnel systemd service
+|   +-- scripts/
+|       +-- setup-local.sh            # PostgreSQL + env setup wizard
+|
++-- packages/
+|   +-- shared/src/                    # Shared types & utilities
+|   |   +-- core/                      # Template infrastructure (don't edit)
+|   |   +-- types/                     # Domain types (customizable)
+|   |   +-- constants/                 # Permission definitions (customizable)
+|   |
+|   +-- backend/src/                   # Hono API on Bun
+|   |   +-- core/                      # Template infrastructure (don't edit)
+|   |   +-- db/                        # Drizzle schema + connection
+|   |   |   +-- schema.ts             # Table definitions
+|   |   |   +-- index.ts              # Database connection
+|   |   +-- routes/                    # API route handlers (customizable)
+|   |   +-- services/                  # Business logic (customizable)
+|   |   +-- config/                    # App configuration (customizable)
+|   |   +-- app.ts                     # Hono app setup + middleware chain
+|   |   +-- index.ts                   # Bun.serve() entry point
+|   |
+|   +-- frontend/src/                  # React SPA
+|   |   +-- core/                      # Template infrastructure (don't edit)
+|   |   +-- pages/                     # Page components (customizable)
+|   |   +-- components/                # UI components (customizable)
+|   |   +-- stores/                    # State stores (customizable)
+|   |   +-- hooks/                     # Custom hooks (customizable)
+|   |
+|   +-- ai-service/                    # AI assistant service (customizable)
+|
++-- scripts/
+|   +-- dev.sh                  # Start all dev services
+|   +-- init-project.sh         # Rename template for new project
+|   +-- sync-template.sh        # Pull upstream template updates
+|
++-- drizzle.config.ts           # Drizzle Kit configuration (in packages/backend/)
++-- template.json               # Core vs. customizable path manifest
++-- package.json                # Root workspace scripts
++-- biome.json                  # Biome linter + formatter config
++-- CLAUDE.md                   # AI assistant project guidelines
 ```
 
 ### Core vs. Customizable
@@ -1338,8 +958,9 @@ The `template.json` manifest defines which paths are template infrastructure (up
 
 | Category | Paths | Editable? |
 |---|---|---|
-| **Core** | `packages/*/src/core/` | No — managed by template upstream |
+| **Core** | `packages/*/src/core/` | No -- managed by template upstream |
 | **Domain types** | `packages/shared/src/types/`, `packages/shared/src/constants/` | Yes |
+| **Database** | `packages/backend/src/db/` | Yes |
 | **Routes** | `packages/backend/src/routes/` | Yes |
 | **Services** | `packages/backend/src/services/` | Yes |
 | **Pages** | `packages/frontend/src/pages/` | Yes |
@@ -1348,102 +969,7 @@ The `template.json` manifest defines which paths are template infrastructure (up
 
 ---
 
-## 14. Terraform Resources
-
-### Complete Resource Inventory
-
-#### API Enablement
-
-| Resource Type | Name | Configuration |
-|---|---|---|
-| `google_project_service` | `bootstrap` (x3) | `firebase`, `serviceusage`, `iam` APIs |
-| `time_sleep` | `wait_for_apis` | 30-second delay for API propagation |
-| `google_project_service` | `apis` (x8) | `firestore`, `identitytoolkit`, `cloudfunctions`, `cloudbuild`, `run`, `secretmanager`, `artifactregistry`, `cloudresourcemanager` |
-
-#### Project & Firebase
-
-| Resource Type | Name | Configuration |
-|---|---|---|
-| `google_project` | `new` | Conditional (`create_project = true`). Labels: `firebase = enabled` |
-| `google_firebase_project` | `default` | Enables Firebase on the GCP project |
-| `google_firebase_web_app` | `default` | Firebase web app. Deletion policy: `DELETE` |
-
-#### Authentication
-
-| Resource Type | Name | Configuration |
-|---|---|---|
-| `google_identity_platform_config` | `default` | Auto-delete anonymous users after 30 days. No email/password. No duplicate emails. |
-| `google_identity_platform_default_supported_idp_config` | `google` | Conditional (`enable_google_signin && oauth_client_id != null`). Google OAuth provider. |
-
-#### Firestore
-
-| Resource Type | Name | Configuration |
-|---|---|---|
-| `google_firestore_database` | `default` | Native mode. Pessimistic concurrency. Location: `var.region`. Deletion: ABANDON. |
-| `google_firebaserules_ruleset` | `firestore` | Loaded from `firebase/firestore.rules` |
-| `google_firebaserules_release` | `firestore` | Deploys ruleset to `cloud.firestore` |
-
-#### IAM
-
-| Resource Type | Name | Configuration |
-|---|---|---|
-| `google_service_account` | `dev` | ID: `admin-dashboard-dev`. For local development. |
-| `google_project_iam_member` | `dev_datastore` | Role: `roles/datastore.user` |
-| `google_project_iam_member` | `dev_firebase` | Role: `roles/firebase.sdkAdminServiceAgent` |
-
-#### AI Service (Conditional: `ai_service.enabled`)
-
-| Resource Type | Name | Configuration |
-|---|---|---|
-| `google_artifact_registry_repository` | `ai_service` | Docker format. Location: `var.region`. |
-| `google_secret_manager_secret` | `gemini_api_key` | Auto replication. |
-| `google_secret_manager_secret_version` | `gemini_api_key` | Created if `gemini_api_key != ""`. |
-| `google_cloud_run_v2_service` | `ai_service` | 1 CPU, 512Mi. Session affinity. Scales 0 to `max_instances`. Port 8080. |
-| `google_service_account` | `ai_service` | ID: `ai-service`. |
-| `google_project_iam_member` | `ai_service_secret` | Role: `roles/secretmanager.secretAccessor` |
-| `google_cloud_run_v2_service_iam_member` | `ai_service_public` | `allUsers` with `roles/run.invoker` |
-
-#### Monitoring (Conditional: `monitoring.enabled`)
-
-| Resource Type | Name | Configuration |
-|---|---|---|
-| `google_project_service` | `logging`, `monitoring` | API enablement |
-| `google_project_iam_audit_config` | `firestore_audit` | Service: `datastore.googleapis.com` |
-| `google_project_iam_audit_config` | `identity_audit` | Service: `identitytoolkit.googleapis.com` |
-| `google_logging_metric` | `auth_failures` | Auth error log filter |
-| `google_logging_metric` | `function_errors` | Cloud Function error filter |
-| `google_logging_metric` | `firestore_errors` | Firestore error filter |
-| `google_logging_metric` | `high_latency` | Request latency above threshold |
-| `time_sleep` | `wait_for_metrics` | 60-second delay for metric registration |
-| `google_monitoring_notification_channel` | `email` | Email to `super_admin_email` (or override) |
-| `google_monitoring_notification_channel` | `slack` | Conditional: Slack webhook URL |
-| `google_monitoring_alert_policy` | `auth_failure_alert` | Threshold: 10 in 300s. Resource: `global`. |
-| `google_monitoring_alert_policy` | `function_error_alert` | Threshold: 5 in 300s. Resource: `cloud_function`. |
-| `google_monitoring_alert_policy` | `firestore_error_alert` | Threshold: 5 in 300s. Resource: `global`. |
-| `google_monitoring_alert_policy` | `latency_alert` | Threshold: 10 req > 5s in 300s. Resource: `cloud_function`. |
-| `google_monitoring_uptime_check_config` | `api_health` | Conditional: HTTPS check on `api_domain`. Period: 300s. |
-| `google_monitoring_alert_policy` | `uptime_alert` | Triggers if uptime check fails. |
-
-### Terraform Variables
-
-| Variable | Type | Default | Required |
-|---|---|---|---|
-| `project_id` | string | — | Yes |
-| `super_admin_email` | string | — | Yes |
-| `project_name` | string | `"Admin Dashboard"` | No |
-| `region` | string | `"us-central1"` | No |
-| `create_project` | bool | `false` | No |
-| `billing_account` | string | `null` | Only if `create_project` |
-| `org_id` | string | `null` | No |
-| `enable_google_signin` | bool | `false` | No |
-| `oauth_client_id` | string | `null` | No |
-| `oauth_client_secret` | string (sensitive) | `null` | No |
-| `monitoring` | object | Enabled with defaults | No |
-| `ai_service` | object | Disabled | No |
-
----
-
-## 15. Deployment & Operations
+## 13. Deployment & Operations
 
 ### Development Setup
 
@@ -1453,20 +979,13 @@ git clone <repo-url>
 cd admin-dashboard-template
 bun install
 
-# 2. Infrastructure (one-time)
-cd infrastructure/terraform
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your project_id and super_admin_email
-../../infrastructure/scripts/setup-terraform.sh
+# 2. Set up PostgreSQL and generate .env
+./infrastructure/scripts/setup-local.sh
 
-# 3. Create service account key
-gcloud iam service-accounts keys create ./service-account.json \
-  --iam-account=admin-dashboard-dev@${PROJECT_ID}.iam.gserviceaccount.com
+# 3. Fill in Firebase Auth credentials in packages/backend/.env
 
 # 4. Start development
-bun run dev:full    # Firebase emulators + backend + frontend
-# Or with AI service:
-bun run dev:ai      # All of the above + AI service
+./scripts/dev.sh    # Backend + Frontend + Firebase Auth emulator
 ```
 
 ### Development Ports
@@ -1474,100 +993,57 @@ bun run dev:ai      # All of the above + AI service
 | Service | Port | URL |
 |---|---|---|
 | Frontend (Bun dev server) | 5173 | http://localhost:5173 |
-| Firebase Emulator UI | 4000 | http://localhost:4000 |
-| Backend (Cloud Functions emulator) | 5001 | http://localhost:5001 |
-| Firestore emulator | 8080 | http://localhost:8080 |
-| Auth emulator | 9099 | http://localhost:9099 |
-| Firebase Hosting emulator | 5000 | http://localhost:5000 |
+| Backend (Bun server) | 3000 | http://localhost:3000 |
+| Firebase Auth emulator | 9099 | http://localhost:9099 |
 | AI Service | 3001 | http://localhost:3001 |
+| PostgreSQL | 5432 | localhost:5432 |
 
-### Production Build & Deploy
+### Production Deployment
 
-```bash
-# Build all packages
-bun run build       # Backend (esbuild) + Frontend (Bun bundler)
+| Component | Platform | Deploy Command |
+|---|---|---|
+| Frontend | Cloudflare Pages | `bun run deploy:frontend` |
+| Backend | systemd on desktop | `sudo systemctl start admin-dashboard@$USER` |
+| Tunnel | systemd on desktop | `sudo systemctl start cloudflared@$USER` |
 
-# Deploy to Firebase
-firebase deploy     # Hosting + Functions + Firestore rules
-
-# Or deploy individually
-firebase deploy --only hosting
-firebase deploy --only functions
-firebase deploy --only firestore
-```
-
-### Firebase Hosting Configuration
-
-From `firebase.json`:
-
-- **Hosting**: Serves from `packages/frontend/dist`
-- **Rewrites**: `/api/**` → Cloud Function `api`; everything else → `index.html` (SPA)
-- **Caching**: `index.html` = no-cache; JS/CSS/images = 1 year immutable (content-hashed filenames)
-- **Functions**: Source at `packages/backend`, Node.js 20 runtime
-- **Pre-deploy**: Strips dev dependencies; post-deploy restores them
-
-### AI Service Deployment
-
-The AI service deploys separately to Cloud Run:
-
-```bash
-# Build Docker image
-cd packages/ai-service
-docker build -t ai-service -f Dockerfile ../..
-
-# Tag and push to Artifact Registry
-docker tag ai-service ${REGION}-docker.pkg.dev/${PROJECT_ID}/ai-service/ai-service:latest
-docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/ai-service/ai-service:latest
-
-# Terraform manages the Cloud Run service configuration
-```
+See [docs/DEPLOYMENT.md](./DEPLOYMENT.md) for complete step-by-step instructions.
 
 ### Template Operations
 
 **Fork for new project**:
 ```bash
 ./scripts/init-project.sh my-app @mycompany
-# Renames admin-dashboard-template → my-app and @admin-dashboard → @mycompany
+# Renames admin-dashboard-template -> my-app and @admin-dashboard -> @mycompany
 ```
 
 **Pull upstream updates**:
 ```bash
 ./scripts/sync-template.sh
 # Fetches template upstream and shows diff of core/ path changes
-# You review and merge selectively
 ```
 
 ---
 
-## 16. Security Model
+## 14. Security Model
 
 ### Defense in Depth
 
 The application implements security at multiple layers:
 
 ```
-Layer 1: Firestore Security Rules
-  ↓ (if client accesses Firestore directly — not normal flow)
-Layer 2: Backend Middleware Chain
-  ↓ CORS → Rate Limit → Auth → Permission → Validation
-Layer 3: Business Logic Guards
-  ↓ Super admin protection, self-action prevention, group constraints
-Layer 4: Frontend Permission Gates
-  ↓ UI elements hidden/disabled based on permissions (UX only, not security)
-Layer 5: AI Service Guardrails
-  ↓ Permission-filtered tools, system prompt constraints, content filtering
+Layer 1: Backend Middleware Chain
+  | CORS -> Rate Limit -> Auth -> Permission -> Validation
+Layer 2: Business Logic Guards
+  | Super admin protection, self-action prevention, group constraints
+Layer 3: Frontend Permission Gates
+  | UI elements hidden/disabled based on permissions (UX only, not security)
+Layer 4: AI Service Guardrails
+  | Permission-filtered tools, system prompt constraints, content filtering
+Layer 5: Cloudflare Tunnel
+  | No open ports, traffic encrypted between Cloudflare and origin
 ```
 
-### Layer 1: Firestore Security Rules
-
-- Default deny on all paths
-- Admin detection via `groupIds` array or `isSuperAdmin` flag
-- Users can only read/update their own non-sensitive fields
-- Audit logs are write-protected (no client writes — server Admin SDK only)
-- Super admins cannot be deleted
-- Default groups cannot be deleted
-
-### Layer 2: Backend Middleware
+### Layer 1: Backend Middleware
 
 - **CORS**: Only configured origins can make requests
 - **Rate limiting**: Per-user/per-IP limits prevent abuse (100/min general, 10/min auth)
@@ -1575,7 +1051,7 @@ Layer 5: AI Service Guardrails
 - **Permission checking**: Route-level permission requirements
 - **Input validation**: Zod schemas validate all request bodies and parameters
 
-### Layer 3: Business Logic Guards
+### Layer 2: Business Logic Guards
 
 - Super admins cannot be modified or deleted by non-super-admins
 - Users cannot delete or disable themselves
@@ -1584,15 +1060,15 @@ Layer 5: AI Service Guardrails
 - Groups with active members cannot be deleted
 - Users must belong to at least one group
 
-### Layer 4: Frontend Permission Gates
+### Layer 3: Frontend Permission Gates
 
-- `RequireAuth` — Redirects unauthenticated users to login
-- `RequirePermission` — Redirects unauthorized users to forbidden page
-- `PermissionGate` — Conditionally renders UI elements based on permissions
+- `RequireAuth` -- Redirects unauthenticated users to login
+- `RequirePermission` -- Redirects unauthorized users to forbidden page
+- `PermissionGate` -- Conditionally renders UI elements based on permissions
 - Navigation links hidden for inaccessible pages
 - Action buttons disabled/hidden without required permissions
 
-### Layer 5: AI Service Guardrails
+### Layer 4: AI Service Guardrails
 
 - Users only see tools matching their permissions (super admins see all)
 - System prompt instructs AI to confirm before destructive operations
@@ -1601,14 +1077,19 @@ Layer 5: AI Service Guardrails
 - Session rate limit: 30 messages per 60 seconds
 - Session timeout: 1 hour maximum
 
+### Layer 5: Cloudflare Tunnel
+
+- No open ports on the desktop machine
+- All traffic encrypted between Cloudflare edge and origin
+- Optional: Cloudflare Access for additional authentication layer (free for up to 50 users)
+
 ### Sensitive Data Protection
 
-- Service account keys (`.json`) are in `.gitignore`
-- Environment variables with secrets use Terraform `sensitive = true`
-- Gemini API key stored in Secret Manager (not environment variable)
-- OAuth client secret marked as sensitive in Terraform
+- Environment variables with secrets stored in `.env` files (gitignored)
+- Firebase private key stored as environment variable, not as a file
+- Database credentials in `.env` only
 - Super admin email never exposed in API responses
-- Firestore security rules prevent reading other users' data
+- PostgreSQL listens on localhost only (not exposed to network)
 
 ---
 

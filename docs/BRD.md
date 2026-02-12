@@ -46,9 +46,9 @@ This document outlines the business and technical requirements for building a **
 
 - **Authentication**: Google OAuth via Firebase Authentication
 - **Authorization**: Role-based access control (RBAC) with customizable groups and permissions
-- **Tech Stack**: TypeScript, React, Bun, Hono, Firestore, shadcn/ui
+- **Tech Stack**: TypeScript, React, Bun, Hono, PostgreSQL (Drizzle ORM), shadcn/ui
 - **Architecture**: Monorepo with separate frontend and backend packages
-- **Deployment**: Firebase Hosting + Cloud Functions (free tier)
+- **Deployment**: Cloudflare Pages (frontend) + Cloudflare Tunnel (backend) + PostgreSQL (local), $0/month
 
 ### 1.3 Success Criteria
 
@@ -147,13 +147,13 @@ A well-architected, fully-typed, and tested template that includes:
 ### 4.3 Assumptions
 
 1. Users have Google accounts for authentication
-2. Firebase free tier is sufficient for initial deployment
+2. Local PostgreSQL + free tier services (Cloudflare, Firebase Auth) are sufficient
 3. Single-tenant deployment is acceptable
 4. English is the primary language (i18n can be added later)
 
 ### 4.4 Constraints
 
-1. Must use free tier of Firebase services
+1. Must use free tier services (Cloudflare, Firebase Auth)
 2. Must use TypeScript exclusively
 3. Must use Bun as runtime and package manager
 4. Must use Biome instead of ESLint/Prettier
@@ -168,7 +168,7 @@ A well-architected, fully-typed, and tested template that includes:
 |----|-------------|----------|
 | FR-AUTH-01 | Users can sign in using Google OAuth | Must Have |
 | FR-AUTH-02 | Users can sign out from the application | Must Have |
-| FR-AUTH-03 | New users are automatically created in Firestore on first login | Must Have |
+| FR-AUTH-03 | New users are automatically created in PostgreSQL on first login | Must Have |
 | FR-AUTH-04 | New users are auto-assigned to the default group (initially "Users") | Must Have |
 | FR-AUTH-05 | Protected Super Admin account cannot be deleted or demoted | Must Have |
 | FR-AUTH-08 | Super Admin is determined by `SUPER_ADMIN_EMAIL` env var, not first login | Must Have |
@@ -297,8 +297,8 @@ Permissions are split between **code** (what permissions exist) and **database**
 |-------|---------|------------|---------|
 | **Core Permission Definitions** | `packages/backend/src/core/permissions.ts` | Template (code) | Built-in permissions for users, groups, audit |
 | **Custom Permission Definitions** | `packages/shared/src/constants/permissions.ts` | Developers (code) | App-specific permissions added by developers |
-| **Group Permissions** | Firestore `groups` collection | Admins (runtime) | Which permissions are assigned to each group |
-| **User Group Assignment** | Firestore `users` collection (`groupIds` field) | Admins (runtime) | Which groups a user belongs to (permissions merged from all assigned groups) |
+| **Group Permissions** | PostgreSQL `groups` table (`permissions` JSONB column) | Admins (runtime) | Which permissions are assigned to each group |
+| **User Group Assignment** | PostgreSQL `user_groups` junction table | Admins (runtime) | Which groups a user belongs to (permissions merged from all assigned groups) |
 
 #### Permission Definition Files
 
@@ -347,7 +347,7 @@ Permissions follow the format: `resource:action`
 
 | Layer | Mechanism | Example |
 |-------|-----------|---------|
-| **Backend** | Permission middleware reads user's group permissions from Firestore (merged from all assigned groups) and checks against required permission for the endpoint | `requirePermission('users:list')` on `GET /api/v1/users` |
+| **Backend** | Permission middleware reads user's group permissions from PostgreSQL (merged from all assigned groups) and checks against required permission for the endpoint | `requirePermission('users:list')` on `GET /api/v1/users` |
 | **Frontend** | `useAuth` hook exposes `user.permissions` array; components conditionally render based on permission checks | `{hasPermission('users:create') && <AddUserButton />}` |
 | **Super Admin** | Bypasses all checks — backend middleware grants access; frontend treats `isSuperAdmin` as having all permissions | Always passes any permission check |
 
@@ -419,13 +419,13 @@ interface AuditLogEntry {
 | ID | Requirement | Target |
 |----|-------------|--------|
 | NFR-SCALE-01 | Total users supported | 10,000+ |
-| NFR-SCALE-02 | Horizontal scaling via Cloud Functions | Automatic |
+| NFR-SCALE-02 | Vertical scaling via desktop hardware | Manual |
 
 ### 6.3 Availability (NFR-AVAIL)
 
 | ID | Requirement | Target |
 |----|-------------|--------|
-| NFR-AVAIL-01 | Uptime | 99.5% (Firebase SLA) |
+| NFR-AVAIL-01 | Uptime | Best effort (desktop + systemd auto-restart) |
 | NFR-AVAIL-02 | Graceful degradation on service failure | Required |
 
 ### 6.4 Usability (NFR-USE)
@@ -452,24 +452,10 @@ interface AuditLogEntry {
 ### 7.1 High-Level Architecture
 
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                         CLIENT LAYER                             â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”‚
-â”‚  â”‚                    React + shadcn/ui                      â”‚    â”‚
-â”‚  â”‚                    (Firebase Hosting)                     â”‚    â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                              â”‚
-                              â–¼
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                       FIREBASE SERVICES                          â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚
-â”‚  â”‚   Firebase   â”‚  â”‚   Cloud      â”‚  â”‚      Firestore       â”‚   â”‚
-â”‚  â”‚     Auth     â”‚  â”‚  Functions   â”‚  â”‚     (Database)       â”‚   â”‚
-â”‚  â”‚  (Google     â”‚  â”‚   (Hono      â”‚  â”‚                      â”‚   â”‚
-â”‚  â”‚   OAuth)     â”‚  â”‚    REST)     â”‚  â”‚                      â”‚   â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+Browser --> Cloudflare Pages (static frontend, CDN)
+        --> Cloudflare Tunnel --> Desktop Bun Server (Hono API, port 3000)
+                               --> PostgreSQL (localhost:5432)
+        --> Firebase Auth (Google OAuth, free tier)
 ```
 
 ### 7.2 Technology Stack
@@ -481,12 +467,12 @@ interface AuditLogEntry {
 | **Frontend Framework** | React 18+ | Industry standard, large ecosystem |
 | **UI Components** | shadcn/ui | Customizable, accessible, modern |
 | **Styling** | Tailwind CSS | Utility-first, works with shadcn |
-| **Build Tool** | Vite (via Bun) | Fast builds, HMR |
+| **Build Tool** | Bun bundler | Fast builds, HMR |
 | **Backend Framework** | Hono | Lightweight, TypeScript-first |
-| **Database** | Firestore | Scalable, real-time, serverless |
-| **Authentication** | Firebase Auth | Google OAuth, easy integration |
-| **Hosting** | Firebase Hosting | Free tier, CDN, easy deployment |
-| **Functions** | Cloud Functions | Serverless, auto-scaling |
+| **Database** | PostgreSQL + Drizzle ORM | Relational, type-safe, free |
+| **Authentication** | Firebase Auth | Google OAuth, free tier |
+| **Frontend Hosting** | Cloudflare Pages | Free tier, CDN |
+| **Backend Exposure** | Cloudflare Tunnel | Free, exposes localhost |
 | **Linting/Formatting** | Biome | Fast, replaces ESLint + Prettier |
 | **Monorepo** | Bun Workspaces | Simple, native Bun support |
 | **Testing** | Vitest + Playwright | Fast, Vite-compatible |
@@ -498,111 +484,55 @@ Each package has a `core/` directory (template infrastructure -- don't edit) and
 ```
 admin-dashboard-template/
 ├── package.json                 # Root workspace config
-├── bunfig.toml                  # Bun configuration
 ├── biome.json                   # Biome config (shared)
 ├── template.json                # Template version & core/customizable paths
-├── TEMPLATE_CHANGELOG.md        # Template version history
 ├── CLAUDE.md                    # AI assistant guidelines
 ├── README.md
 │
 ├── packages/
-│   ├── frontend/                # React application
+│   ├── frontend/                # React SPA (Cloudflare Pages)
 │   │   ├── package.json
-│   │   ├── index.html
-│   │   ├── tsconfig.json
-│   │   ├── src/
-│   │   │   ├── main.tsx
-│   │   │   ├── App.tsx
-│   │   │   ├── core/            # Template infra (DON'T EDIT)
-│   │   │   │   ├── api/         # AdminDashboardApi client
-│   │   │   │   ├── components/  # PermissionGate
-│   │   │   │   ├── hooks/       # useAuth, usePermissions
-│   │   │   │   ├── lib/         # Firebase client SDK, utils
-│   │   │   │   └── stores/      # Auth store (Zustand)
-│   │   │   ├── components/
-│   │   │   │   ├── ui/          # shadcn components
-│   │   │   │   ├── layout/
-│   │   │   │   └── features/
-│   │   │   ├── pages/
-│   │   │   │   ├── Dashboard.tsx
-│   │   │   │   ├── Login.tsx
-│   │   │   │   ├── Settings.tsx
-│   │   │   │   ├── AuditLogs.tsx
-│   │   │   │   ├── users/       # UserList, UserDetail
-│   │   │   │   └── groups/      # GroupList, GroupDetail
-│   │   │   ├── hooks/           # Re-export shims + custom hooks
-│   │   │   ├── lib/             # Re-export shims (firebase.ts, utils.ts, api.ts)
-│   │   │   ├── api/             # API client configuration
-│   │   │   ├── stores/          # State stores
-│   │   │   └── types/
-│   │   └── e2e/                 # Playwright E2E tests
+│   │   └── src/
+│   │       ├── core/            # Template infra (DON'T EDIT)
+│   │       ├── components/
+│   │       ├── pages/
+│   │       ├── hooks/
+│   │       └── stores/
 │   │
-│   ├── backend/                 # Hono API
+│   ├── backend/                 # Hono API (Bun server)
 │   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   ├── src/
-│   │   │   ├── index.ts         # Entry point
-│   │   │   ├── app.ts           # Hono app setup
-│   │   │   ├── core/            # Template infra (DON'T EDIT)
-│   │   │   │   ├── permissions.ts # Core permission definitions & helpers
-│   │   │   │   ├── errors/      # Custom error classes
-│   │   │   │   ├── lib/         # Firebase Admin SDK init
-│   │   │   │   ├── middleware/  # Auth, permissions, audit, rate-limit
-│   │   │   │   ├── types/       # Hono context types
-│   │   │   │   └── utils/       # Response helpers
-│   │   │   ├── routes/
-│   │   │   │   ├── auth.ts
-│   │   │   │   ├── users.ts
-│   │   │   │   ├── groups.ts
-│   │   │   │   ├── permissions.ts
-│   │   │   │   ├── settings.ts
-│   │   │   │   └── audit.ts
-│   │   │   ├── services/
-│   │   │   │   ├── user.service.ts
-│   │   │   │   ├── group.service.ts
-│   │   │   │   ├── settings.service.ts
-│   │   │   │   └── audit.service.ts
-│   │   │   ├── config/          # App configuration
-│   │   │   └── openapi/         # OpenAPI documentation
-│   │   └── docs/
+│   │   ├── drizzle.config.ts    # Drizzle Kit config
+│   │   └── src/
+│   │       ├── index.ts         # Bun.serve() entry point
+│   │       ├── app.ts           # Hono app setup
+│   │       ├── core/            # Template infra (DON'T EDIT)
+│   │       ├── db/              # Drizzle schema + connection
+│   │       ├── routes/
+│   │       ├── services/
+│   │       └── config/
 │   │
 │   └── shared/                  # Shared types & utilities
-│       ├── package.json
-│       ├── tsconfig.json
 │       └── src/
 │           ├── core/            # Template infra (DON'T EDIT)
-│           │   ├── types/       # API response types, permission types
-│           │   └── utils/       # Permission utilities, validation
 │           ├── types/
-│           │   ├── user.ts
-│           │   ├── group.ts
-│           │   ├── audit.ts
-│           │   └── settings.ts
-│           ├── constants/
-│           │   └── permissions.ts
-│           └── utils/           # Re-export shim for core/utils
+│           └── constants/
 │
-├── firebase.json                    # Firebase config (project root)
-├── .firebaserc                      # Firebase project config (project root)
-├── firebase/
-│   ├── firestore.rules          # Security rules
-│   └── firestore.indexes.json   # Firestore indexes
+├── infrastructure/
+│   ├── cloudflare/              # Tunnel config template
+│   ├── systemd/                 # Backend + tunnel systemd services
+│   └── scripts/                 # setup-local.sh
 │
 ├── scripts/
-│   ├── init-project.sh          # Rename template for new project
-│   ├── sync-template.sh         # Pull upstream template updates
 │   ├── dev.sh                   # Start dev environment
-│   └── dev.sh                   # Start dev environment
-│
-├── infrastructure/              # Terraform IaC for GCP/Firebase
+│   ├── init-project.sh          # Rename template for new project
+│   └── sync-template.sh         # Pull upstream template updates
 │
 └── docs/
     ├── BRD.md                   # This document
     ├── EXTENDING.md             # How to add features
     ├── UPGRADING.md             # How to pull template updates
-    └── EMULATOR_TESTING.md      # Firebase emulator guide
+    └── LOCAL_DEVELOPMENT.md     # Local dev guide
 ```
-
 
 ### 7.4 API Architecture
 
@@ -630,7 +560,7 @@ admin-dashboard-template/
 â”‚                                                  â”‚               â”‚
 â”‚                                                  â–¼               â”‚
 â”‚                                        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”‚
-â”‚                                        â”‚     Firestore       â”‚  â”‚
+â”‚                                        â”‚     PostgreSQL      â”‚  â”‚
 â”‚                                        â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚
 â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
@@ -639,25 +569,15 @@ admin-dashboard-template/
 
 ## 8. Data Models
 
-### 8.1 Firestore Collections
+### 8.1 PostgreSQL Tables
 
 ```
-firestore/
-â”œâ”€â”€ users/                 # User documents
-â”‚   â””â”€â”€ {userId}/
-â”‚       â””â”€â”€ (user data)
-â”‚
-â”œâ”€â”€ groups/                # Permission groups
-â”‚   â””â”€â”€ {groupId}/
-â”‚       â””â”€â”€ (group data)
-â”‚
-â”œâ”€â”€ settings/              # Application settings
-â”‚   â””â”€â”€ app/
-â”‚       â””â”€â”€ (settings data)
-â”‚
-â””â”€â”€ auditLogs/             # Audit trail
-    â””â”€â”€ {logId}/
-        â””â”€â”€ (log entry)
+PostgreSQL Database (admin_dashboard)
+  users              # User records
+  groups             # Permission groups
+  user_groups        # Many-to-many junction table (user <-> group)
+  audit_logs         # Audit trail
+  settings           # Application settings (key-value)
 ```
 
 ### 8.2 User Model
@@ -665,13 +585,12 @@ firestore/
 ```typescript
 interface User {
   // Identity
-  id: string;                    // Firebase Auth UID
+  id: string;                    // Firebase Auth UID (primary key)
   email: string;                 // From Google OAuth
   displayName: string;           // From Google OAuth
   photoURL: string | null;       // From Google OAuth
   
-  // Authorization
-  groupIds: string[];            // References to groups (permissions merged from all)
+  // Authorization (groups via user_groups junction table)
   isSuperAdmin: boolean;         // Protected super admin flag
   
   // Status
@@ -1030,60 +949,10 @@ Admins can configure the **default group** (via Settings) that new users are aut
 | Requirement | Implementation |
 |-------------|----------------|
 | Encryption in transit | HTTPS (TLS 1.3) |
-| Encryption at rest | Firestore default encryption |
+| Encryption at rest | PostgreSQL (OS-level disk encryption) |
 | Input validation | Zod schemas on all inputs |
 | XSS prevention | React default escaping |
 | CSRF protection | SameSite cookies |
-
-### 11.4 Firestore Security Rules
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() &&
-        'admin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupIds;
-    }
-    
-    function isSuperAdmin() {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isSuperAdmin == true;
-    }
-    
-    // Users collection
-    match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAdmin();
-    }
-    
-    // Groups collection
-    match /groups/{groupId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-    
-    // Audit logs - read only, write via admin SDK
-    match /auditLogs/{logId} {
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-    
-    // Settings
-    match /settings/{doc} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-  }
-}
-```
-
----
 
 ## 12. Testing Requirements
 
@@ -1131,20 +1000,19 @@ service cloud.firestore {
 
 ### 13.1 Environments
 
-| Environment | Purpose | Firebase Project |
-|-------------|---------|------------------|
-| Development | Local development | (emulators) |
-| Staging | Testing before prod | project-staging |
-| Production | Live users | project-prod |
+| Environment | Purpose | Infrastructure |
+|-------------|---------|----------------|
+| Development | Local development | PostgreSQL + Auth emulator |
+| Production | Live users | PostgreSQL + Cloudflare Tunnel + Cloudflare Pages |
 
-### 13.2 Firebase Services (Free Tier)
+### 13.2 Services (Free Tier)
 
 | Service | Free Tier Limit | Usage |
 |---------|-----------------|-------|
-| Authentication | 50k MAU | User auth |
-| Firestore | 1 GiB storage, 50k reads/day | Database |
-| Cloud Functions | 2M invocations/month | API |
-| Hosting | 10 GB storage, 360 MB/day | Frontend |
+| Firebase Authentication | 50k MAU | Google OAuth |
+| PostgreSQL (local) | Unlimited | Database |
+| Cloudflare Pages | 500 builds/month | Frontend hosting |
+| Cloudflare Tunnel | Unlimited | Backend exposure |
 
 ### 13.3 CI/CD Pipeline
 
@@ -1166,34 +1034,32 @@ jobs:
       - run: bun run test
       - run: bun run lint
 
-  deploy:
+  deploy-frontend:
     needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v1
       - run: bun install
-      - run: bun run build
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          channelId: live
+      - run: bun run build:frontend
+      - run: npx wrangler pages deploy packages/frontend/dist/
+        env:
+          CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}'
 ```
 
 ### 13.4 Deployment Commands
 
 ```bash
 # Development
-bun run dev              # Start all services locally
+bun run dev              # Start frontend + backend
+bun run dev:full         # Start everything (backend + frontend + Auth emulator + AI service)
 
 # Build
 bun run build            # Build all packages
 
 # Deploy
-bun run deploy           # Deploy to Firebase
-bun run deploy:staging   # Deploy to staging
-bun run deploy:prod      # Deploy to production
+bun run deploy:frontend  # Deploy frontend to Cloudflare Pages
+bun run setup:local      # Set up PostgreSQL and generate .env
 ```
 
 ---
@@ -1252,7 +1118,7 @@ bun run deploy:prod      # Deploy to production
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| Firebase free tier limits exceeded | High | Medium | Monitor usage, implement caching |
+| Desktop server downtime | Medium | Medium | systemd auto-restart, monitoring |
 | Google OAuth changes | Medium | Low | Abstract auth layer, follow deprecation notices |
 | Bun compatibility issues | Medium | Medium | Have Node.js fallback plan |
 | Security vulnerability | High | Low | Regular audits, dependency updates |
@@ -1291,11 +1157,11 @@ bun run deploy:prod      # Deploy to production
 | FR-AI-04 | Permission-gated: requires `ai:use` permission | Must Have |
 | FR-AI-05 | Tool auto-generation from OpenAPI spec — AI can call any documented API endpoint | Must Have |
 | FR-AI-06 | Guardrails: stays on-topic, confirms destructive actions, respects user permissions | Must Have |
-| FR-AI-07 | Runs as a separate Cloud Run service communicating via WebSocket | Must Have |
+| FR-AI-07 | Runs as a separate service communicating via WebSocket | Must Have |
 
 #### Architecture
 
-The AI Assistant runs as a standalone service (`packages/ai-service/`) deployed to Cloud Run. The frontend connects to it over WebSocket (`/ws/chat`). On build, tool definitions are auto-generated from the backend's OpenAPI spec, so any new API endpoint automatically becomes available as an AI tool.
+The AI Assistant runs as a standalone service (`packages/ai-service/`). The frontend connects to it over WebSocket (`/ws/chat`). On build, tool definitions are auto-generated from the backend's OpenAPI spec, so any new API endpoint automatically becomes available as an AI tool.
 
 - **Voice mode** uses the Gemini Live API (`gemini-2.0-flash-live-001`) for real-time spoken interaction
 - **Chat mode** uses the Gemini text API (`gemini-2.0-flash`) for text-based conversation
@@ -1322,7 +1188,7 @@ When using this template for new projects, customize:
 |-----------|------------------|
 | Branding | Update logo, colors in Tailwind config |
 | Permissions | Add new resources/actions in the shared permissions file (see guide below) |
-| Data models | Add new Firestore collections |
+| Data models | Add new PostgreSQL tables in `packages/backend/src/db/schema.ts` |
 | API routes | Add new route files in backend |
 | Pages | Add new pages in frontend |
 
@@ -1396,7 +1262,8 @@ Once deployed, the Super Admin will see the new permissions in the Group Managem
 |------|------------|
 | **RBAC** | Role-Based Access Control |
 | **OAuth** | Open Authorization protocol |
-| **Firestore** | Firebase's NoSQL document database |
+| **PostgreSQL** | Open-source relational database |
+| **Drizzle ORM** | TypeScript-first ORM for SQL databases |
 | **MAU** | Monthly Active Users |
 | **CRUD** | Create, Read, Update, Delete |
 | **E2E** | End-to-End (testing) |
@@ -1406,8 +1273,11 @@ Once deployed, the Super Admin will see the new permissions in the Group Managem
 
 - [shadcn-admin Repository](https://github.com/satnaing/shadcn-admin)
 - [football-stats-app Repository](https://github.com/imran-codes/football-stats-app)
-- [Firebase Documentation](https://firebase.google.com/docs)
+- [Firebase Auth Documentation](https://firebase.google.com/docs/auth)
 - [Hono Documentation](https://hono.dev/)
+- [Drizzle ORM Documentation](https://orm.drizzle.team/)
+- [Cloudflare Pages Documentation](https://developers.cloudflare.com/pages/)
+- [Cloudflare Tunnel Documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
 - [shadcn/ui Documentation](https://ui.shadcn.com/)
 - [Bun Documentation](https://bun.sh/docs)
 - [Biome Documentation](https://biomejs.dev/)

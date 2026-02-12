@@ -1,53 +1,19 @@
-import { Collections, getDb } from '../core/lib/firebase-admin';
-
 /**
- * Normalize a Firestore user document's group fields to the new `groupIds` array format.
- * Handles backward compatibility with old `groupId: string` documents.
+ * Normalize a user record's group fields to the `groupIds` array format.
+ * With PostgreSQL + junction table this is a no-op passthrough,
+ * but kept for backward compatibility with callers.
  */
 export function normalizeUserGroupIds(data: Record<string, unknown>): string[] {
   if (Array.isArray(data.groupIds) && data.groupIds.length > 0) return data.groupIds;
-  if (typeof data.groupId === 'string' && data.groupId) return [data.groupId];
   return [];
 }
 
 /**
  * Migrate all existing user documents from `groupId` (string) to `groupIds` (string[]).
- * Idempotent — skips users that already have a `groupIds` array.
+ * No-op: PostgreSQL uses a junction table from the start, so no migration is needed.
  */
 export async function migrateAllUsersToMultiGroup(): Promise<number> {
-  const db = getDb();
-  const snapshot = await db.collection(Collections.USERS).get();
-
-  let migrated = 0;
-  const batchSize = 500;
-  let batch = db.batch();
-  let count = 0;
-
-  for (const doc of snapshot.docs) {
-    const data = doc.data();
-
-    // Skip if already migrated
-    if (Array.isArray(data.groupIds) && data.groupIds.length > 0) continue;
-
-    const groupIds = normalizeUserGroupIds(data);
-    batch.update(doc.ref, { groupIds });
-    migrated++;
-    count++;
-
-    if (count >= batchSize) {
-      await batch.commit();
-      batch = db.batch();
-      count = 0;
-    }
-  }
-
-  if (count > 0) {
-    await batch.commit();
-  }
-
-  if (migrated > 0) {
-    console.log(`Migrated ${migrated} user(s) from groupId to groupIds`);
-  }
-
-  return migrated;
+  // No-op: PostgreSQL uses a user_groups junction table from the start.
+  // The old Firestore groupId -> groupIds migration is not applicable.
+  return 0;
 }

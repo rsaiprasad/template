@@ -1,76 +1,116 @@
 # Troubleshooting
 
-## Deployment
+## Backend
 
-### "Permission denied" when deploying functions
+### Backend won't start
 
-**Cause:** Project not on Blaze plan or missing IAM permissions.
-
-**Solution:**
-1. Upgrade to Blaze plan in Firebase Console > Usage & Billing
-2. Ensure your account has the `Cloud Functions Admin` role
-
-### "Cloud Functions deployment requires the Blaze plan"
-
-Upgrade to Blaze in Firebase Console > Usage & Billing. The free tier is generous (125K invocations/month).
-
-### Functions deploy fails with "Build failed"
+**Cause:** Missing dependencies, build errors, or database connection issues.
 
 ```bash
-# Verify the build works locally first
-bun run build
+# Check systemd logs (production)
+journalctl -u admin-dashboard@$USER -n 50
 
-# Check the backend output exists
-ls packages/backend/dist/
-# Should contain index.js
+# Test manually
+cd packages/backend
+bun run src/index.ts
 ```
 
 ### "Super admin not working"
 
-The `SUPER_ADMIN_EMAIL` env var must be set **before** the first login with that email. If you logged in before setting it:
-- Set `isSuperAdmin: true` on the user document in Firestore manually
-- Or delete the user document and log in again after setting the env var
+The `SUPER_ADMIN_EMAIL` env var must be set **before** the first login with that email. If you logged in before setting it, update the user record in PostgreSQL:
 
-## Firestore
-
-### "Could not create Firestore database"
-
-**Cause:** Database already exists or billing not enabled.
-
-```bash
-# Check if database exists
-gcloud firestore databases describe --project your-project-id
+```sql
+UPDATE users SET is_super_admin = true WHERE email = 'admin@yourdomain.com';
 ```
 
-If it doesn't exist, enable billing first.
-
-### "Permission denied" on Firestore
-
-Check that Firestore rules are deployed:
+Or use Drizzle Studio to edit the record:
 
 ```bash
-firebase deploy --only firestore:rules
+cd packages/backend
+bun run db:studio
 ```
+
+### Build errors
+
+```bash
+# Run type checking
+bun run typecheck
+
+# Rebuild from scratch
+bun run clean
+bun install
+bun run build
+```
+
+## Database (PostgreSQL)
+
+### Database connection failed
+
+```bash
+# Check PostgreSQL is running
+sudo systemctl status postgresql
+
+# Test connection
+psql -U admin_user -d admin_dashboard -c "SELECT 1"
+```
+
+### "FATAL: role 'admin_user' does not exist"
+
+Create the database user and database:
+
+```bash
+sudo -u postgres createuser --password admin_user
+sudo -u postgres createdb admin_dashboard -O admin_user
+```
+
+Or run the setup script:
+
+```bash
+./infrastructure/scripts/setup-local.sh
+```
+
+### Schema out of sync
+
+If you see errors about missing columns or tables:
+
+```bash
+cd packages/backend
+bun run db:push
+```
+
+### Data not persisting
+
+Unlike the Firebase emulator, PostgreSQL data persists across restarts by default. If data seems missing:
+
+1. Verify you are connecting to the correct database (`DATABASE_URL` in `.env`)
+2. Check that migrations have run: `bun run db:push`
+3. Inspect the database directly: `bun run db:studio`
 
 ## Authentication
-
-### "Firebase config not found" error
-
-**Cause:** Web app not created or wrong app ID.
-
-```bash
-# List all web apps
-firebase apps:list WEB --project your-project-id
-
-# Get config for specific app
-firebase apps:sdkconfig WEB APP_ID --project your-project-id
-```
 
 ### "Sign-in failed" or auth errors
 
 1. Verify Google Sign-In is enabled in Firebase Console > Authentication > Sign-in method
-2. Check authorized domains include your production URL
+2. Check authorized domains include your production URL (Cloudflare Pages domain)
 3. Verify `PUBLIC_FIREBASE_AUTH_DOMAIN` matches `your-project-id.firebaseapp.com`
+
+### Auth emulator not connecting
+
+**Cause:** Emulator not running or environment not set to development.
+
+```bash
+# Check if the Auth emulator port is in use
+lsof -i :9099
+
+# Verify NODE_ENV=development is set
+# The app auto-connects to the emulator at http://localhost:9099 in development mode
+```
+
+### User created in emulator but can't sign in
+
+1. Use Google Sign-In (the emulator shows a popup to select/create a test user)
+2. Check the emulator UI at http://localhost:9099 to verify the user exists
+3. Clear browser storage and try again
 
 ## CORS
 
@@ -79,50 +119,91 @@ firebase apps:sdkconfig WEB APP_ID --project your-project-id
 **Cause:** Origin not in allowed list.
 
 **Solution:**
-- Update CORS origins in backend configuration (see [Configuration](./CONFIGURATION.md))
-- Ensure your domain is listed in Firebase Console > Authentication > Authorized domains
+1. Update `CORS_ORIGINS` in `packages/backend/.env` to include your frontend domain
+2. Restart the backend server
 
-For production:
 ```bash
-firebase functions:config:set cors.origins="https://your-domain.com"
-firebase deploy --only functions
+# Example
+CORS_ORIGINS=https://your-app.pages.dev,https://admin.yourdomain.com
 ```
 
-## Performance
+Ensure your domain is also listed in Firebase Console > Authentication > Settings > Authorized domains.
 
-### Functions cold start is slow
+## Cloudflare Tunnel
 
-**Cause:** Node.js initialization time on first invocation.
+### Tunnel not connecting
 
-**Solution:**
-- Set `minInstances: 1` in `firebase.json` for critical functions (increases cost)
-- Optimize imports and use lazy loading
+```bash
+# Check tunnel status
+cloudflared tunnel info admin-dashboard
+
+# Check systemd logs
+journalctl -u cloudflared@$USER -n 50
+
+# Test manually
+cloudflared tunnel run admin-dashboard
+```
+
+### "failed to connect to origin" errors
+
+1. Verify the backend is running on port 3000: `curl http://localhost:3000/api/v1/health`
+2. Check `~/.cloudflared/config.yml` points to `http://localhost:3000`
+3. Verify the tunnel credentials file exists at the path specified in the config
+
+### DNS not resolving
+
+After creating a tunnel route, DNS propagation can take a few minutes:
+
+```bash
+# Verify the DNS record was created
+cloudflared tunnel route dns admin-dashboard api.yourdomain.com
+
+# Test resolution
+dig api.yourdomain.com
+```
+
+## Frontend
+
+### Frontend shows "Failed to load users" or similar API errors
+
+1. Verify the backend is running: `curl http://localhost:3000/api/v1/health`
+2. Check `PUBLIC_API_BASE_URL` in `packages/frontend/.env` points to the correct backend URL
+3. Check the browser console for specific error messages
+
+### Blank page after deploy to Cloudflare Pages
+
+1. Verify the build output exists: `ls packages/frontend/dist/`
+2. Check that all `PUBLIC_*` environment variables are set in Cloudflare Pages settings
+3. Ensure the SPA fallback is configured (Cloudflare Pages handles this by default for `index.html`)
 
 ## Local Development
 
-### "Service account key not found"
-
-**Cause:** Missing `service-account.json` file.
+### Port already in use
 
 ```bash
-# Regenerate service account key
-gcloud iam service-accounts keys create ./service-account.json \
-    --iam-account=admin-dashboard-dev@your-project-id.iam.gserviceaccount.com
-```
+# Check what's using the port
+lsof -i :3000  # Backend
+lsof -i :5173  # Frontend
+lsof -i :9099  # Auth emulator
 
-### Emulator connection issues
-
-**Cause:** Ports already in use or emulators not running.
-
-```bash
-# Check if ports are in use
-lsof -i :5001 -i :8080 -i :9099
-
-# Kill processes using the ports
+# Kill the process
 kill -9 <PID>
-
-# Restart emulators
-bun run emulators
 ```
 
-See also: [Emulator Testing Guide](./EMULATOR_TESTING.md)
+### Firebase Auth emulator requires Java
+
+The Firebase Auth emulator requires Java 11 or later:
+
+```bash
+# Check Java version
+java -version
+
+# Install on Ubuntu/Debian
+sudo apt install openjdk-11-jdk
+```
+
+## See Also
+
+- [Local Development Guide](./LOCAL_DEVELOPMENT.md)
+- [Deployment Guide](./DEPLOYMENT.md)
+- [Configuration](./CONFIGURATION.md)

@@ -5,10 +5,6 @@
   "type": "module",
   "workspaces": ["packages/*"],
   "scripts": {
-    "setup": "./infrastructure/scripts/setup-terraform.sh",
-    "infra:plan": "./infrastructure/scripts/setup-terraform.sh plan",
-    "infra:apply": "./infrastructure/scripts/setup-terraform.sh apply",
-    "infra:destroy": "./infrastructure/scripts/setup-terraform.sh destroy",
     "dev": "concurrently -n fe,be -c green,blue \"bun run dev:frontend\" \"bun run dev:backend\"",
     "dev:full": "./scripts/dev.sh",
     "dev:frontend": "cd packages/frontend && bun run dev",
@@ -27,10 +23,9 @@
     "format": "biome format --write .",
     "typecheck": "bun run --filter '*' typecheck",
     "clean": "rm -rf node_modules packages/*/node_modules packages/*/dist",
-    "deploy": "firebase deploy",
-    "deploy:staging": "firebase deploy --project staging",
-    "deploy:prod": "firebase deploy --project production",
-    "emulators": "firebase emulators:start"
+    "setup:local": "./infrastructure/scripts/setup-local.sh",
+    "deploy:frontend": "cd packages/frontend && npx wrangler pages deploy dist/",
+    "tunnel:start": "cloudflared tunnel run admin-dashboard"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",

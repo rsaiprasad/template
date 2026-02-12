@@ -6,17 +6,12 @@ import type {
   UserSearchParams,
   UserWithPermissions,
 } from '@admin-dashboard/shared';
-import { FieldValue } from 'firebase-admin/firestore';
+import { and, asc, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { config } from '../config';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../core/errors';
-import {
-  Collections,
-  convertFirestoreDoc,
-  convertFirestoreDocs,
-  getAuthAdmin,
-  getDb,
-} from '../core/lib/firebase-admin';
-import { normalizeUserGroupIds } from './migration';
+import { getAuthAdmin } from '../core/lib/firebase-admin';
+import { db } from '../db';
+import { groups, settings, userGroups, users } from '../db/schema';
 
 /**
  * Cursor-based pagination result
@@ -28,49 +23,70 @@ export interface CursorPaginatedResult<T> {
 }
 
 /**
+ * Map a Drizzle user row + groupIds to the shared User type.
+ */
+function toUser(row: typeof users.$inferSelect, groupIds: string[]): User {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.displayName,
+    photoURL: row.photoURL ?? null,
+    status: row.status as 'active' | 'disabled',
+    isSuperAdmin: row.isSuperAdmin,
+    disabledAt: row.disabledAt ?? undefined,
+    disabledBy: row.disabledBy ?? undefined,
+    preferences: (row.preferences ?? { theme: 'system' }) as User['preferences'],
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    lastLoginAt: row.lastLoginAt ?? new Date(),
+    groupIds,
+  };
+}
+
+/**
+ * Fetch groupIds for a single user from the junction table.
+ */
+async function getUserGroupIds(userId: string): Promise<string[]> {
+  const rows = await db
+    .select({ groupId: userGroups.groupId })
+    .from(userGroups)
+    .where(eq(userGroups.userId, userId));
+  return rows.map((r) => r.groupId);
+}
+
+/**
  * User Service
  * Handles all user-related database operations
  */
 export class UserService {
-  private db = getDb();
   private auth = getAuthAdmin();
-
-  /**
-   * Normalize a user document to ensure groupIds is always a string[].
-   * Handles backward compat with old groupId: string docs.
-   */
-  private normalizeUser(user: User | null): User | null {
-    if (!user) return null;
-    if (!Array.isArray(user.groupIds)) {
-      const raw = user as unknown as Record<string, unknown>;
-      user.groupIds = normalizeUserGroupIds(raw);
-    }
-    return user;
-  }
 
   /**
    * Get a user by ID
    */
   async getUser(userId: string): Promise<User | null> {
-    const doc = await this.db.collection(Collections.USERS).doc(userId).get();
-    return this.normalizeUser(convertFirestoreDoc<User>(doc));
+    const rows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (rows.length === 0) return null;
+
+    const groupIds = await getUserGroupIds(userId);
+    return toUser(rows[0]!, groupIds);
   }
 
   /**
    * Get a user by email
    */
   async getUserByEmail(email: string): Promise<User | null> {
-    const snapshot = await this.db
-      .collection(Collections.USERS)
-      .where('email', '==', email.toLowerCase())
-      .limit(1)
-      .get();
+    const rows = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
 
-    if (snapshot.empty) {
-      return null;
-    }
+    if (rows.length === 0) return null;
 
-    return this.normalizeUser(convertFirestoreDoc<User>(snapshot.docs[0]!));
+    const row = rows[0]!;
+    const groupIds = await getUserGroupIds(row.id);
+    return toUser(row, groupIds);
   }
 
   /**
@@ -81,23 +97,22 @@ export class UserService {
     if (!user) return null;
 
     // Fetch all groups for the user
-    const groupDocs = await Promise.all(
-      user.groupIds.map((gid) => this.db.collection(Collections.GROUPS).doc(gid).get())
-    );
+    let userGroupRows: (typeof groups.$inferSelect)[] = [];
+    if (user.groupIds.length > 0) {
+      userGroupRows = await db
+        .select()
+        .from(groups)
+        .where(inArray(groups.id, user.groupIds));
+    }
 
     const permissionSet = new Set<string>();
     const groupNames: string[] = [];
 
-    for (const groupDoc of groupDocs) {
-      if (groupDoc.exists) {
-        const group = convertFirestoreDoc<Group>(groupDoc);
-        if (group) {
-          groupNames.push(group.name);
-          if (!user.isSuperAdmin) {
-            for (const perm of group.permissions) {
-              permissionSet.add(perm);
-            }
-          }
+    for (const group of userGroupRows) {
+      groupNames.push(group.name);
+      if (!user.isSuperAdmin) {
+        for (const perm of group.permissions) {
+          permissionSet.add(perm);
         }
       }
     }
@@ -112,11 +127,6 @@ export class UserService {
   /**
    * List users with pagination and filtering
    * Supports both offset-based (page) and cursor-based pagination
-   *
-   * Note: Full-text search is not natively supported by Firestore.
-   * For production use with complex search requirements, consider integrating
-   * an external search service like Algolia, Typesense, or Elasticsearch.
-   * The current implementation uses prefix matching on email which can utilize indexes.
    */
   async listUsers(params: UserSearchParams & { cursor?: string } = {}): Promise<{
     users: User[];
@@ -125,7 +135,7 @@ export class UserService {
   }> {
     const {
       page = 1,
-      limit = 20,
+      limit: limitParam = 20,
       status = 'all',
       groupId,
       query,
@@ -134,90 +144,131 @@ export class UserService {
       cursor,
     } = params;
 
-    let baseQuery: FirebaseFirestore.Query = this.db.collection(Collections.USERS);
+    // Build WHERE conditions
+    const conditions: ReturnType<typeof eq>[] = [];
 
-    // Filter by status
     if (status !== 'all') {
-      baseQuery = baseQuery.where('status', '==', status);
+      conditions.push(eq(users.status, status));
     }
 
-    // Filter by group
+    // When filtering by groupId, we need to find user IDs in the junction table first
+    let userIdsInGroup: string[] | null = null;
     if (groupId) {
-      baseQuery = baseQuery.where('groupIds', 'array-contains', groupId);
+      const groupUserRows = await db
+        .select({ userId: userGroups.userId })
+        .from(userGroups)
+        .where(eq(userGroups.groupId, groupId));
+      userIdsInGroup = groupUserRows.map((r) => r.userId);
+
+      if (userIdsInGroup.length === 0) {
+        // No users in this group
+        return { users: [], total: 0, nextCursor: null };
+      }
+      conditions.push(inArray(users.id, userIdsInGroup));
     }
 
-    // When a search query is provided, we fetch a larger batch and filter in memory
-    // to support matching on both email and displayName (Firestore can't do inequality
-    // queries on two fields). This works well for admin dashboards with <10k users.
-    // For larger scale, consider Algolia or Typesense.
+    // Search query — use ilike for case-insensitive matching on email and displayName
     if (query) {
-      const lowerQuery = query.toLowerCase();
-
-      // Apply sorting before fetching
-      const validSortFields = ['createdAt', 'updatedAt', 'displayName', 'email', 'lastLoginAt'];
-      const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
-      baseQuery = baseQuery.orderBy(sortField, sortOrder === 'asc' ? 'asc' : 'desc');
-
-      // Fetch a larger batch for in-memory filtering
-      const snapshot = await baseQuery.limit(500).get();
-      let allUsers = convertFirestoreDocs<User>(snapshot).map((u) => this.normalizeUser(u)!);
-
-      // Filter in memory by email or displayName
-      allUsers = allUsers.filter(
-        (u) =>
-          u.email.toLowerCase().includes(lowerQuery) ||
-          (u.displayName && u.displayName.toLowerCase().includes(lowerQuery))
-      );
-
-      const total = allUsers.length;
-
-      // Apply pagination to filtered results
-      const offset = (page - 1) * limit;
-      const users = allUsers.slice(offset, offset + limit);
-      const hasMore = offset + limit < total;
-      const nextCursor = hasMore && users.length > 0 ? users[users.length - 1]!.id : null;
-
-      return { users, total, nextCursor };
+      const pattern = `%${query}%`;
+      conditions.push(or(ilike(users.email, pattern), ilike(users.displayName, pattern))!);
     }
 
-    // No search query — use standard Firestore pagination
-    // Get total count (without pagination)
-    const countSnapshot = await baseQuery.count().get();
-    const total = countSnapshot.data().count;
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Apply sorting
-    const validSortFields = ['createdAt', 'updatedAt', 'displayName', 'email', 'lastLoginAt'];
-    const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
-    baseQuery = baseQuery.orderBy(sortField, sortOrder === 'asc' ? 'asc' : 'desc');
+    // Get total count
+    const countResult = await db
+      .select({ count: count() })
+      .from(users)
+      .where(whereClause);
+    const total = countResult[0]?.count ?? 0;
 
-    // Cursor-based pagination (preferred for large datasets)
+    // Build sort expression
+    const validSortFields = ['createdAt', 'updatedAt', 'displayName', 'email', 'lastLoginAt'] as const;
+    type SortField = (typeof validSortFields)[number];
+    const sortField: SortField = (validSortFields as readonly string[]).includes(sortBy)
+      ? (sortBy as SortField)
+      : 'createdAt';
+
+    const sortColumnMap = {
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+      displayName: users.displayName,
+      email: users.email,
+      lastLoginAt: users.lastLoginAt,
+    } as const;
+
+    const sortColumn = sortColumnMap[sortField];
+    const orderExpr = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+    // Build the main query
+    let mainQuery = db
+      .select()
+      .from(users)
+      .where(whereClause)
+      .orderBy(orderExpr)
+      .$dynamic();
+
+    // Cursor-based pagination
     if (cursor) {
-      const cursorDoc = await this.db.collection(Collections.USERS).doc(cursor).get();
-      if (cursorDoc.exists) {
-        baseQuery = baseQuery.startAfter(cursorDoc);
+      // Fetch the cursor row to get its sort value
+      const cursorRows = await db.select().from(users).where(eq(users.id, cursor)).limit(1);
+      if (cursorRows.length > 0) {
+        const cursorRow = cursorRows[0]!;
+        const cursorValue = cursorRow[sortField];
+
+        if (cursorValue !== null && cursorValue !== undefined) {
+          // For desc order: fetch rows where sortField < cursorValue
+          // For asc order: fetch rows where sortField > cursorValue
+          const cursorCondition =
+            sortOrder === 'asc'
+              ? sql`${sortColumn} > ${cursorValue}`
+              : sql`${sortColumn} < ${cursorValue}`;
+
+          const allConditions = whereClause
+            ? and(whereClause, cursorCondition)
+            : cursorCondition;
+
+          mainQuery = db
+            .select()
+            .from(users)
+            .where(allConditions)
+            .orderBy(orderExpr)
+            .$dynamic();
+        }
       }
     } else if (page > 1) {
       // Fallback to offset-based pagination for backwards compatibility
-      const offset = (page - 1) * limit;
-      baseQuery = baseQuery.offset(offset);
+      const offset = (page - 1) * limitParam;
+      mainQuery = mainQuery.offset(offset);
     }
 
-    // Limit results (fetch one extra to check if there are more)
-    baseQuery = baseQuery.limit(limit + 1);
+    // Fetch one extra to determine hasMore
+    const rows = await mainQuery.limit(limitParam + 1);
 
-    const snapshot = await baseQuery.get();
-    let users = convertFirestoreDocs<User>(snapshot).map((u) => this.normalizeUser(u)!);
+    const hasMore = rows.length > limitParam;
+    const resultRows = hasMore ? rows.slice(0, limitParam) : rows;
 
-    // Check if there are more results
-    const hasMore = users.length > limit;
-    if (hasMore) {
-      users = users.slice(0, limit);
+    // Fetch groupIds for all returned users in a single query
+    const userIds = resultRows.map((r) => r.id);
+    let groupIdsByUser: Map<string, string[]> = new Map();
+    if (userIds.length > 0) {
+      const groupRows = await db
+        .select({ userId: userGroups.userId, groupId: userGroups.groupId })
+        .from(userGroups)
+        .where(inArray(userGroups.userId, userIds));
+
+      for (const gr of groupRows) {
+        const existing = groupIdsByUser.get(gr.userId) ?? [];
+        existing.push(gr.groupId);
+        groupIdsByUser.set(gr.userId, existing);
+      }
     }
 
-    // Determine next cursor
-    const nextCursor = hasMore && users.length > 0 ? users[users.length - 1]!.id : null;
+    const resultUsers = resultRows.map((row) => toUser(row, groupIdsByUser.get(row.id) ?? []));
 
-    return { users, total, nextCursor };
+    const nextCursor = hasMore && resultUsers.length > 0 ? resultUsers[resultUsers.length - 1]!.id : null;
+
+    return { users: resultUsers, total, nextCursor };
   }
 
   /**
@@ -233,32 +284,38 @@ export class UserService {
     // Get default group if not specified
     let groupIds = input.groupIds;
     if (!groupIds || groupIds.length === 0) {
-      const settingsDoc = await this.db.collection(Collections.SETTINGS).doc('app').get();
-      const defaultGroupId = settingsDoc.exists ? settingsDoc.data()?.defaultGroupId : 'users';
+      const settingsRows = await db.select().from(settings).where(eq(settings.id, 'app')).limit(1);
+      const defaultGroupId = settingsRows.length > 0 ? settingsRows[0]!.defaultGroupId : 'users';
       groupIds = [defaultGroupId];
     }
 
     const now = new Date();
-    const userId = this.db.collection(Collections.USERS).doc().id;
+    const userId = crypto.randomUUID();
 
-    const user: Omit<User, 'id'> = {
+    const newUser = {
+      id: userId,
       email: input.email.toLowerCase(),
       displayName: input.displayName,
       photoURL: input.photoURL || null,
-      groupIds,
       isSuperAdmin: false,
-      status: 'active',
+      status: 'active' as const,
       createdAt: now,
       updatedAt: now,
       lastLoginAt: now,
-      preferences: {
-        theme: 'system',
-      },
+      preferences: { theme: 'system' as const },
     };
 
-    await this.db.collection(Collections.USERS).doc(userId).set(user);
+    await db.transaction(async (tx) => {
+      await tx.insert(users).values(newUser);
 
-    return { id: userId, ...user };
+      if (groupIds!.length > 0) {
+        await tx.insert(userGroups).values(
+          groupIds!.map((gid) => ({ userId, groupId: gid }))
+        );
+      }
+    });
+
+    return toUser({ ...newUser, disabledAt: null, disabledBy: null }, groupIds!);
   }
 
   /**
@@ -271,90 +328,136 @@ export class UserService {
     displayName: string | null;
     photoURL: string | null;
   }): Promise<User> {
-    const userRef = this.db.collection(Collections.USERS).doc(firebaseUser.uid);
-    const userDoc = await userRef.get();
     const now = new Date();
 
-    if (userDoc.exists) {
-      // Update existing user's last login time and potentially photo/name from provider
-      const existingUser = userDoc.data() as User;
-      const updates: Partial<User> = {
-        lastLoginAt: now,
-        updatedAt: now,
-      };
+    // Check if user already exists by UID or email
+    const [existingById] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, firebaseUser.uid))
+      .limit(1);
 
-      // Update display name and photo if they changed from the auth provider
-      if (firebaseUser.displayName) {
-        if (!existingUser.displayName || existingUser.displayName === existingUser.email) {
-          updates.displayName = firebaseUser.displayName;
-        }
-      }
+    const [existingByEmail] = !existingById
+      ? await db
+          .select()
+          .from(users)
+          .where(eq(users.email, firebaseUser.email.toLowerCase()))
+          .limit(1)
+      : [undefined];
 
-      if (firebaseUser.photoURL) {
-        updates.photoURL = firebaseUser.photoURL;
-      }
+    const existingUser = existingById || existingByEmail;
 
-      // Enforce super admin status based on SUPER_ADMIN_EMAIL env var on every login
+    if (existingUser) {
+      const oldId = existingUser.id;
+      const newId = firebaseUser.uid;
+      const idChanged = oldId !== newId;
+
       const shouldBeSuperAdmin = !!(
         config.superAdminEmail && firebaseUser.email.toLowerCase() === config.superAdminEmail
       );
-      if (shouldBeSuperAdmin !== existingUser.isSuperAdmin) {
-        updates.isSuperAdmin = shouldBeSuperAdmin;
-      }
 
-      // Ensure super admin is in the admin group
-      const updateData: Record<string, unknown> = { ...updates };
-      if (shouldBeSuperAdmin) {
-        updateData.groupIds = FieldValue.arrayUnion('admin');
-      }
+      await db.transaction(async (tx) => {
+        if (idChanged) {
+          // UID changed (e.g. auth emulator restart) — migrate FK references first
+          await tx.delete(userGroups).where(eq(userGroups.userId, oldId));
+          await tx.update(users).set({ id: newId }).where(eq(users.id, oldId));
+        }
 
-      await userRef.update(updateData);
-      const updatedDoc = await userRef.get();
-      return this.normalizeUser(convertFirestoreDoc<User>(updatedDoc))!;
+        // Update user fields
+        const updates: Record<string, unknown> = {
+          lastLoginAt: now,
+          updatedAt: now,
+        };
+
+        if (firebaseUser.displayName) {
+          if (!existingUser.displayName || existingUser.displayName === existingUser.email) {
+            updates.displayName = firebaseUser.displayName;
+          }
+        }
+        if (firebaseUser.photoURL) {
+          updates.photoURL = firebaseUser.photoURL;
+        }
+        if (shouldBeSuperAdmin !== existingUser.isSuperAdmin) {
+          updates.isSuperAdmin = shouldBeSuperAdmin;
+        }
+
+        await tx.update(users).set(updates).where(eq(users.id, newId));
+
+        // Re-create group memberships if UID changed
+        if (idChanged) {
+          const groupIds = shouldBeSuperAdmin ? ['admin'] : ['users'];
+          await tx.insert(userGroups).values(
+            groupIds.map((gid) => ({ userId: newId, groupId: gid }))
+          ).onConflictDoNothing();
+        }
+
+        // Ensure super admin is in admin group
+        if (shouldBeSuperAdmin) {
+          await tx
+            .insert(userGroups)
+            .values({ userId: newId, groupId: 'admin' })
+            .onConflictDoNothing();
+        }
+      });
+
+      // Re-fetch updated user
+      const [updatedRow] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, newId))
+        .limit(1);
+      const updatedGroupIds = await getUserGroupIds(newId);
+      return toUser(updatedRow!, updatedGroupIds);
     }
 
-    // Get default group for new users
-    const settingsDoc = await this.db.collection(Collections.SETTINGS).doc('app').get();
-    const defaultGroupId = settingsDoc.exists ? settingsDoc.data()?.defaultGroupId : 'users';
+    // --- New user ---
 
-    // Check if this user's email matches the configured super admin email
+    // Get default group for new users
+    const [settingsRow] = await db.select().from(settings).where(eq(settings.id, 'app')).limit(1);
+    const defaultGroupId = settingsRow?.defaultGroupId ?? 'users';
+
     const isSuperAdmin = !!(
       config.superAdminEmail && firebaseUser.email.toLowerCase() === config.superAdminEmail
     );
 
-    // Create new user
-    const newUser: Omit<User, 'id'> = {
+    const assignedGroupIds = isSuperAdmin ? ['admin'] : [defaultGroupId];
+
+    const newUserRow = {
+      id: firebaseUser.uid,
       email: firebaseUser.email.toLowerCase(),
       displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0] || 'User',
       photoURL: firebaseUser.photoURL,
-      groupIds: isSuperAdmin ? ['admin'] : [defaultGroupId],
       isSuperAdmin,
-      status: 'active',
+      status: 'active' as const,
       createdAt: now,
       updatedAt: now,
       lastLoginAt: now,
-      preferences: {
-        theme: 'system',
-      },
+      preferences: { theme: 'system' as const },
     };
 
-    await userRef.set(newUser);
+    await db.transaction(async (tx) => {
+      await tx.insert(users).values(newUserRow);
+      await tx.insert(userGroups).values(
+        assignedGroupIds.map((gid) => ({ userId: firebaseUser.uid, groupId: gid }))
+      );
+    });
 
-    return { id: firebaseUser.uid, ...newUser };
+    return toUser({ ...newUserRow, disabledAt: null, disabledBy: null }, assignedGroupIds);
   }
 
   /**
    * Update a user
    */
   async updateUser(userId: string, input: UpdateUserInput, actorId?: string): Promise<User> {
-    const userRef = this.db.collection(Collections.USERS).doc(userId);
-    const userDoc = await userRef.get();
+    const existingRows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
-    if (!userDoc.exists) {
+    if (existingRows.length === 0) {
       throw new NotFoundError('User');
     }
 
-    const existingUser = convertFirestoreDoc<User>(userDoc)!;
+    const existingRow = existingRows[0]!;
+    const existingGroupIds = await getUserGroupIds(userId);
+    const existingUser = toUser(existingRow, existingGroupIds);
 
     const updates: Record<string, unknown> = {
       updatedAt: new Date(),
@@ -407,42 +510,62 @@ export class UserService {
     // Handle groupIds change
     if (input.groupIds !== undefined) {
       // Validate all group IDs exist
-      const groupDocs = await Promise.all(
-        input.groupIds.map((gid) => this.db.collection(Collections.GROUPS).doc(gid).get())
-      );
-      for (let i = 0; i < groupDocs.length; i++) {
-        if (!groupDocs[i]!.exists) {
-          throw new ValidationError(`Group "${input.groupIds[i]}" not found`);
+      if (input.groupIds.length > 0) {
+        const existingGroups = await db
+          .select({ id: groups.id })
+          .from(groups)
+          .where(inArray(groups.id, input.groupIds));
+
+        const foundIds = new Set(existingGroups.map((g) => g.id));
+        for (const gid of input.groupIds) {
+          if (!foundIds.has(gid)) {
+            throw new ValidationError(`Group "${gid}" not found`);
+          }
         }
       }
-      updates.groupIds = input.groupIds;
+
+      // Replace all group memberships in a transaction
+      await db.transaction(async (tx) => {
+        // Remove all existing group memberships
+        await tx.delete(userGroups).where(eq(userGroups.userId, userId));
+
+        // Insert new group memberships
+        if (input.groupIds!.length > 0) {
+          await tx.insert(userGroups).values(
+            input.groupIds!.map((gid) => ({ userId, groupId: gid }))
+          );
+        }
+      });
     }
 
-    await userRef.update(updates);
+    await db.update(users).set(updates).where(eq(users.id, userId));
 
-    return { ...existingUser, ...updates } as User;
+    // Build the updated user from the merged data
+    const finalGroupIds = input.groupIds !== undefined ? input.groupIds : existingGroupIds;
+    return { ...existingUser, ...updates, groupIds: finalGroupIds } as User;
   }
 
   /**
    * Delete a user
    */
   async deleteUser(userId: string): Promise<void> {
-    const userRef = this.db.collection(Collections.USERS).doc(userId);
-    const userDoc = await userRef.get();
+    const rows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
-    if (!userDoc.exists) {
+    if (rows.length === 0) {
       throw new NotFoundError('User');
     }
 
-    const user = convertFirestoreDoc<User>(userDoc)!;
+    const row = rows[0]!;
+    const groupIds = await getUserGroupIds(userId);
+    const user = toUser(row, groupIds);
 
     // Prevent deleting super admins
     if (user.isSuperAdmin) {
       throw new ForbiddenError('Cannot delete super administrator accounts');
     }
 
-    // Delete from Firestore
-    await userRef.delete();
+    // Delete from database (cascade will remove user_groups entries)
+    await db.delete(users).where(eq(users.id, userId));
 
     // Optionally delete from Firebase Auth
     try {
@@ -457,14 +580,15 @@ export class UserService {
    * Disable a user
    */
   async disableUser(userId: string, disabledBy: string): Promise<User> {
-    const userRef = this.db.collection(Collections.USERS).doc(userId);
-    const userDoc = await userRef.get();
+    const rows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
-    if (!userDoc.exists) {
+    if (rows.length === 0) {
       throw new NotFoundError('User');
     }
 
-    const user = convertFirestoreDoc<User>(userDoc)!;
+    const row = rows[0]!;
+    const groupIds = await getUserGroupIds(userId);
+    const user = toUser(row, groupIds);
 
     if (user.isSuperAdmin) {
       throw new ForbiddenError('Cannot disable super administrator accounts');
@@ -475,14 +599,14 @@ export class UserService {
     }
 
     const now = new Date();
-    const updates: Partial<User> = {
-      status: 'disabled',
+    const updates = {
+      status: 'disabled' as const,
       disabledAt: now,
       disabledBy,
       updatedAt: now,
     };
 
-    await userRef.update(updates);
+    await db.update(users).set(updates).where(eq(users.id, userId));
 
     // Also disable in Firebase Auth
     try {
@@ -498,32 +622,28 @@ export class UserService {
    * Enable a user
    */
   async enableUser(userId: string): Promise<User> {
-    const userRef = this.db.collection(Collections.USERS).doc(userId);
-    const userDoc = await userRef.get();
+    const rows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
-    if (!userDoc.exists) {
+    if (rows.length === 0) {
       throw new NotFoundError('User');
     }
 
-    const user = convertFirestoreDoc<User>(userDoc)!;
+    const row = rows[0]!;
+    const groupIds = await getUserGroupIds(userId);
+    const user = toUser(row, groupIds);
 
     if (user.status === 'active') {
       throw new ValidationError('User is already active');
     }
 
-    const updates: Partial<User> = {
-      status: 'active',
-      disabledAt: undefined,
-      disabledBy: undefined,
-      updatedAt: new Date(),
-    };
-
-    await userRef.update({
-      status: 'active',
+    const updates = {
+      status: 'active' as const,
       disabledAt: null,
       disabledBy: null,
       updatedAt: new Date(),
-    });
+    };
+
+    await db.update(users).set(updates).where(eq(users.id, userId));
 
     // Also enable in Firebase Auth
     try {
@@ -532,46 +652,56 @@ export class UserService {
       console.warn(`Could not enable user ${userId} in Firebase Auth:`, error);
     }
 
-    return { ...user, ...updates };
+    return {
+      ...user,
+      status: 'active',
+      disabledAt: undefined,
+      disabledBy: undefined,
+      updatedAt: updates.updatedAt,
+    };
   }
 
   /**
    * Add a user to a group
    */
   async addUserToGroup(userId: string, groupId: string): Promise<User> {
-    return this.db.runTransaction(async (transaction) => {
-      const groupRef = this.db.collection(Collections.GROUPS).doc(groupId);
-      const userRef = this.db.collection(Collections.USERS).doc(userId);
-
-      const [groupDoc, userDoc] = await Promise.all([
-        transaction.get(groupRef),
-        transaction.get(userRef),
-      ]);
-
-      if (!groupDoc.exists) {
+    return db.transaction(async (tx) => {
+      // Check group exists
+      const groupRows = await tx.select().from(groups).where(eq(groups.id, groupId)).limit(1);
+      if (groupRows.length === 0) {
         throw new NotFoundError('Group');
       }
 
-      if (!userDoc.exists) {
+      // Check user exists
+      const userRows = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (userRows.length === 0) {
         throw new NotFoundError('User');
       }
 
-      const user = convertFirestoreDoc<User>(userDoc)!;
-      const rawData = userDoc.data() as Record<string, unknown>;
-      user.groupIds = normalizeUserGroupIds(rawData);
+      const userRow = userRows[0]!;
+      const existingGroupIds = (
+        await tx
+          .select({ groupId: userGroups.groupId })
+          .from(userGroups)
+          .where(eq(userGroups.userId, userId))
+      ).map((r) => r.groupId);
+
+      const user = toUser(userRow, existingGroupIds);
 
       if (user.isSuperAdmin) {
         throw new ForbiddenError('Cannot modify super administrator accounts');
       }
 
-      if (user.groupIds.includes(groupId)) {
+      if (existingGroupIds.includes(groupId)) {
         throw new ValidationError('User is already in this group');
       }
 
-      const newGroupIds = [...user.groupIds, groupId];
-      transaction.update(userRef, { groupIds: newGroupIds, updatedAt: new Date() });
+      const now = new Date();
+      await tx.insert(userGroups).values({ userId, groupId });
+      await tx.update(users).set({ updatedAt: now }).where(eq(users.id, userId));
 
-      return { ...user, groupIds: newGroupIds, updatedAt: new Date() };
+      const newGroupIds = [...existingGroupIds, groupId];
+      return { ...user, groupIds: newGroupIds, updatedAt: now };
     });
   }
 
@@ -579,36 +709,45 @@ export class UserService {
    * Remove a user from a group
    */
   async removeUserFromGroup(userId: string, groupId: string): Promise<User> {
-    return this.db.runTransaction(async (transaction) => {
-      const userRef = this.db.collection(Collections.USERS).doc(userId);
-      const userDoc = await transaction.get(userRef);
-
-      if (!userDoc.exists) {
+    return db.transaction(async (tx) => {
+      // Check user exists
+      const userRows = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (userRows.length === 0) {
         throw new NotFoundError('User');
       }
 
-      const user = convertFirestoreDoc<User>(userDoc)!;
-      const rawData = userDoc.data() as Record<string, unknown>;
-      user.groupIds = normalizeUserGroupIds(rawData);
+      const userRow = userRows[0]!;
+      const existingGroupIds = (
+        await tx
+          .select({ groupId: userGroups.groupId })
+          .from(userGroups)
+          .where(eq(userGroups.userId, userId))
+      ).map((r) => r.groupId);
+
+      const user = toUser(userRow, existingGroupIds);
 
       if (user.isSuperAdmin) {
         throw new ForbiddenError('Cannot modify super administrator accounts');
       }
 
-      if (!user.groupIds.includes(groupId)) {
+      if (!existingGroupIds.includes(groupId)) {
         throw new ValidationError('User is not in this group');
       }
 
-      if (user.groupIds.length <= 1) {
+      if (existingGroupIds.length <= 1) {
         throw new ValidationError(
           'Cannot remove the last group. Users must belong to at least one group.'
         );
       }
 
-      const newGroupIds = user.groupIds.filter((gid) => gid !== groupId);
-      transaction.update(userRef, { groupIds: newGroupIds, updatedAt: new Date() });
+      const now = new Date();
+      await tx
+        .delete(userGroups)
+        .where(and(eq(userGroups.userId, userId), eq(userGroups.groupId, groupId)));
+      await tx.update(users).set({ updatedAt: now }).where(eq(users.id, userId));
 
-      return { ...user, groupIds: newGroupIds, updatedAt: new Date() };
+      const newGroupIds = existingGroupIds.filter((gid) => gid !== groupId);
+      return { ...user, groupIds: newGroupIds, updatedAt: now };
     });
   }
 
@@ -616,24 +755,47 @@ export class UserService {
    * Get users by group ID
    */
   async getUsersByGroup(groupId: string): Promise<User[]> {
-    const snapshot = await this.db
-      .collection(Collections.USERS)
-      .where('groupIds', 'array-contains', groupId)
-      .get();
+    // Get all user IDs in this group
+    const groupUserRows = await db
+      .select({ userId: userGroups.userId })
+      .from(userGroups)
+      .where(eq(userGroups.groupId, groupId));
 
-    return convertFirestoreDocs<User>(snapshot).map((u) => this.normalizeUser(u)!);
+    if (groupUserRows.length === 0) return [];
+
+    const userIds = groupUserRows.map((r) => r.userId);
+
+    // Fetch all users
+    const userRows = await db
+      .select()
+      .from(users)
+      .where(inArray(users.id, userIds));
+
+    // Fetch all group memberships for these users
+    const allGroupRows = await db
+      .select({ userId: userGroups.userId, groupId: userGroups.groupId })
+      .from(userGroups)
+      .where(inArray(userGroups.userId, userIds));
+
+    const groupIdsByUser = new Map<string, string[]>();
+    for (const gr of allGroupRows) {
+      const existing = groupIdsByUser.get(gr.userId) ?? [];
+      existing.push(gr.groupId);
+      groupIdsByUser.set(gr.userId, existing);
+    }
+
+    return userRows.map((row) => toUser(row, groupIdsByUser.get(row.id) ?? []));
   }
 
   /**
    * Count users by group ID
    */
   async countUsersByGroup(groupId: string): Promise<number> {
-    const countSnapshot = await this.db
-      .collection(Collections.USERS)
-      .where('groupIds', 'array-contains', groupId)
-      .count()
-      .get();
+    const result = await db
+      .select({ count: count() })
+      .from(userGroups)
+      .where(eq(userGroups.groupId, groupId));
 
-    return countSnapshot.data().count;
+    return result[0]?.count ?? 0;
   }
 }

@@ -1,42 +1,45 @@
 import type { AppSettings, UpdateSettingsInput } from '@admin-dashboard/shared';
+import { eq } from 'drizzle-orm';
 import { NotFoundError } from '../core/errors';
-import { Collections, convertFirestoreDoc, getDb } from '../core/lib/firebase-admin';
+import { db } from '../db';
+import { groups, settings } from '../db/schema';
 
 /**
  * Settings Service
  * Handles application settings
  */
 export class SettingsService {
-  private db = getDb();
-  private readonly SETTINGS_DOC_ID = 'app';
+  private readonly SETTINGS_DOC_ID = 'app' as const;
 
   /**
    * Get application settings
    */
   async getSettings(): Promise<AppSettings> {
-    const doc = await this.db.collection(Collections.SETTINGS).doc(this.SETTINGS_DOC_ID).get();
+    const [row] = await db
+      .select()
+      .from(settings)
+      .where(eq(settings.id, this.SETTINGS_DOC_ID));
 
-    if (!doc.exists) {
-      // Return default settings if not initialized
+    if (!row) {
       return this.getDefaultSettings();
     }
 
-    const settings = convertFirestoreDoc<AppSettings>(doc);
-    return settings || this.getDefaultSettings();
+    return this.toAppSettings(row);
   }
 
   /**
    * Update application settings
    */
   async updateSettings(input: UpdateSettingsInput, updaterId: string): Promise<AppSettings> {
-    const settingsRef = this.db.collection(Collections.SETTINGS).doc(this.SETTINGS_DOC_ID);
-    const settingsDoc = await settingsRef.get();
+    const existingSettings = await this.getSettings();
 
-    const existingSettings = settingsDoc.exists
-      ? convertFirestoreDoc<AppSettings>(settingsDoc)!
-      : this.getDefaultSettings();
-
-    const updates: Partial<AppSettings> = {
+    const updates: Partial<{
+      appName: string;
+      defaultGroupId: string;
+      features: AppSettings['features'];
+      updatedAt: Date;
+      updatedBy: string;
+    }> = {
       updatedAt: new Date(),
       updatedBy: updaterId,
     };
@@ -47,8 +50,12 @@ export class SettingsService {
 
     if (input.defaultGroupId !== undefined) {
       // Verify the group exists
-      const groupDoc = await this.db.collection(Collections.GROUPS).doc(input.defaultGroupId).get();
-      if (!groupDoc.exists) {
+      const [groupRow] = await db
+        .select({ id: groups.id })
+        .from(groups)
+        .where(eq(groups.id, input.defaultGroupId));
+
+      if (!groupRow) {
         throw new NotFoundError('Group');
       }
       updates.defaultGroupId = input.defaultGroupId;
@@ -64,36 +71,43 @@ export class SettingsService {
       };
     }
 
-    if (settingsDoc.exists) {
-      await settingsRef.update(updates);
-    } else {
-      // Create settings document if it doesn't exist
-      await settingsRef.set({
-        ...this.getDefaultSettings(),
-        ...updates,
+    // Upsert: update if exists, insert if not
+    const [updatedRow] = await db
+      .insert(settings)
+      .values({
         id: this.SETTINGS_DOC_ID,
-      });
-    }
+        ...this.getDefaultSettingsValues(),
+        ...updates,
+      })
+      .onConflictDoUpdate({
+        target: settings.id,
+        set: updates,
+      })
+      .returning();
 
-    const updatedDoc = await settingsRef.get();
-    return convertFirestoreDoc<AppSettings>(updatedDoc)!;
+    return this.toAppSettings(updatedRow!);
   }
 
   /**
    * Initialize settings with defaults
    */
   async initializeSettings(): Promise<AppSettings> {
-    const settingsRef = this.db.collection(Collections.SETTINGS).doc(this.SETTINGS_DOC_ID);
-    const settingsDoc = await settingsRef.get();
+    const defaultValues = this.getDefaultSettingsValues();
 
-    if (settingsDoc.exists) {
-      return convertFirestoreDoc<AppSettings>(settingsDoc)!;
-    }
+    await db
+      .insert(settings)
+      .values({
+        id: this.SETTINGS_DOC_ID,
+        ...defaultValues,
+      })
+      .onConflictDoNothing();
 
-    const defaultSettings = this.getDefaultSettings();
-    await settingsRef.set(defaultSettings);
+    const [row] = await db
+      .select()
+      .from(settings)
+      .where(eq(settings.id, this.SETTINGS_DOC_ID));
 
-    return defaultSettings;
+    return row ? this.toAppSettings(row) : this.getDefaultSettings();
   }
 
   /**
@@ -115,22 +129,41 @@ export class SettingsService {
   }
 
   /**
+   * Get default settings values for DB insert (without 'id')
+   */
+  private getDefaultSettingsValues() {
+    return {
+      appName: 'Admin Dashboard',
+      defaultGroupId: 'users',
+      features: {
+        auditLogging: true,
+        userRegistration: true,
+        aiAssistant: 'disabled' as const,
+      },
+      updatedAt: new Date(),
+      updatedBy: 'system',
+    };
+  }
+
+  /**
    * Update the isDefault flag when default group changes
    */
   private async updateDefaultGroup(oldGroupId: string, newGroupId: string): Promise<void> {
-    const batch = this.db.batch();
+    await db.transaction(async (tx) => {
+      // Remove default from old group
+      if (oldGroupId) {
+        await tx
+          .update(groups)
+          .set({ isDefault: false })
+          .where(eq(groups.id, oldGroupId));
+      }
 
-    // Remove default from old group
-    if (oldGroupId) {
-      const oldGroupRef = this.db.collection(Collections.GROUPS).doc(oldGroupId);
-      batch.update(oldGroupRef, { isDefault: false });
-    }
-
-    // Set default on new group
-    const newGroupRef = this.db.collection(Collections.GROUPS).doc(newGroupId);
-    batch.update(newGroupRef, { isDefault: true });
-
-    await batch.commit();
+      // Set default on new group
+      await tx
+        .update(groups)
+        .set({ isDefault: true })
+        .where(eq(groups.id, newGroupId));
+    });
   }
 
   /**
@@ -139,8 +172,8 @@ export class SettingsService {
   async isFeatureEnabled(
     feature: keyof AppSettings['features']
   ): Promise<AppSettings['features'][typeof feature]> {
-    const settings = await this.getSettings();
-    return settings.features[feature];
+    const settingsData = await this.getSettings();
+    return settingsData.features[feature];
   }
 
   /**
@@ -159,5 +192,19 @@ export class SettingsService {
       },
       updaterId
     );
+  }
+
+  /**
+   * Convert a Drizzle row to AppSettings
+   */
+  private toAppSettings(row: typeof settings.$inferSelect): AppSettings {
+    return {
+      id: 'app',
+      appName: row.appName,
+      defaultGroupId: row.defaultGroupId,
+      features: row.features as AppSettings['features'],
+      updatedAt: row.updatedAt,
+      updatedBy: row.updatedBy,
+    };
   }
 }

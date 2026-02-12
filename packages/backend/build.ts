@@ -4,16 +4,14 @@ await esbuild.build({
   entryPoints: ['src/index.ts'],
   bundle: true,
   platform: 'node',
-  target: 'node24',
-  format: 'cjs',
+  target: 'esnext',
+  format: 'esm',
   outfile: 'dist/index.js',
   sourcemap: true,
   external: [
-    // Don't bundle these - they're provided by Firebase/Node runtime
+    // Don't bundle firebase-admin - it's a native dependency
     'firebase-admin',
     'firebase-admin/*',
-    'firebase-functions',
-    'firebase-functions/*',
   ],
 });
 

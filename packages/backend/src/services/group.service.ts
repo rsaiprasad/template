@@ -5,55 +5,95 @@ import type {
   UpdateGroupInput,
   User,
 } from '@admin-dashboard/shared';
+import { and, asc, count, desc, eq, ilike, sql } from 'drizzle-orm';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../core/errors';
-import {
-  Collections,
-  convertFirestoreDoc,
-  convertFirestoreDocs,
-  getDb,
-} from '../core/lib/firebase-admin';
 import { getAdminPermissions, getUserPermissions } from '../core/permissions';
-import { migrateAllUsersToMultiGroup } from './migration';
+import { db } from '../db';
+import { groups, settings, userGroups, users } from '../db/schema';
+
+/**
+ * Helper: convert a Drizzle groups row to the shared Group type.
+ * Drizzle returns `permissions` as `string[]`; we cast to `Permission[]`.
+ */
+function toGroup(row: typeof groups.$inferSelect): Group {
+  return {
+    ...row,
+    permissions: row.permissions as Permission[],
+  };
+}
+
+/**
+ * Helper: given an array of user IDs, fetch all groupIds per user from the
+ * junction table and return a Map<userId, groupId[]>.
+ */
+async function fetchGroupIdsForUsers(userIds: string[]): Promise<Map<string, string[]>> {
+  if (userIds.length === 0) return new Map();
+
+  const rows = await db
+    .select({ userId: userGroups.userId, groupId: userGroups.groupId })
+    .from(userGroups)
+    .where(sql`${userGroups.userId} = ANY(${userIds})`);
+
+  const map = new Map<string, string[]>();
+  for (const row of rows) {
+    const existing = map.get(row.userId);
+    if (existing) {
+      existing.push(row.groupId);
+    } else {
+      map.set(row.userId, [row.groupId]);
+    }
+  }
+  return map;
+}
+
+/**
+ * Helper: convert a Drizzle users row + groupIds into the shared User type.
+ */
+function toUser(row: typeof users.$inferSelect, groupIds: string[]): User {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.displayName,
+    photoURL: row.photoURL ?? null,
+    groupIds,
+    isSuperAdmin: row.isSuperAdmin,
+    status: row.status as User['status'],
+    disabledAt: row.disabledAt ?? undefined,
+    disabledBy: row.disabledBy ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    lastLoginAt: row.lastLoginAt ?? row.createdAt,
+    preferences: (row.preferences as User['preferences']) ?? { theme: 'system' },
+  };
+}
 
 /**
  * Group Service
  * Handles all group-related database operations
  */
 export class GroupService {
-  private db = getDb();
-
   /**
    * Get a group by ID
    */
   async getGroup(groupId: string): Promise<Group | null> {
-    const doc = await this.db.collection(Collections.GROUPS).doc(groupId).get();
-    return convertFirestoreDoc<Group>(doc);
+    const rows = await db.select().from(groups).where(eq(groups.id, groupId));
+    return rows[0] ? toGroup(rows[0]) : null;
   }
 
   /**
    * Get a group by name
    */
   async getGroupByName(name: string): Promise<Group | null> {
-    const snapshot = await this.db
-      .collection(Collections.GROUPS)
-      .where('name', '==', name)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return null;
-    }
-
-    return convertFirestoreDoc<Group>(snapshot.docs[0]!);
+    const rows = await db.select().from(groups).where(eq(groups.name, name)).limit(1);
+    return rows[0] ? toGroup(rows[0]) : null;
   }
 
   /**
    * List all groups
    */
   async listGroups(): Promise<Group[]> {
-    const snapshot = await this.db.collection(Collections.GROUPS).orderBy('name', 'asc').get();
-
-    return convertFirestoreDocs<Group>(snapshot);
+    const rows = await db.select().from(groups).orderBy(asc(groups.name));
+    return rows.map(toGroup);
   }
 
   /**
@@ -70,91 +110,70 @@ export class GroupService {
     const limit = params.limit || 20;
     const sortBy = params.sortBy || 'name';
     const sortOrder = params.sortOrder || 'asc';
+    const offset = (page - 1) * limit;
 
-    let ref = this.db.collection(Collections.GROUPS) as FirebaseFirestore.Query;
-
-    if (params.query) {
-      ref = ref.where('name', '>=', params.query).where('name', '<', `${params.query}\uf8ff`);
-    }
+    // Build where condition
+    const whereCondition = params.query
+      ? ilike(groups.name, `%${params.query}%`)
+      : undefined;
 
     // Get total count
-    const countSnapshot = await ref.count().get();
-    const total = countSnapshot.data().count;
+    const [countResult] = await db
+      .select({ count: count() })
+      .from(groups)
+      .where(whereCondition);
+    const total = countResult?.count ?? 0;
 
-    // Apply sorting and pagination
-    // When searching with name prefix (inequality filters on name),
-    // Firestore requires orderBy on the inequality field only — adding a
-    // secondary orderBy on a different field requires a composite index.
-    if (params.query) {
-      ref = ref.orderBy('name', 'asc');
-    } else {
-      ref = ref.orderBy(sortBy, sortOrder);
-    }
-    const offset = (page - 1) * limit;
-    if (offset > 0) {
-      ref = ref.offset(offset);
-    }
-    ref = ref.limit(limit);
+    // Resolve sort column (default to name)
+    const sortColumn =
+      sortBy === 'createdAt'
+        ? groups.createdAt
+        : sortBy === 'updatedAt'
+          ? groups.updatedAt
+          : groups.name;
+    const orderFn = sortOrder === 'desc' ? desc : asc;
 
-    const snapshot = await ref.get();
-    const groups = convertFirestoreDocs<Group>(snapshot);
+    // Fetch page of groups
+    const rows = await db
+      .select()
+      .from(groups)
+      .where(whereCondition)
+      .orderBy(orderFn(sortColumn))
+      .offset(offset)
+      .limit(limit);
 
-    // Add user counts (same pattern as listGroupsWithUserCounts)
-    const usersSnapshot = await this.db
-      .collection(Collections.USERS)
-      .select('groupIds', 'groupId')
-      .get();
-    const groupCounts = new Map<string, number>();
-    for (const doc of usersSnapshot.docs) {
-      const data = doc.data();
-      const gids: string[] = Array.isArray(data.groupIds)
-        ? data.groupIds
-        : data.groupId
-          ? [data.groupId]
-          : [];
-      for (const gid of gids) {
-        groupCounts.set(gid, (groupCounts.get(gid) || 0) + 1);
-      }
-    }
+    const groupResults = rows.map(toGroup);
+
+    // Get user counts per group from the junction table
+    const counts = await db
+      .select({ groupId: userGroups.groupId, count: count() })
+      .from(userGroups)
+      .groupBy(userGroups.groupId);
+    const countMap = new Map(counts.map((c) => [c.groupId, c.count]));
 
     return {
-      groups: groups.map((g) => ({ ...g, userCount: groupCounts.get(g.id) || 0 })),
+      groups: groupResults.map((g) => ({ ...g, userCount: countMap.get(g.id) || 0 })),
       total,
     };
   }
 
   /**
    * List groups with user counts
-   * Fixed N+1 query by doing a single aggregation query for all group counts
+   * Uses junction table for efficient counting
    */
   async listGroupsWithUserCounts(): Promise<(Group & { userCount: number })[]> {
-    const groups = await this.listGroups();
+    const allGroups = await this.listGroups();
 
-    // Get all users and count by group in a single query
-    // This avoids N+1 queries by fetching all user group counts at once
-    const usersSnapshot = await this.db
-      .collection(Collections.USERS)
-      .select('groupIds', 'groupId')
-      .get();
+    // Get user counts per group from the junction table
+    const counts = await db
+      .select({ groupId: userGroups.groupId, count: count() })
+      .from(userGroups)
+      .groupBy(userGroups.groupId);
+    const countMap = new Map(counts.map((c) => [c.groupId, c.count]));
 
-    // Count users per group (a user in multiple groups counts for each)
-    const groupCounts = new Map<string, number>();
-    for (const doc of usersSnapshot.docs) {
-      const data = doc.data();
-      const gids: string[] = Array.isArray(data.groupIds)
-        ? data.groupIds
-        : data.groupId
-          ? [data.groupId]
-          : [];
-      for (const gid of gids) {
-        groupCounts.set(gid, (groupCounts.get(gid) || 0) + 1);
-      }
-    }
-
-    // Merge counts with groups
-    return groups.map((group) => ({
+    return allGroups.map((group) => ({
       ...group,
-      userCount: groupCounts.get(group.id) || 0,
+      userCount: countMap.get(group.id) || 0,
     }));
   }
 
@@ -169,37 +188,35 @@ export class GroupService {
     }
 
     const now = new Date();
-    const groupId = this.db.collection(Collections.GROUPS).doc().id;
+    const groupId = crypto.randomUUID();
 
-    const group: Omit<Group, 'id'> = {
-      name: input.name,
-      description: input.description,
-      permissions: input.permissions || [],
-      isDefault: false,
-      isSystem: false,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: creatorId,
-      updatedBy: creatorId,
-    };
+    const [created] = await db
+      .insert(groups)
+      .values({
+        id: groupId,
+        name: input.name,
+        description: input.description,
+        permissions: (input.permissions as string[]) || [],
+        isDefault: false,
+        isSystem: false,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: creatorId,
+        updatedBy: creatorId,
+      })
+      .returning();
 
-    await this.db.collection(Collections.GROUPS).doc(groupId).set(group);
-
-    return { id: groupId, ...group };
+    return toGroup(created!);
   }
 
   /**
    * Update a group
    */
   async updateGroup(groupId: string, input: UpdateGroupInput, updaterId: string): Promise<Group> {
-    const groupRef = this.db.collection(Collections.GROUPS).doc(groupId);
-    const groupDoc = await groupRef.get();
-
-    if (!groupDoc.exists) {
+    const existingGroup = await this.getGroup(groupId);
+    if (!existingGroup) {
       throw new NotFoundError('Group');
     }
-
-    const existingGroup = convertFirestoreDoc<Group>(groupDoc)!;
 
     // Check for name conflicts if name is being changed
     if (input.name && input.name !== existingGroup.name) {
@@ -209,15 +226,21 @@ export class GroupService {
       }
     }
 
-    const updates: Partial<Group> = {
-      ...input,
+    const updateValues: Record<string, unknown> = {
       updatedAt: new Date(),
       updatedBy: updaterId,
     };
+    if (input.name !== undefined) updateValues.name = input.name;
+    if (input.description !== undefined) updateValues.description = input.description;
+    if (input.permissions !== undefined) updateValues.permissions = input.permissions as string[];
 
-    await groupRef.update(updates);
+    const [updated] = await db
+      .update(groups)
+      .set(updateValues)
+      .where(eq(groups.id, groupId))
+      .returning();
 
-    return { ...existingGroup, ...updates };
+    return toGroup(updated!);
   }
 
   /**
@@ -228,38 +251,32 @@ export class GroupService {
     permissions: Permission[],
     updaterId: string
   ): Promise<Group> {
-    const groupRef = this.db.collection(Collections.GROUPS).doc(groupId);
-    const groupDoc = await groupRef.get();
-
-    if (!groupDoc.exists) {
+    const existingGroup = await this.getGroup(groupId);
+    if (!existingGroup) {
       throw new NotFoundError('Group');
     }
 
-    const existingGroup = convertFirestoreDoc<Group>(groupDoc)!;
+    const [updated] = await db
+      .update(groups)
+      .set({
+        permissions: permissions as string[],
+        updatedAt: new Date(),
+        updatedBy: updaterId,
+      })
+      .where(eq(groups.id, groupId))
+      .returning();
 
-    const updates: Partial<Group> = {
-      permissions,
-      updatedAt: new Date(),
-      updatedBy: updaterId,
-    };
-
-    await groupRef.update(updates);
-
-    return { ...existingGroup, ...updates };
+    return toGroup(updated!);
   }
 
   /**
    * Delete a group
    */
   async deleteGroup(groupId: string): Promise<void> {
-    const groupRef = this.db.collection(Collections.GROUPS).doc(groupId);
-    const groupDoc = await groupRef.get();
-
-    if (!groupDoc.exists) {
+    const group = await this.getGroup(groupId);
+    if (!group) {
       throw new NotFoundError('Group');
     }
-
-    const group = convertFirestoreDoc<Group>(groupDoc)!;
 
     // Prevent deleting system groups
     if (group.isSystem) {
@@ -271,13 +288,12 @@ export class GroupService {
       throw new ForbiddenError('Cannot delete the default group');
     }
 
-    // Check if group has any users
-    const userCountSnapshot = await this.db
-      .collection(Collections.USERS)
-      .where('groupIds', 'array-contains', groupId)
-      .count()
-      .get();
-    const userCount = userCountSnapshot.data().count;
+    // Check if group has any users via the junction table
+    const [userCountResult] = await db
+      .select({ count: count() })
+      .from(userGroups)
+      .where(eq(userGroups.groupId, groupId));
+    const userCount = userCountResult?.count ?? 0;
 
     if (userCount > 0) {
       throw new ValidationError(
@@ -285,7 +301,7 @@ export class GroupService {
       );
     }
 
-    await groupRef.delete();
+    await db.delete(groups).where(eq(groups.id, groupId));
   }
 
   /**
@@ -298,12 +314,20 @@ export class GroupService {
       throw new NotFoundError('Group');
     }
 
-    const snapshot = await this.db
-      .collection(Collections.USERS)
-      .where('groupIds', 'array-contains', groupId)
-      .get();
+    // Get users that belong to this group via the junction table
+    const rows = await db
+      .select({ user: users })
+      .from(users)
+      .innerJoin(userGroups, eq(users.id, userGroups.userId))
+      .where(eq(userGroups.groupId, groupId));
 
-    return convertFirestoreDocs<User>(snapshot);
+    if (rows.length === 0) return [];
+
+    // Fetch all groupIds for the returned users
+    const userIds = rows.map((r) => r.user.id);
+    const groupIdsMap = await fetchGroupIdsForUsers(userIds);
+
+    return rows.map((r) => toUser(r.user, groupIdsMap.get(r.user.id) || []));
   }
 
   /**
@@ -311,94 +335,82 @@ export class GroupService {
    * Creates the admin and users groups if they don't exist
    */
   async initializeDefaultGroups(): Promise<void> {
-    const batch = this.db.batch();
     const now = new Date();
 
-    // Admin group
-    const adminRef = this.db.collection(Collections.GROUPS).doc('admin');
-    const adminDoc = await adminRef.get();
-
-    if (!adminDoc.exists) {
-      const adminGroup: Omit<Group, 'id'> = {
+    // Admin group - upsert with onConflictDoNothing for idempotency
+    await db
+      .insert(groups)
+      .values({
+        id: 'admin',
         name: 'Administrators',
         description: 'Full access to all system features',
-        permissions: [...getAdminPermissions()],
+        permissions: [...getAdminPermissions()] as string[],
         isDefault: false,
         isSystem: true,
         createdAt: now,
         updatedAt: now,
         createdBy: 'system',
         updatedBy: 'system',
-      };
-      batch.set(adminRef, adminGroup);
-    }
+      })
+      .onConflictDoNothing();
 
-    // Users group
-    const usersRef = this.db.collection(Collections.GROUPS).doc('users');
-    const usersDoc = await usersRef.get();
-
-    if (!usersDoc.exists) {
-      const usersGroup: Omit<Group, 'id'> = {
+    // Users group - upsert with onConflictDoNothing for idempotency
+    await db
+      .insert(groups)
+      .values({
+        id: 'users',
         name: 'Users',
         description: 'Standard user access',
-        permissions: [...getUserPermissions()],
+        permissions: [...getUserPermissions()] as string[],
         isDefault: true,
         isSystem: true,
         createdAt: now,
         updatedAt: now,
         createdBy: 'system',
         updatedBy: 'system',
-      };
-      batch.set(usersRef, usersGroup);
-    }
-
-    await batch.commit();
-
-    // Migrate existing users from groupId to groupIds
-    await migrateAllUsersToMultiGroup();
+      })
+      .onConflictDoNothing();
   }
 
   /**
    * Set a group as the default group
    */
   async setDefaultGroup(groupId: string, updaterId: string): Promise<Group> {
-    const groupRef = this.db.collection(Collections.GROUPS).doc(groupId);
-    const groupDoc = await groupRef.get();
-
-    if (!groupDoc.exists) {
+    const existingGroup = await this.getGroup(groupId);
+    if (!existingGroup) {
       throw new NotFoundError('Group');
     }
 
-    // Remove default flag from current default group
-    const currentDefault = await this.db
-      .collection(Collections.GROUPS)
-      .where('isDefault', '==', true)
-      .limit(1)
-      .get();
+    await db.transaction(async (tx) => {
+      // Remove default flag from all current default groups
+      await tx
+        .update(groups)
+        .set({ isDefault: false })
+        .where(eq(groups.isDefault, true));
 
-    const batch = this.db.batch();
+      // Set new default
+      await tx
+        .update(groups)
+        .set({
+          isDefault: true,
+          updatedAt: new Date(),
+          updatedBy: updaterId,
+        })
+        .where(eq(groups.id, groupId));
 
-    if (!currentDefault.empty && currentDefault.docs[0]) {
-      batch.update(currentDefault.docs[0].ref, { isDefault: false });
-    }
-
-    // Set new default
-    batch.update(groupRef, {
-      isDefault: true,
-      updatedAt: new Date(),
-      updatedBy: updaterId,
+      // Also update settings
+      await tx
+        .update(settings)
+        .set({
+          defaultGroupId: groupId,
+          updatedAt: new Date(),
+          updatedBy: updaterId,
+        })
+        .where(eq(settings.id, 'app'));
     });
 
-    await batch.commit();
-
-    // Also update settings
-    await this.db.collection(Collections.SETTINGS).doc('app').update({
-      defaultGroupId: groupId,
-      updatedAt: new Date(),
-      updatedBy: updaterId,
-    });
-
-    const updatedDoc = await groupRef.get();
-    return convertFirestoreDoc<Group>(updatedDoc)!;
+    // Fetch and return the updated group
+    const updatedGroup = await this.getGroup(groupId);
+    return updatedGroup!;
   }
 }

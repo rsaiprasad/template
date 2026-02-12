@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { createBunWebSocket } from 'hono/bun';
 import { cors } from 'hono/cors';
 import type { WSContext } from 'hono/ws';
-import { fetchUserProfile, verifyToken } from './auth/verify-token.js';
+import { fetchUserProfile } from './auth/verify-token.js';
 import { config } from './config/index.js';
 import { handleTextMessage } from './gemini/chat-mode.js';
 import {
@@ -71,10 +71,7 @@ app.get(
       switch (message.type) {
         case 'auth': {
           try {
-            // Verify the Firebase token
-            await verifyToken(message.token);
-
-            // Fetch full user profile from backend
+            // Fetch full user profile from backend (backend verifies the token)
             const profile = await fetchUserProfile(message.token, config.backendUrl);
 
             const userData: UserData = {
@@ -115,13 +112,7 @@ app.get(
             send(ws, { type: 'error', message: 'Not authenticated', code: 'NOT_AUTHENTICATED' });
             return;
           }
-          try {
-            await verifyToken(message.token);
-            session.idToken = message.token;
-          } catch (error) {
-            const msg = error instanceof Error ? error.message : 'Token refresh failed';
-            send(ws, { type: 'error', message: msg, code: 'AUTH_REFRESH_ERROR' });
-          }
+          session.idToken = message.token;
           break;
         }
 

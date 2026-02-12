@@ -1,11 +1,14 @@
-import type { Group, UserWithPermissions } from '@admin-dashboard/shared';
+import type { Permission, UserWithPermissions } from '@admin-dashboard/shared';
+import { inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { Collections, convertFirestoreDoc, getAuthAdmin, getDb } from '../core/lib/firebase-admin';
+import { getAuthAdmin } from '../core/lib/firebase-admin';
 import { logAuditAction, loginAuditMiddleware } from '../core/middleware/audit';
 import { authMiddleware, buildAuthUser, optionalAuthMiddleware } from '../core/middleware/auth';
 import type { AppEnv } from '../core/types/context';
 import { badRequest, internalError, successResponse, unauthorized } from '../core/utils/response';
+import { db } from '../db';
+import { groups } from '../db/schema';
 import { auditService, groupService, settingsService, userService } from '../services';
 
 const authRoutes = new Hono<AppEnv>();
@@ -87,21 +90,21 @@ authRoutes.post('/login', loginAuditMiddleware, async (c) => {
     const groupNames: string[] = [];
 
     if (!user.isSuperAdmin) {
-      const db = getDb();
-      const permissionSet = new Set<string>();
-      for (const gid of user.groupIds) {
-        const groupDoc = await db.collection(Collections.GROUPS).doc(gid).get();
-        if (groupDoc.exists) {
-          const group = convertFirestoreDoc<Group>(groupDoc);
-          if (group) {
-            groupNames.push(group.name);
-            for (const perm of group.permissions) {
-              permissionSet.add(perm);
-            }
+      if (user.groupIds.length > 0) {
+        const rows = await db
+          .select({ name: groups.name, permissions: groups.permissions })
+          .from(groups)
+          .where(inArray(groups.id, user.groupIds));
+
+        const permissionSet = new Set<string>();
+        for (const row of rows) {
+          groupNames.push(row.name);
+          for (const perm of row.permissions) {
+            permissionSet.add(perm);
           }
         }
+        permissions = [...permissionSet] as Permission[];
       }
-      permissions = [...permissionSet];
     } else {
       groupNames.push('Super Admin');
     }
@@ -152,12 +155,14 @@ authRoutes.get('/me', authMiddleware, async (c) => {
   const groupNames: string[] = [];
 
   if (!user.isSuperAdmin) {
-    const db = getDb();
-    for (const gid of user.groupIds) {
-      const groupDoc = await db.collection(Collections.GROUPS).doc(gid).get();
-      if (groupDoc.exists) {
-        const group = convertFirestoreDoc<Group>(groupDoc);
-        if (group) groupNames.push(group.name);
+    if (user.groupIds.length > 0) {
+      const rows = await db
+        .select({ name: groups.name })
+        .from(groups)
+        .where(inArray(groups.id, user.groupIds));
+
+      for (const row of rows) {
+        groupNames.push(row.name);
       }
     }
   } else {

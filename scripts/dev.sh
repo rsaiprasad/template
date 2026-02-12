@@ -12,145 +12,89 @@ YELLOW='\033[0;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Emulator ports (must match firebase.json)
-EMULATOR_PORTS=(9099 5001 8080 5000 4000)
-EMULATOR_NAMES=("Auth:9099" "Functions:5001" "Firestore:8080" "Hosting:5000" "UI:4000")
+# Backend port
+BACKEND_PORT=${PORT:-3000}
 
-# Check which emulator ports are already in use
-check_ports() {
-    local busy_ports=()
-    local busy_pids=()
-    for i in "${!EMULATOR_PORTS[@]}"; do
-        local port=${EMULATOR_PORTS[$i]}
-        local pid
-        pid=$(lsof -ti :"$port" -sTCP:LISTEN 2>/dev/null | head -1)
-        if [ -n "$pid" ]; then
-            busy_ports+=("${EMULATOR_NAMES[$i]}")
-            busy_pids+=("$pid")
-        fi
-    done
-    BUSY_PORTS=("${busy_ports[@]}")
-    BUSY_PIDS=("${busy_pids[@]}")
-}
+# Firebase Auth emulator port (for Google OAuth)
+AUTH_EMULATOR_PORT=9099
 
-kill_existing() {
-    echo -e "${YELLOW}Stopping existing processes on emulator ports...${NC}"
-    for port in "${EMULATOR_PORTS[@]}"; do
-        local pids
-        pids=$(lsof -ti :"$port" -sTCP:LISTEN 2>/dev/null || true)
-        if [ -n "$pids" ]; then
-            echo "$pids" | xargs kill 2>/dev/null || true
-        fi
-    done
-    # Wait for ports to free up
-    sleep 2
-}
-
-# Get the Firebase project ID from .firebaserc (single source of truth).
-# We read the file directly instead of `firebase use` because `firebase use`
-# validates against real projects, but demo-* projects only exist in the emulator.
+# Get the Firebase project ID from .firebaserc
 cd "$PROJECT_ROOT"
 PROJECT_ID=$(node -e "console.log(JSON.parse(require('fs').readFileSync('./.firebaserc','utf8')).projects.default)" 2>/dev/null || echo "demo-project")
 echo -e "${BLUE}Using Firebase project: ${PROJECT_ID}${NC}"
 
-# Build backend if dist doesn't exist
-if [ ! -f "$PROJECT_ROOT/packages/backend/dist/index.js" ]; then
-    echo -e "${BLUE}Building backend...${NC}"
-    cd "$PROJECT_ROOT"
-    bun run build:backend
-fi
+# Check if backend port is in use
+check_port() {
+    local port=$1
+    local pid
+    pid=$(lsof -ti :"$port" -sTCP:LISTEN 2>/dev/null | head -1)
+    if [ -n "$pid" ]; then
+        echo "$pid"
+    fi
+}
 
-# Check for port conflicts
-check_ports
-SKIP_EMULATORS=false
-
-if [ ${#BUSY_PORTS[@]} -gt 0 ]; then
-    echo ""
-    echo -e "${YELLOW}Emulator ports already in use:${NC}"
-    for p in "${BUSY_PORTS[@]}"; do
-        echo -e "  ${YELLOW}  $p${NC}"
-    done
-    echo ""
-    echo "What would you like to do?"
-    echo "  1) Kill existing processes and start fresh"
-    echo "  2) Use already-running emulators"
-    echo "  3) Abort"
-    echo ""
-    read -r -p "Choose [1/2/3]: " choice
-
+BACKEND_PID_EXISTING=$(check_port "$BACKEND_PORT")
+if [ -n "$BACKEND_PID_EXISTING" ]; then
+    echo -e "${YELLOW}Port $BACKEND_PORT already in use (PID: $BACKEND_PID_EXISTING)${NC}"
+    echo "  1) Kill it and start fresh"
+    echo "  2) Abort"
+    read -r -p "Choose [1/2]: " choice
     case "$choice" in
-        1)
-            kill_existing
-            # Re-check to make sure ports are free
-            check_ports
-            if [ ${#BUSY_PORTS[@]} -gt 0 ]; then
-                echo -e "${RED}Failed to free ports: ${BUSY_PORTS[*]}${NC}"
-                echo "Try manually killing processes or use option 2."
-                exit 1
-            fi
-            ;;
-        2)
-            SKIP_EMULATORS=true
-            echo -e "${GREEN}Using existing emulators.${NC}"
-            ;;
-        *)
-            echo "Aborted."
-            exit 0
-            ;;
+        1) kill "$BACKEND_PID_EXISTING" 2>/dev/null; sleep 1 ;;
+        *) echo "Aborted."; exit 0 ;;
     esac
 fi
 
+# Start Firebase Auth emulator (for Google OAuth in dev)
 EMU_PID=""
-
-if [ "$SKIP_EMULATORS" = false ]; then
-    # Start emulators in background
-    # Firebase CLI must run on Node, not Bun. Bun reports connection errors as
-    # "ConnectionRefused" while Node uses "ECONNREFUSED". The emulator's worker
-    # retry logic only checks for the Node error code, so under Bun the emulator
-    # gives up on function workers before they finish starting.
-    FIREBASE_BIN="$(realpath "$(which firebase)")"
-    # bun run creates a fake 'node' shim at /tmp/bun-node-*/node that is
-    # actually bun in disguise. Use mise to get the real Node.js binary so
-    # the emulator's worker processes use Node (not bun) — required because
-    # firebase-tools' retry logic depends on Node-specific error codes.
+AUTH_PID_EXISTING=$(check_port "$AUTH_EMULATOR_PORT")
+if [ -n "$AUTH_PID_EXISTING" ]; then
+    echo -e "${GREEN}Auth emulator already running on port $AUTH_EMULATOR_PORT${NC}"
+else
     NODE_BIN="$(mise which node 2>/dev/null || echo node)"
-    echo -e "${BLUE}Starting Firebase Emulators (node=$NODE_BIN)...${NC}"
+    FIREBASE_BIN="$(realpath "$(which firebase)" 2>/dev/null || echo firebase)"
+    echo -e "${BLUE}Starting Firebase Auth Emulator (node=$NODE_BIN)...${NC}"
     cd "$PROJECT_ROOT"
-    "$NODE_BIN" "$FIREBASE_BIN" emulators:start --project "$PROJECT_ID" &
+    "$NODE_BIN" "$FIREBASE_BIN" emulators:start --only auth --project "$PROJECT_ID" &
     EMU_PID=$!
 
-    # Wait for emulators and functions to be ready
-    echo -e "${BLUE}Waiting for emulators...${NC}"
-    for i in {1..60}; do
-        # Check if the api function is loaded by calling the health endpoint
-        RESPONSE=$(curl -s "http://localhost:5001/${PROJECT_ID}/us-central1/api/api/v1/health" 2>/dev/null || echo "")
-        if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
+    # Wait for auth emulator
+    for i in {1..30}; do
+        if curl -s "http://localhost:$AUTH_EMULATOR_PORT" >/dev/null 2>&1; then
             break
         fi
-        # Check if emulator process died
-        if ! kill -0 "$EMU_PID" 2>/dev/null; then
-            echo -e "${RED}Emulators failed to start${NC}"
+        if [ -n "$EMU_PID" ] && ! kill -0 "$EMU_PID" 2>/dev/null; then
+            echo -e "${RED}Auth emulator failed to start${NC}"
             exit 1
         fi
         sleep 1
     done
-
-    # Verify function is loaded
-    RESPONSE=$(curl -s "http://localhost:5001/${PROJECT_ID}/us-central1/api/api/v1/health" 2>/dev/null || echo "")
-    if ! echo "$RESPONSE" | grep -q '"status":"healthy"'; then
-        echo -e "${YELLOW}Warning: Functions may still be loading...${NC}"
-    fi
-
-    echo -e "${GREEN}Emulators ready!${NC}"
-else
-    # Verify existing emulators are actually healthy
-    RESPONSE=$(curl -s "http://localhost:5001/${PROJECT_ID}/us-central1/api/api/v1/health" 2>/dev/null || echo "")
-    if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
-        echo -e "${GREEN}Existing emulators are healthy!${NC}"
-    else
-        echo -e "${YELLOW}Warning: Existing emulators may not be fully ready. Functions endpoint not responding yet.${NC}"
-    fi
+    echo -e "${GREEN}Auth emulator ready!${NC}"
 fi
+
+# Export emulator env vars so firebase-admin SDK connects to local emulator
+export FIREBASE_AUTH_EMULATOR_HOST="localhost:$AUTH_EMULATOR_PORT"
+export GCLOUD_PROJECT="$PROJECT_ID"
+
+# Start backend Bun server
+echo -e "${BLUE}Starting Backend (Bun server on port $BACKEND_PORT)...${NC}"
+cd "$PROJECT_ROOT/packages/backend"
+PORT=$BACKEND_PORT bun run --watch src/index.ts &
+BE_PID=$!
+
+# Wait for backend to be ready
+for i in {1..30}; do
+    RESPONSE=$(curl -s "http://localhost:$BACKEND_PORT/api/v1/health" 2>/dev/null || echo "")
+    if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
+        break
+    fi
+    if ! kill -0 "$BE_PID" 2>/dev/null; then
+        echo -e "${RED}Backend failed to start${NC}"
+        exit 1
+    fi
+    sleep 1
+done
+echo -e "${GREEN}Backend ready!${NC}"
 
 # Start frontend
 echo -e "${BLUE}Starting Frontend...${NC}"
@@ -158,7 +102,7 @@ cd "$PROJECT_ROOT/packages/frontend"
 bun run dev &
 FE_PID=$!
 
-# Start AI service if configured (.env with GEMINI_API_KEY exists)
+# Start AI service if configured
 AI_PID=""
 AI_ENV="$PROJECT_ROOT/packages/ai-service/.env"
 if [ -f "$AI_ENV" ] && grep -q "GEMINI_API_KEY=." "$AI_ENV"; then
@@ -178,23 +122,24 @@ echo -e "${GREEN}  Local development environment ready!${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
 echo "  Frontend:     http://localhost:5173"
-echo "  Emulator UI:  http://localhost:4000"
-echo "  API:          http://localhost:5001/${PROJECT_ID}/us-central1/api"
+echo "  Backend API:  http://localhost:$BACKEND_PORT/api/v1"
+echo "  Swagger:      http://localhost:$BACKEND_PORT/api/v1/swagger"
+echo "  Auth Emulator: http://localhost:$AUTH_EMULATOR_PORT"
 if [ -n "$AI_PID" ]; then
 echo "  AI Service:   http://localhost:3001"
 fi
 echo ""
 echo "Press Ctrl+C to stop all services"
 
-# Handle Ctrl+C - only kill processes we started
+# Handle Ctrl+C
 cleanup() {
     echo 'Shutting down...'
     [ -n "$FE_PID" ] && kill "$FE_PID" 2>/dev/null
+    [ -n "$BE_PID" ] && kill "$BE_PID" 2>/dev/null
     [ -n "$AI_PID" ] && kill "$AI_PID" 2>/dev/null
     [ -n "$EMU_PID" ] && kill "$EMU_PID" 2>/dev/null
     exit 0
 }
 trap cleanup INT TERM
 
-# Wait for either process to exit
 wait

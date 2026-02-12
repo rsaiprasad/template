@@ -1,205 +1,121 @@
-# Infrastructure as Code (Terraform)
+# Infrastructure
 
-This directory contains Terraform configurations for provisioning Firebase and GCP infrastructure.
+This directory contains infrastructure configuration and setup scripts for the Admin Dashboard.
 
-## Prerequisites
+## Overview
 
-1. **Terraform CLI** (free, open-source)
-   ```bash
-   # macOS
-   brew install terraform
+The Admin Dashboard runs on your desktop with PostgreSQL, exposed to the internet via Cloudflare Tunnel. The frontend is deployed to Cloudflare Pages.
 
-   # Linux
-   # Download from https://developer.hashicorp.com/terraform/downloads
-   ```
+```
+infrastructure/
+├── cloudflare/
+│   └── tunnel-config.example.yml   # Cloudflare Tunnel config template
+├── systemd/
+│   ├── admin-dashboard.service     # Backend systemd service
+│   └── cloudflared.service         # Cloudflare Tunnel systemd service
+└── scripts/
+    └── setup-local.sh              # PostgreSQL + env setup wizard
+```
 
-2. **Google Cloud SDK**
-   ```bash
-   # macOS
-   brew install google-cloud-sdk
+## Components
 
-   # Linux/Windows
-   # https://cloud.google.com/sdk/docs/install
-   ```
+| Component | Purpose | Configuration |
+|-----------|---------|---------------|
+| **PostgreSQL** | Application database | `DATABASE_URL` in `packages/backend/.env` |
+| **systemd (backend)** | Manages the Bun backend server | `systemd/admin-dashboard.service` |
+| **systemd (tunnel)** | Manages the Cloudflare Tunnel | `systemd/cloudflared.service` |
+| **Cloudflare Tunnel** | Exposes localhost:3000 to the internet | `~/.cloudflared/config.yml` |
+| **Cloudflare Pages** | Hosts the static frontend (CDN) | Deployed via `wrangler` CLI |
+| **Firebase Auth** | Google OAuth (free tier) | Firebase Console |
 
-3. **Authenticate with GCP**
-   ```bash
-   gcloud auth login
-   gcloud auth application-default login
-   ```
-
-## Quick Start
-
-### Option 1: Using the Setup Script (Recommended)
+## Quick Start (Local Development)
 
 ```bash
-# Run the interactive setup
-bun run setup:terraform
-
-# Or run directly
-./infrastructure/scripts/setup-terraform.sh
+# Run the interactive setup script
+./infrastructure/scripts/setup-local.sh
 ```
 
-### Option 2: Manual Terraform Commands
+This will:
+1. Check that PostgreSQL is installed and running
+2. Create a database user and database
+3. Generate `packages/backend/.env` with `DATABASE_URL`
+4. Run Drizzle migrations to create tables
+
+## Production Setup
+
+See [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md) for the full production deployment guide covering:
+
+1. PostgreSQL setup and configuration
+2. Backend systemd service installation
+3. Cloudflare Pages deployment
+4. Cloudflare Tunnel setup
+5. Firebase Auth configuration (Google OAuth)
+6. Database backups
+
+## systemd Services
+
+### Backend Service
+
+The backend runs as a Bun server on port 3000:
 
 ```bash
-cd infrastructure/terraform
+# Install
+sudo cp infrastructure/systemd/admin-dashboard.service /etc/systemd/system/admin-dashboard@.service
+sudo systemctl daemon-reload
+sudo systemctl enable admin-dashboard@$USER
+sudo systemctl start admin-dashboard@$USER
 
-# 1. Copy and configure variables
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your values
+# Check status
+sudo systemctl status admin-dashboard@$USER
 
-# 2. Initialize Terraform
-terraform init
-
-# 3. Preview changes
-terraform plan
-
-# 4. Apply changes
-terraform apply
-
-# 5. Generate .env files
-../scripts/setup-terraform.sh env
+# View logs
+journalctl -u admin-dashboard@$USER -f
 ```
 
-## Configuration
+### Cloudflare Tunnel Service
 
-Edit `terraform.tfvars` with your values:
-
-```hcl
-# Required
-project_id        = "my-unique-project-id"
-super_admin_email = "admin@company.com"
-
-# Optional
-project_name = "Admin Dashboard"
-region       = "us-central1"
-```
-
-### Enabling Google Sign-In
-
-To enable Google Sign-In via Terraform:
-
-1. Go to [GCP Console > APIs & Services > Credentials](https://console.cloud.google.com/apis/credentials)
-2. Create an OAuth 2.0 Client ID (Web application)
-3. Add authorized redirect URI: `https://YOUR_PROJECT.firebaseapp.com/__/auth/handler`
-4. Copy Client ID and Secret to `terraform.tfvars`:
-
-```hcl
-enable_google_signin = true
-oauth_client_id      = "YOUR_CLIENT_ID.apps.googleusercontent.com"
-oauth_client_secret  = "YOUR_CLIENT_SECRET"
-```
-
-## Available Commands
-
-| Command | Description |
-|---------|-------------|
-| `bun run setup:terraform` | Interactive setup (init, plan, apply) |
-| `bun run infra:plan` | Preview infrastructure changes |
-| `bun run infra:apply` | Apply changes and generate .env files |
-| `bun run infra:destroy` | Destroy all infrastructure |
-
-## What Gets Created
-
-| Resource | Description |
-|----------|-------------|
-| Firebase Project | Enables Firebase on the GCP project |
-| Required APIs | Firestore, Cloud Functions, Identity Platform, etc. |
-| Firestore Database | Native mode database in specified region |
-| Firestore Rules | Security rules from `firebase/firestore.rules` |
-| Firebase Web App | Web application with SDK configuration |
-| Identity Platform | Authentication configuration |
-| Service Account | Development service account with necessary roles |
-
-## State Management
-
-Terraform state is stored locally in `terraform.tfstate`. This file:
-
-- Contains sensitive data (API keys, secrets)
-- Is gitignored (do not commit)
-- Should be backed up securely
-- Can optionally be stored in a GCS bucket for team collaboration
-
-### Using Remote State (Optional)
-
-For team collaboration, configure GCS backend:
-
-```hcl
-# backend.tf
-terraform {
-  backend "gcs" {
-    bucket = "your-terraform-state-bucket"
-    prefix = "admin-dashboard"
-  }
-}
-```
-
-## Manual Steps Required
-
-Some steps cannot be automated via Terraform:
-
-1. **Upgrade to Blaze Plan** - Required for Cloud Functions
-   - Go to Firebase Console > Usage & Billing
-
-2. **Create Service Account Key** (if not using Terraform)
-   ```bash
-   gcloud iam service-accounts keys create ./service-account.json \
-     --iam-account=admin-dashboard-dev@YOUR_PROJECT.iam.gserviceaccount.com
-   ```
-
-## Importing Existing Resources
-
-If you have existing resources, import them:
+The tunnel exposes your local backend to the internet:
 
 ```bash
-cd infrastructure/terraform
+# Install
+sudo cp infrastructure/systemd/cloudflared.service /etc/systemd/system/cloudflared@.service
+sudo systemctl daemon-reload
+sudo systemctl enable cloudflared@$USER
+sudo systemctl start cloudflared@$USER
 
-# Import Firebase project
-terraform import google_firebase_project.default YOUR_PROJECT_ID
-
-# Import Firestore database
-terraform import google_firestore_database.default "projects/YOUR_PROJECT_ID/databases/(default)"
-
-# Import web app
-terraform import google_firebase_web_app.default "projects/YOUR_PROJECT_ID/webApps/APP_ID"
+# Check status
+sudo systemctl status cloudflared@$USER
 ```
 
-## Destroying Infrastructure
+## Cloudflare Tunnel Configuration
+
+Copy the example config and fill in your tunnel details:
 
 ```bash
-bun run infra:destroy
-# or
-cd infrastructure/terraform && terraform destroy
+cp infrastructure/cloudflare/tunnel-config.example.yml ~/.cloudflared/config.yml
 ```
 
-**Warning**: This will delete all resources. Firestore data will be lost.
+Edit `~/.cloudflared/config.yml`:
 
-## Troubleshooting
+```yaml
+tunnel: <YOUR_TUNNEL_ID>
+credentials-file: /home/<USER>/.cloudflared/<TUNNEL_ID>.json
 
-### "Error creating Project: googleapi: Error 403: Request had insufficient authentication scopes"
-
-Run:
-```bash
-gcloud auth application-default login
+ingress:
+  - hostname: api.yourdomain.com
+    service: http://localhost:3000
+    originRequest:
+      noTLSVerify: true
+  - service: http_status:404
 ```
 
-### "Error: Provider produced inconsistent result after apply"
+## Cost
 
-This can happen with Firebase resources. Try:
-```bash
-terraform refresh
-terraform apply
-```
-
-### "The billing account is not valid"
-
-Either:
-- The billing account ID is incorrect
-- Your account doesn't have permission to use the billing account
-- The billing account is closed
-
-Check your billing accounts:
-```bash
-gcloud billing accounts list
-```
+| Component | Cost |
+|-----------|------|
+| PostgreSQL (local) | Free |
+| Bun server (local) | Free |
+| Cloudflare Tunnel | Free |
+| Cloudflare Pages | Free |
+| Firebase Auth | Free (50k MAU) |
+| **Total** | **$0/month** |

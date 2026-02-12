@@ -8,15 +8,12 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
-# Get project ID from .firebaserc
-PROJECT_ID=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$PROJECT_ROOT/.firebaserc','utf8')).projects.default)" 2>/dev/null || echo "demo-project")
-
-# Check if emulators are running
-RESPONSE=$(curl -sf "http://localhost:5001/${PROJECT_ID}/us-central1/api/api/v1/health" 2>/dev/null || echo "")
+# Check if backend is running
+RESPONSE=$(curl -sf "http://localhost:3000/api/v1/health" 2>/dev/null || echo "")
 if ! echo "$RESPONSE" | grep -q '"status":"healthy"'; then
     echo ""
-    echo -e "${RED}Firebase emulators are not running.${NC}"
-    echo -e "${YELLOW}The AI service needs the backend API which runs inside the emulator.${NC}"
+    echo -e "${RED}Backend server is not running.${NC}"
+    echo -e "${YELLOW}The AI service needs the backend API running on port 3000.${NC}"
     echo ""
     echo "  Run this first:  bun run dev:full"
     echo ""

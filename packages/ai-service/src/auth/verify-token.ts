@@ -20,7 +20,9 @@ function getFirebaseApp(): App {
       credential: cert(serviceAccountKey),
     });
   } else {
-    app = initializeApp();
+    app = initializeApp({
+      projectId: process.env.GCLOUD_PROJECT || 'demo-project',
+    });
   }
 
   return app;

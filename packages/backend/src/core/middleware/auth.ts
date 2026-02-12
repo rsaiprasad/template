@@ -1,7 +1,9 @@
-import type { Group, User } from '@admin-dashboard/shared';
+import type { User } from '@admin-dashboard/shared';
+import { eq, inArray } from 'drizzle-orm';
 import type { MiddlewareHandler } from 'hono';
-import { normalizeUserGroupIds } from '../../services/migration';
-import { Collections, convertFirestoreDoc, getAuthAdmin, getDb } from '../lib/firebase-admin';
+import { db } from '../../db';
+import { groups, userGroups, users } from '../../db/schema';
+import { getAuthAdmin } from '../lib/firebase-admin';
 import type { AppEnv, AuthUser } from '../types/context';
 import { ErrorCodes, errorResponse, unauthorized } from '../utils/response';
 
@@ -21,31 +23,60 @@ export function buildAuthUser(uid: string, userRecord: User, permissions: string
 }
 
 /**
+ * Fetch group IDs for a user from the junction table
+ */
+async function fetchUserGroupIds(userId: string): Promise<string[]> {
+  const rows = await db
+    .select({ groupId: userGroups.groupId })
+    .from(userGroups)
+    .where(eq(userGroups.userId, userId));
+
+  return rows.map((row) => row.groupId);
+}
+
+/**
  * Fetch all groups for the given groupIds and return the union of all permissions
  */
 async function fetchMultiGroupPermissions(groupIds: string[]): Promise<string[]> {
   if (groupIds.length === 0) return [];
 
-  const db = getDb();
+  const rows = await db
+    .select({ permissions: groups.permissions })
+    .from(groups)
+    .where(inArray(groups.id, groupIds));
+
   const permissionSet = new Set<string>();
-
-  // Fetch all group docs in parallel
-  const groupDocs = await Promise.all(
-    groupIds.map((gid) => db.collection(Collections.GROUPS).doc(gid).get())
-  );
-
-  for (const groupDoc of groupDocs) {
-    if (groupDoc.exists) {
-      const group = convertFirestoreDoc<Group>(groupDoc);
-      if (group?.permissions) {
-        for (const perm of group.permissions) {
-          permissionSet.add(perm);
-        }
-      }
+  for (const row of rows) {
+    for (const perm of row.permissions || []) {
+      permissionSet.add(perm);
     }
   }
 
   return [...permissionSet];
+}
+
+/**
+ * Build a User record from a Drizzle row and groupIds
+ */
+function toUserRecord(
+  row: typeof users.$inferSelect,
+  groupIds: string[]
+): User {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.displayName,
+    photoURL: row.photoURL,
+    status: row.status as User['status'],
+    isSuperAdmin: row.isSuperAdmin,
+    groupIds,
+    disabledAt: row.disabledAt ?? undefined,
+    disabledBy: row.disabledBy ?? undefined,
+    preferences: (row.preferences ?? { theme: 'system' }) as User['preferences'],
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    lastLoginAt: row.lastLoginAt!,
+  };
 }
 
 /**
@@ -73,24 +104,21 @@ export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
     const auth = getAuthAdmin();
     const decodedToken = await auth.verifyIdToken(token, true);
 
-    // Get user document from Firestore
-    const db = getDb();
-    const userDoc = await db.collection(Collections.USERS).doc(decodedToken.uid).get();
+    // Get user from database
+    const [userRow] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, decodedToken.uid));
 
-    if (!userDoc.exists) {
+    if (!userRow) {
       // User doesn't exist in our database yet - this can happen on first login
       // The login endpoint should create the user
       return unauthorized(c, 'User not registered. Please complete registration.');
     }
 
-    const rawData = userDoc.data() as Record<string, unknown>;
-    // Normalize groupId -> groupIds for backward compatibility
-    const groupIds = normalizeUserGroupIds(rawData);
-    const userRecord = { ...convertFirestoreDoc<User>(userDoc)!, groupIds };
-
-    if (!userRecord) {
-      return unauthorized(c, 'Failed to load user data');
-    }
+    // Get group IDs from junction table
+    const groupIds = await fetchUserGroupIds(decodedToken.uid);
+    const userRecord = toUserRecord(userRow, groupIds);
 
     // Check if user is disabled
     if (userRecord.status === 'disabled') {
@@ -167,16 +195,17 @@ export const optionalAuthMiddleware: MiddlewareHandler<AppEnv> = async (c, next)
     const auth = getAuthAdmin();
     const decodedToken = await auth.verifyIdToken(token, true);
 
-    const db = getDb();
-    const userDoc = await db.collection(Collections.USERS).doc(decodedToken.uid).get();
+    const [userRow] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, decodedToken.uid));
 
-    if (userDoc.exists) {
-      const rawData = userDoc.data() as Record<string, unknown>;
-      const groupIds = normalizeUserGroupIds(rawData);
-      const userRecord = { ...convertFirestoreDoc<User>(userDoc)!, groupIds };
+    if (userRow) {
+      const groupIds = await fetchUserGroupIds(decodedToken.uid);
+      const userRecord = toUserRecord(userRow, groupIds);
 
       // Check if user is disabled - don't authenticate disabled users
-      if (userRecord && userRecord.status !== 'disabled') {
+      if (userRecord.status !== 'disabled') {
         let permissions: string[] = [];
 
         if (!userRecord.isSuperAdmin) {

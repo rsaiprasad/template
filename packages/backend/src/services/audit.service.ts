@@ -1,26 +1,22 @@
 import type { AuditLog, AuditSearchParams, CreateAuditLogInput } from '@admin-dashboard/shared';
-import {
-  Collections,
-  convertFirestoreDoc,
-  convertFirestoreDocs,
-  getDb,
-} from '../core/lib/firebase-admin';
+import { and, count, desc, asc, eq, gte, lte, lt } from 'drizzle-orm';
+import { db } from '../db';
+import { auditLogs } from '../db/schema';
 
 /**
  * Audit Service
  * Handles audit log creation and retrieval
  */
 export class AuditService {
-  private db = getDb();
-
   /**
    * Create an audit log entry
    */
   async createAuditLog(input: CreateAuditLogInput): Promise<AuditLog> {
-    const logId = this.db.collection(Collections.AUDIT_LOGS).doc().id;
+    const id = crypto.randomUUID();
     const timestamp = new Date();
 
-    const auditLog: Omit<AuditLog, 'id'> = {
+    const values = {
+      id,
       timestamp,
       actorId: input.actorId,
       actorEmail: input.actorEmail,
@@ -34,17 +30,21 @@ export class AuditService {
       ...(input.userAgent !== undefined && { userAgent: input.userAgent }),
     };
 
-    await this.db.collection(Collections.AUDIT_LOGS).doc(logId).set(auditLog);
+    const [row] = await db.insert(auditLogs).values(values).returning();
 
-    return { id: logId, ...auditLog };
+    return this.toAuditLog(row!);
   }
 
   /**
    * Get a single audit log by ID
    */
   async getAuditLog(logId: string): Promise<AuditLog | null> {
-    const doc = await this.db.collection(Collections.AUDIT_LOGS).doc(logId).get();
-    return convertFirestoreDoc<AuditLog>(doc);
+    const [row] = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.id, logId));
+
+    return row ? this.toAuditLog(row) : null;
   }
 
   /**
@@ -64,45 +64,51 @@ export class AuditService {
       sortOrder = 'desc',
     } = params;
 
-    let baseQuery: FirebaseFirestore.Query = this.db.collection(Collections.AUDIT_LOGS);
+    // Build dynamic where conditions
+    const conditions = [];
 
-    // Filter by action
     if (action) {
-      baseQuery = baseQuery.where('action', '==', action);
+      conditions.push(eq(auditLogs.action, action));
     }
 
-    // Filter by resource
     if (resource) {
-      baseQuery = baseQuery.where('resource', '==', resource);
+      conditions.push(eq(auditLogs.resource, resource));
     }
 
-    // Filter by actor
     if (actorId) {
-      baseQuery = baseQuery.where('actorId', '==', actorId);
+      conditions.push(eq(auditLogs.actorId, actorId));
     }
 
-    // Filter by date range
     if (startDate) {
-      baseQuery = baseQuery.where('timestamp', '>=', new Date(startDate));
+      conditions.push(gte(auditLogs.timestamp, new Date(startDate)));
     }
 
     if (endDate) {
-      baseQuery = baseQuery.where('timestamp', '<=', new Date(endDate));
+      conditions.push(lte(auditLogs.timestamp, new Date(endDate)));
     }
 
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
     // Get total count
-    const countSnapshot = await baseQuery.count().get();
-    const total = countSnapshot.data().count;
+    const [countResult] = await db
+      .select({ count: count() })
+      .from(auditLogs)
+      .where(whereClause);
+    const total = countResult?.count ?? 0;
 
-    // Apply sorting (always by timestamp)
-    baseQuery = baseQuery.orderBy('timestamp', sortOrder === 'asc' ? 'asc' : 'desc');
-
-    // Apply pagination
+    // Apply sorting and pagination
     const offset = (page - 1) * limit;
-    baseQuery = baseQuery.offset(offset).limit(limit);
+    const orderByClause = sortOrder === 'asc' ? asc(auditLogs.timestamp) : desc(auditLogs.timestamp);
 
-    const snapshot = await baseQuery.get();
-    const logs = convertFirestoreDocs<AuditLog>(snapshot);
+    const rows = await db
+      .select()
+      .from(auditLogs)
+      .where(whereClause)
+      .orderBy(orderByClause)
+      .offset(offset)
+      .limit(limit);
+
+    const logs = rows.map((row) => this.toAuditLog(row));
 
     return { logs, total };
   }
@@ -115,29 +121,33 @@ export class AuditService {
     resourceId: string,
     limit = 50
   ): Promise<AuditLog[]> {
-    const snapshot = await this.db
-      .collection(Collections.AUDIT_LOGS)
-      .where('resource', '==', resource)
-      .where('resourceId', '==', resourceId)
-      .orderBy('timestamp', 'desc')
-      .limit(limit)
-      .get();
+    const rows = await db
+      .select()
+      .from(auditLogs)
+      .where(
+        and(
+          eq(auditLogs.resource, resource),
+          eq(auditLogs.resourceId, resourceId)
+        )
+      )
+      .orderBy(desc(auditLogs.timestamp))
+      .limit(limit);
 
-    return convertFirestoreDocs<AuditLog>(snapshot);
+    return rows.map((row) => this.toAuditLog(row));
   }
 
   /**
    * Get recent audit logs for a user (as actor)
    */
   async getAuditLogsForUser(userId: string, limit = 50): Promise<AuditLog[]> {
-    const snapshot = await this.db
-      .collection(Collections.AUDIT_LOGS)
-      .where('actorId', '==', userId)
-      .orderBy('timestamp', 'desc')
-      .limit(limit)
-      .get();
+    const rows = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.actorId, userId))
+      .orderBy(desc(auditLogs.timestamp))
+      .limit(limit);
 
-    return convertFirestoreDocs<AuditLog>(snapshot);
+    return rows.map((row) => this.toAuditLog(row));
   }
 
   /**
@@ -151,30 +161,42 @@ export class AuditService {
     byAction: Record<string, number>;
     byResource: Record<string, number>;
   }> {
-    let baseQuery: FirebaseFirestore.Query = this.db.collection(Collections.AUDIT_LOGS);
+    const conditions = [];
 
     if (startDate) {
-      baseQuery = baseQuery.where('timestamp', '>=', startDate);
+      conditions.push(gte(auditLogs.timestamp, startDate));
     }
 
     if (endDate) {
-      baseQuery = baseQuery.where('timestamp', '<=', endDate);
+      conditions.push(lte(auditLogs.timestamp, endDate));
     }
 
-    // Use count() for efficient total (no document fetches)
-    const countSnapshot = await baseQuery.count().get();
-    const totalLogs = countSnapshot.data().count;
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Use count() for efficient total
+    const [countResult] = await db
+      .select({ count: count() })
+      .from(auditLogs)
+      .where(whereClause);
+    const totalLogs = countResult?.count ?? 0;
 
     // Cap the breakdown query to prevent OOM on large datasets
-    const snapshot = await baseQuery.orderBy('timestamp', 'desc').limit(10000).get();
-    const logs = convertFirestoreDocs<AuditLog>(snapshot);
+    const rows = await db
+      .select({
+        action: auditLogs.action,
+        resource: auditLogs.resource,
+      })
+      .from(auditLogs)
+      .where(whereClause)
+      .orderBy(desc(auditLogs.timestamp))
+      .limit(10000);
 
     const byAction: Record<string, number> = {};
     const byResource: Record<string, number> = {};
 
-    for (const log of logs) {
-      byAction[log.action] = (byAction[log.action] || 0) + 1;
-      byResource[log.resource] = (byResource[log.resource] || 0) + 1;
+    for (const row of rows) {
+      byAction[row.action] = (byAction[row.action] || 0) + 1;
+      byResource[row.resource] = (byResource[row.resource] || 0) + 1;
     }
 
     return {
@@ -192,23 +214,31 @@ export class AuditService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
-    const snapshot = await this.db
-      .collection(Collections.AUDIT_LOGS)
-      .where('timestamp', '<', cutoffDate)
-      .limit(500) // Process in batches
-      .get();
+    const result = await db
+      .delete(auditLogs)
+      .where(lt(auditLogs.timestamp, cutoffDate))
+      .returning({ id: auditLogs.id });
 
-    if (snapshot.empty) {
-      return 0;
-    }
+    return result.length;
+  }
 
-    const batch = this.db.batch();
-    snapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-
-    await batch.commit();
-
-    return snapshot.size;
+  /**
+   * Convert a Drizzle row to an AuditLog
+   */
+  private toAuditLog(row: typeof auditLogs.$inferSelect): AuditLog {
+    return {
+      id: row.id,
+      timestamp: row.timestamp,
+      actorId: row.actorId,
+      actorEmail: row.actorEmail,
+      actorName: row.actorName,
+      action: row.action as AuditLog['action'],
+      resource: row.resource as AuditLog['resource'],
+      resourceId: row.resourceId,
+      description: row.description,
+      ...(row.changes !== undefined && row.changes !== null && { changes: row.changes as AuditLog['changes'] }),
+      ...(row.ipAddress !== undefined && row.ipAddress !== null && { ipAddress: row.ipAddress }),
+      ...(row.userAgent !== undefined && row.userAgent !== null && { userAgent: row.userAgent }),
+    };
   }
 }

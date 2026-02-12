@@ -5,29 +5,37 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
+    "start": "bun run dist/index.js",
     "build": "bun run build.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:unit": "bun test",
     "test:coverage": "bun test --coverage",
     "test:watch": "bun test --watch",
-    "generate:openapi": "bun run scripts/generate-openapi.ts"
+    "generate:openapi": "bun run scripts/generate-openapi.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@hono/swagger-ui": "^0.4.0",
     "@hono/zod-openapi": "^0.18.0",
+    "drizzle-orm": "^0.45.1",
     "firebase-admin": "^12.7.0",
-    "firebase-functions": "^7.0.5",
     "hono": "^4.6.0",
+    "postgres": "^3.4.8",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@admin-dashboard/shared": "workspace:*",
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.16.0",
+    "drizzle-kit": "^0.31.9",
     "esbuild": "^0.27.2",
     "typescript": "^5.6.0"
   },
   "engines": {
-    "node": ">=24.0.0"
+    "bun": ">=1.0.0"
   }
 }

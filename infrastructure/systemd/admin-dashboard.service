@@ -1,0 +1,18 @@
+[Unit]
+Description=Admin Dashboard Backend (Bun)
+After=postgresql.service network.target
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/workspace/admin-dashboard/packages/backend
+ExecStart=/usr/local/bin/bun run src/index.ts
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+EnvironmentFile=/home/%i/workspace/admin-dashboard/packages/backend/.env
+
+[Install]
+WantedBy=multi-user.target

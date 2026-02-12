@@ -16,12 +16,14 @@ This is an **Admin Dashboard Template** — a reusable foundation for B2C/B2B Sa
 - **Core permissions** (users, groups, audit) are defined in `packages/backend/src/core/permissions.ts` — template infrastructure, don't edit
 - **Custom permissions** are added by developers in `packages/shared/src/constants/permissions.ts` (`CUSTOM_PERMISSIONS` record) — these auto-merge with core permissions and appear in the Group Management UI
 - **Permission types** are in `packages/shared/src/core/types/permission.ts`: `CorePermission` (strict union of template permissions), `Permission` (extensible with `string & {}` for custom permissions)
-- **Groups are stored in Firestore** with assigned permission strings
+- **Groups are stored in PostgreSQL** (`groups` table) with assigned permission strings (JSONB array)
+- **User-group relationships** use a `user_groups` junction table for many-to-many mapping
 - **Super Admin** is determined by `SUPER_ADMIN_EMAIL` env var (not first login) and bypasses all permission checks
 - Backend enforces permissions via middleware (`requirePermission`); frontend conditionally renders via `user.permissions` array
 
 ### Auth
 - Google OAuth only (no email/password) — even in dev mode with emulators
+- Firebase Auth is used solely for Google OAuth (free tier) — no Firestore or Cloud Functions
 - Firebase Auth emulator shows a Google sign-in popup for test users
 
 ### Admin Screens
@@ -29,21 +31,18 @@ This is an **Admin Dashboard Template** — a reusable foundation for B2C/B2B Sa
 - **Group Management** (`/groups`): create/edit/delete groups, assign permissions, set default group
 
 ### Multi-Group Model
-- Users have `groupIds: string[]` (not a single `groupId`) -- they can belong to multiple groups
+- Users belong to multiple groups via the `user_groups` junction table
 - Permissions are **merged** from all assigned groups (union of all group permissions)
 - Add/remove group endpoints: `POST /users/:id/groups/add`, `POST /users/:id/groups/remove`
-- Data migration from `groupId` to `groupIds` runs automatically via `initializeDefaultGroups` on login
 
 ---
 
 ## Definition of Done
 
-**No code change is complete until ALL related tests pass, including infrastructure tests.** When making any change:
+**No code change is complete until ALL related tests pass.** When making any change:
 
-1. **Run the relevant test suite** for every layer affected by the change (unit, integration, e2e, infrastructure).
-2. **Infrastructure changes require `terraform apply`** against a real project with ALL features enabled. `terraform validate` and `terraform plan` are not sufficient — GCP API errors (wrong resource types, timing issues, service availability) only surface during `apply`.
-3. **If e2e tests disable features** (like monitoring or Google Sign-In), those disabled features are NOT tested. You must either enable them in tests or manually verify with `terraform apply`.
-4. **Do not claim work is done if any test is skipped or disabled for the changed code path.**
+1. **Run the relevant test suite** for every layer affected by the change (unit, integration, e2e).
+2. **Do not claim work is done if any test is skipped or disabled for the changed code path.**
 
 ### Verification Before Done
 - Never mark a task complete without proving it works
@@ -89,15 +88,6 @@ Both subagents run in parallel. Don't mark the task complete until both pass.
 
 ---
 
-## Infrastructure Notes
-
-- **Log-based metric alert policies** require a `time_sleep` (60s) between metric creation and alert policy creation. GCP takes time to register new log-based metrics.
-- **Alert policy resource types**: `global` for auth/firestore metrics, `cloud_function` for function/latency metrics.
-- **Firestore audit logging** uses `datastore.googleapis.com` as the service name, NOT `firestore.googleapis.com`.
-- **Google Sign-In** cannot be fully automated for personal (non-org) GCP projects — OAuth client creation requires the Cloud Console UI. See `terraform.tfvars.example` for setup instructions.
-
----
-
 ## Project-Specific Lessons
 
 ### Lesson 1: Always Build and Test Before Claiming Done
@@ -131,27 +121,37 @@ Each package has a `core/` directory (template infrastructure — don't edit) an
 admin-dashboard-template/
 ├── docs/
 │   ├── BRD.md             # Business Requirements Document
+│   ├── ARCHITECTURE.md    # System architecture reference
+│   ├── DEPLOYMENT.md      # Production deployment guide
 │   ├── EXTENDING.md       # How to add features
-│   └── UPGRADING.md       # How to pull template updates
+│   ├── UPGRADING.md       # How to pull template updates
+│   ├── CONFIGURATION.md   # Environment variables, CORS, rate limiting
+│   ├── TROUBLESHOOTING.md # Common errors and fixes
+│   └── LOCAL_DEVELOPMENT.md # Dev environment setup and testing
 ├── infrastructure/
-│   ├── terraform/         # IaC for GCP/Firebase
-│   └── scripts/           # Setup and deploy helpers
+│   ├── cloudflare/        # Cloudflare Tunnel config template
+│   ├── systemd/           # systemd service files for backend + tunnel
+│   └── scripts/           # setup-local.sh (PostgreSQL + env setup)
 ├── packages/
 │   ├── shared/src/
 │   │   ├── core/          # API types, permission types, utils (template infra)
 │   │   ├── types/         # Domain types: user, group, audit, settings
 │   │   └── constants/     # Permission definitions
 │   ├── backend/src/
-│   │   ├── core/          # Middleware, Firebase, errors, response helpers (template infra)
+│   │   ├── core/          # Middleware, Firebase Auth, errors, response helpers (template infra)
+│   │   ├── db/            # Drizzle ORM schema and database connection
 │   │   ├── routes/        # API route handlers
 │   │   ├── services/      # Business logic
-│   │   └── config/        # App configuration
+│   │   ├── config/        # App configuration
+│   │   └── openapi/       # API documentation
 │   └── frontend/src/
 │       ├── core/          # Auth hooks, permission gates, API client (template infra)
 │       ├── pages/         # Page components
 │       ├── components/    # UI components
+│       ├── hooks/         # Custom hooks
 │       └── stores/        # State stores
 ├── scripts/
+│   ├── dev.sh             # Start full dev environment
 │   ├── init-project.sh    # Rename template for new project
 │   └── sync-template.sh   # Pull upstream template updates
 ├── template.json          # Core vs. customizable path manifest
@@ -165,9 +165,16 @@ admin-dashboard-template/
 bun install
 
 # Development
-bun run dev              # All services
+bun run dev              # Frontend + backend dev servers
+bun run dev:full         # Everything (backend + frontend + Auth emulator + AI service)
 bun run dev:frontend     # Frontend only (port 5173)
-bun run dev:backend      # Backend only
+bun run dev:backend      # Backend only (port 3000)
+
+# Database (run from packages/backend/)
+bun run db:generate      # Generate Drizzle migration files
+bun run db:migrate       # Run pending migrations
+bun run db:push          # Push schema changes directly to database
+bun run db:studio        # Open Drizzle Studio (database GUI)
 
 # Verification (run before committing!)
 bun run typecheck        # TypeScript
@@ -175,24 +182,27 @@ bun run lint             # Biome
 bun run test             # Unit tests
 
 # AI Service
-bun run dev:ai           # All services + AI service
 bun run dev:ai-service   # AI service only
 bun run build:ai-service # Build AI service
 
 # Build & Deploy
-bun run build            # Production build
-npx playwright test      # Frontend e2e tests
-./e2e/deploy/test-terraform-deploy.sh  # Full deploy e2e
+bun run build            # Production build (backend + frontend)
+bun run build:frontend   # Frontend only
+bun run build:backend    # Backend only
+bun run deploy:frontend  # Deploy frontend to Cloudflare Pages
+bun run tunnel:start     # Start Cloudflare Tunnel
+bun run setup:local      # Set up PostgreSQL and generate .env
 ```
 
 ## Tech Stack
-- **Runtime**: Bun (not Node.js, not Vite)
+- **Runtime**: Bun (not Node.js)
 - **Frontend**: React 18, TanStack Query, Zustand, shadcn/ui, Tailwind CSS
-- **Backend**: Hono on Firebase Cloud Functions
-- **Database**: Firestore
-- **Auth**: Firebase Auth (Google OAuth)
+- **Backend**: Hono (standalone Bun server)
+- **Database**: PostgreSQL with Drizzle ORM
+- **Auth**: Firebase Auth (Google OAuth, free tier only)
+- **Frontend Hosting**: Cloudflare Pages (free tier)
+- **Backend Exposure**: Cloudflare Tunnel (free tier)
 - **Linting**: Biome (not ESLint/Prettier)
-- **IaC**: Terraform for GCP/Firebase
 
 ---
 
@@ -218,8 +228,23 @@ throw new ForbiddenError('Cannot modify super admin');  // 403
 #### Singleton Services
 Services are instantiated once in `src/services/index.ts`.
 
-#### Cursor-Based Pagination
-Use cursor instead of offset for efficient Firestore queries.
+#### Drizzle ORM Patterns
+```typescript
+// Query
+const users = await db.select().from(usersTable).where(eq(usersTable.email, email));
+
+// Insert
+const [user] = await db.insert(usersTable).values({ ... }).returning();
+
+// Update
+await db.update(usersTable).set({ updatedAt: new Date() }).where(eq(usersTable.id, id));
+
+// Transaction
+await db.transaction(async (tx) => {
+  await tx.insert(usersTable).values({ ... });
+  await tx.insert(auditLogsTable).values({ ... });
+});
+```
 
 ### Frontend
 
@@ -250,7 +275,7 @@ Before adding any new UI to a page, check `packages/frontend/src/components/feat
 ### AI Service
 
 - **Package location**: `packages/ai-service/`
-- **Dev command**: `bun run dev:ai` starts all three services (frontend + backend + AI service)
+- **Dev command**: `bun run dev:full` starts all services (frontend + backend + AI service)
 - **WebSocket endpoint**: `/ws/chat` — the frontend connects here for AI interactions
 - **Tool definitions**: Auto-generated from the backend's OpenAPI spec on build. Adding a new documented API endpoint automatically makes it available as an AI tool
 - **Config**: Environment variables in `packages/ai-service/.env` (see `.env.example`). Key vars: `GEMINI_API_KEY`, `AI_SYSTEM_PROMPT`
