@@ -121,19 +121,7 @@ The Firebase Auth emulator provides Google OAuth simulation for local developmen
 
 ### Project ID
 
-The project uses a `demo-` prefixed project ID configured in `.firebaserc`:
-
-```json
-{
-  "projects": {
-    "default": "demo-ccvpool-test"
-  }
-}
-```
-
-`demo-*` project IDs are special emulator-only projects that do **not** require a real Firebase project. The emulator runs in fully offline mode.
-
-> **Note**: Do not use `firebase use <project-id>` with `demo-` prefixed IDs -- it validates against real projects and will reject them. The `dev.sh` script reads `.firebaserc` directly.
+The dev script uses a `demo-` prefixed project ID for the Auth emulator. `demo-*` project IDs are special emulator-only projects that do **not** require a real Firebase project. The emulator runs in fully offline mode.
 
 ### Signing In
 

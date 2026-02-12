@@ -73,7 +73,7 @@ done < <(find . \
   -type f \
   \( -name '*.ts' -o -name '*.tsx' -o -name '*.json' -o -name '*.md' \
      -o -name '*.js' -o -name '*.mjs' -o -name '*.sh' -o -name '*.yaml' \
-     -o -name '*.yml' -o -name '*.toml' -o -name '*.env*' -o -name '.firebaserc' \) \
+     -o -name '*.yml' -o -name '*.toml' -o -name '*.env*' \) \
   2>/dev/null || true)
 
 echo "Updated $COUNT files."

@@ -12,8 +12,8 @@ import { type Page, test as base } from '@playwright/test';
 const AUTH_EMULATOR = 'http://localhost:9099';
 // The Firebase project ID used by the emulators
 const PROJECT_ID = 'admin-dash-template';
-// Backend API via Cloud Functions emulator
-const API_BASE = `http://localhost:5001/${PROJECT_ID}/us-central1/api/api/v1`;
+// Backend API (local Bun server)
+const API_BASE = 'http://localhost:3000/api/v1';
 // Firebase Web API key (emulator accepts any value, but we need one for REST calls)
 const API_KEY = 'fake-api-key';
 
@@ -98,7 +98,7 @@ async function createEmulatorUser(email: string, displayName: string): Promise<T
 
 /**
  * Register the test user with the backend (call /auth/login endpoint)
- * so the user document exists in Firestore emulator
+ * so the user record exists in the database
  */
 async function registerWithBackend(idToken: string): Promise<void> {
   const res = await fetch(`${API_BASE}/auth/login`, {
@@ -187,7 +187,7 @@ async function injectAuthState(page: Page, user: TestUser): Promise<void> {
 }
 
 /**
- * Clear all emulator data (users, firestore docs, etc.)
+ * Clear all emulator data (auth users)
  */
 async function clearEmulatorData(): Promise<void> {
   try {
@@ -195,16 +195,6 @@ async function clearEmulatorData(): Promise<void> {
     await fetch(`${AUTH_EMULATOR}/emulator/v1/projects/${PROJECT_ID}/accounts`, {
       method: 'DELETE',
     });
-  } catch {
-    // Emulator might not be running
-  }
-
-  try {
-    // Clear Firestore emulator
-    await fetch(
-      `http://localhost:8080/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`,
-      { method: 'DELETE' }
-    );
   } catch {
     // Emulator might not be running
   }

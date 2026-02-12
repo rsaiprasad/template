@@ -21,12 +21,6 @@ export {
   initializeFirebaseAdmin,
   getApp,
   getAuthAdmin,
-  getDb,
-  Collections,
-  toFirestoreTimestamp,
-  fromFirestoreTimestamp,
-  convertFirestoreDoc,
-  convertFirestoreDocs,
 } from './lib/firebase-admin';
 export {
   ErrorCodes,

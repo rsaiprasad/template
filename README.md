@@ -53,7 +53,7 @@ admin-dashboard-template/
 ├── infrastructure/
 │   ├── cloudflare/        # Cloudflare Tunnel config template
 │   ├── systemd/           # systemd service files for backend + tunnel
-│   └── scripts/           # setup-local.sh (PostgreSQL + env setup)
+│   └── scripts/           # setup-local.sh (PostgreSQL + env), setup-cloud.sh (Firebase + Cloudflare)
 │
 ├── packages/
 │   ├── shared/            # Shared TypeScript types & utilities

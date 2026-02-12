@@ -103,13 +103,17 @@ DATABASE_URL=$DATABASE_URL
 PORT=3000
 NODE_ENV=development
 
-# Firebase Auth (get from Firebase Console > Project Settings > Service Accounts)
-FIREBASE_PROJECT_ID=
-FIREBASE_CLIENT_EMAIL=
-FIREBASE_PRIVATE_KEY=
+# Firebase Admin SDK — path to service account key JSON file
+# Download from: Firebase Console > Project Settings > Service Accounts > Generate New Private Key
+# Save the file as firebase-sa-key.json in this directory (it's gitignored)
+# Not required in development when using the Firebase Auth emulator
+# GOOGLE_APPLICATION_CREDENTIALS=./firebase-sa-key.json
 
 # Super Admin
 SUPER_ADMIN_EMAIL=
+
+# CORS — comma-separated allowed origins (set for production)
+# CORS_ORIGINS=https://your-app.yourdomain.com
 EOF
         ok "Generated $ENV_FILE"
     fi
@@ -122,13 +126,17 @@ DATABASE_URL=$DATABASE_URL
 PORT=3000
 NODE_ENV=development
 
-# Firebase Auth (get from Firebase Console > Project Settings > Service Accounts)
-FIREBASE_PROJECT_ID=
-FIREBASE_CLIENT_EMAIL=
-FIREBASE_PRIVATE_KEY=
+# Firebase Admin SDK — path to service account key JSON file
+# Download from: Firebase Console > Project Settings > Service Accounts > Generate New Private Key
+# Save the file as firebase-sa-key.json in this directory (it's gitignored)
+# Not required in development when using the Firebase Auth emulator
+# GOOGLE_APPLICATION_CREDENTIALS=./firebase-sa-key.json
 
 # Super Admin
 SUPER_ADMIN_EMAIL=
+
+# CORS — comma-separated allowed origins (set for production)
+# CORS_ORIGINS=https://your-app.yourdomain.com
 EOF
     ok "Generated $ENV_FILE"
 fi

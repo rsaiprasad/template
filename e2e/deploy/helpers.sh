@@ -39,14 +39,6 @@ print_header() {
 
 # --- Prerequisite Checks ---
 
-require_env() {
-    local var_name="$1"
-    if [ -z "${!var_name:-}" ]; then
-        print_fail "Required environment variable $var_name is not set"
-        exit 1
-    fi
-}
-
 require_command() {
     local cmd="$1"
     if ! command -v "$cmd" &>/dev/null; then
@@ -58,14 +50,10 @@ require_command() {
 check_prerequisites() {
     print_header "Checking Prerequisites"
 
-    require_env "BILLING_ACCOUNT"
-    require_env "TEST_ADMIN_EMAIL"
-    print_success "Environment variables set"
-
-    for cmd in gcloud firebase bun jq curl; do
+    for cmd in gcloud bun jq curl; do
         require_command "$cmd"
     done
-    print_success "Required CLI tools found"
+    print_success "Required CLI tools found (gcloud, bun, jq, curl)"
 
     # Check gcloud auth
     if ! gcloud auth list --filter="status:ACTIVE" --format="value(account)" 2>/dev/null | grep -q "@"; then
@@ -73,25 +61,6 @@ check_prerequisites() {
         exit 1
     fi
     print_success "gcloud authenticated"
-
-    # Check firebase auth
-    if ! firebase projects:list --json 2>/dev/null | jq -e '.result | length > 0' >/dev/null 2>&1; then
-        print_fail "Not authenticated with Firebase CLI. Run: firebase login"
-        exit 1
-    fi
-    print_success "Firebase CLI authenticated"
-}
-
-# --- Project ID Generation ---
-
-generate_project_id() {
-    # Generate a unique project ID: e2etest-<random>-<timestamp>
-    # GCP project IDs: 6-30 chars, lowercase letters/digits/hyphens, start with letter
-    local random_suffix
-    random_suffix=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n' | head -c 6)
-    local ts
-    ts=$(date +%s | tail -c 6)
-    echo "e2etest-${random_suffix}-${ts}"
 }
 
 # --- Step Runner ---
@@ -130,7 +99,7 @@ run_step_optional() {
         print_success "Step ${STEP_COUNT}: ${description}"
         TEST_PASSED=$((TEST_PASSED + 1))
     else
-        print_warning "Step ${STEP_COUNT}: ${description} (skipped — may require Blaze plan)"
+        print_warning "Step ${STEP_COUNT}: ${description} (skipped)"
         TEST_SKIPPED=$((TEST_SKIPPED + 1))
     fi
     return 0
@@ -138,164 +107,64 @@ run_step_optional() {
 
 # --- Verification Checks ---
 
-verify_hosting() {
+# Verify that a GCP project has the required APIs enabled
+verify_required_apis() {
     local project_id="$1"
-    local url="https://${project_id}.web.app"
-
-    print_info "Checking hosting: $url"
-
-    local retries=5
-    local wait=15
-    for ((i = 1; i <= retries; i++)); do
-        local status
-        status=$(curl -s -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || echo "000")
-        if [ "$status" = "200" ]; then
-            print_success "Hosting returns 200"
-            return 0
-        fi
-        if [ "$i" -lt "$retries" ]; then
-            print_info "Got HTTP $status, retrying in ${wait}s ($i/$retries)..."
-            sleep "$wait"
-        fi
-    done
-
-    print_fail "Hosting returned HTTP $status after $retries attempts"
-    return 1
-}
-
-verify_health_endpoint() {
-    local project_id="$1"
-    local url="https://${project_id}.web.app/api/v1/health"
-
-    print_info "Checking health endpoint: $url"
-
-    local retries=5
-    local wait=15
-    for ((i = 1; i <= retries; i++)); do
-        local body
-        body=$(curl -s "$url" 2>/dev/null || echo "")
-        if echo "$body" | jq -e '.success == true' >/dev/null 2>&1; then
-            print_success "Health endpoint returns {\"success\":true}"
-            return 0
-        fi
-        if [ "$i" -lt "$retries" ]; then
-            print_info "Health check not ready, retrying in ${wait}s ($i/$retries)..."
-            sleep "$wait"
-        fi
-    done
-
-    print_fail "Health endpoint did not return success after $retries attempts"
-    print_info "Last response: $body"
-    return 1
-}
-
-verify_firestore_exists() {
-    local project_id="$1"
-    if gcloud firestore databases describe --project="$project_id" 2>/dev/null | grep -q "name:"; then
-        print_success "Firestore database exists"
-        return 0
-    fi
-    print_fail "Firestore database not found"
-    return 1
-}
-
-verify_function_exists() {
-    local project_id="$1"
-    if gcloud functions list --project="$project_id" --format="value(name)" 2>/dev/null | grep -q "api"; then
-        print_success "Cloud Function 'api' exists"
-        return 0
-    fi
-    print_fail "Cloud Function 'api' not found"
-    return 1
-}
-
-verify_hosting_site_exists() {
-    local project_id="$1"
-    if firebase hosting:sites:list --project="$project_id" --json 2>/dev/null | jq -e '.result.sites | length > 0' >/dev/null 2>&1; then
-        print_success "Hosting site exists"
-        return 0
-    fi
-    print_fail "No hosting site found"
-    return 1
-}
-
-verify_env_files() {
-    local ok=true
-    if [ ! -f "$PROJECT_ROOT/.env" ]; then
-        print_fail "Missing .env"
-        ok=false
-    fi
-    if [ ! -f "$PROJECT_ROOT/packages/frontend/.env" ]; then
-        print_fail "Missing packages/frontend/.env"
-        ok=false
-    fi
-    if [ ! -f "$PROJECT_ROOT/.firebaserc" ]; then
-        print_fail "Missing .firebaserc"
-        ok=false
-    fi
-    if [ "$ok" = true ]; then
-        print_success "All env files generated"
-        return 0
-    fi
-    return 1
-}
-
-# Run all deployment verification checks
-verify_deployment() {
-    local project_id="$1"
-    local skip_functions="${2:-false}"
-
-    print_header "Verifying Deployment: $project_id"
-
     local failures=0
 
-    verify_hosting_site_exists "$project_id" || ((failures++)) || true
-    verify_firestore_exists "$project_id" || ((failures++)) || true
+    local required_apis=(
+        "identitytoolkit.googleapis.com"
+        "firebase.googleapis.com"
+    )
 
-    if [ "$skip_functions" = "false" ]; then
-        verify_function_exists "$project_id" || ((failures++)) || true
-        verify_health_endpoint "$project_id" || ((failures++)) || true
-    else
-        print_warning "Skipping function/health checks (--skip-functions)"
-    fi
+    local enabled_apis
+    enabled_apis=$(gcloud services list --project="$project_id" --enabled --format="value(config.name)" 2>/dev/null || echo "")
 
-    verify_hosting "$project_id" || ((failures++)) || true
+    for api in "${required_apis[@]}"; do
+        if echo "$enabled_apis" | grep -q "$api"; then
+            print_success "API enabled: $api"
+        else
+            print_fail "API not enabled: $api"
+            ((failures++)) || true
+        fi
+    done
 
     if [ "$failures" -eq 0 ]; then
-        print_success "All verification checks passed"
         return 0
-    else
-        print_fail "$failures verification check(s) failed"
-        return 1
     fi
+    return 1
 }
 
-# --- Cleanup ---
-
-cleanup_project() {
+# Verify that Firebase is enabled on the project
+verify_firebase_project() {
     local project_id="$1"
 
-    print_header "Cleaning Up: $project_id"
+    local enabled_apis
+    enabled_apis=$(gcloud services list --project="$project_id" --enabled --format="value(config.name)" 2>/dev/null || echo "")
 
-    print_info "Deleting GCP project: $project_id"
-    if gcloud projects delete "$project_id" --quiet 2>/dev/null; then
-        print_success "Project $project_id deleted"
-    else
-        print_warning "Could not delete project $project_id (may already be deleted or lack permissions)"
+    if echo "$enabled_apis" | grep -q "firebase.googleapis.com"; then
+        print_success "Firebase is enabled on project '$project_id'"
+        return 0
     fi
+
+    print_fail "Firebase does not appear to be enabled on project '$project_id'"
+    return 1
 }
 
-# Restore git-tracked files that tests may have modified (.env, .firebaserc)
-cleanup_local_files() {
-    print_info "Restoring local files modified by test"
-    git -C "$PROJECT_ROOT" checkout -- .firebaserc 2>/dev/null || true
-    git -C "$PROJECT_ROOT" checkout -- .env 2>/dev/null || true
-    git -C "$PROJECT_ROOT" checkout -- packages/frontend/.env 2>/dev/null || true
-    rm -f "$PROJECT_ROOT/service-account.json" 2>/dev/null || true
-    # Restore backend package.json if predeploy hook backup exists (deploy failed mid-way)
-    if [ -f "$PROJECT_ROOT/packages/backend/package.json.bak" ]; then
-        mv "$PROJECT_ROOT/packages/backend/package.json.bak" "$PROJECT_ROOT/packages/backend/package.json"
+# Verify that Firebase Auth (Identity Toolkit) is configured
+verify_firebase_auth() {
+    local project_id="$1"
+
+    local enabled_apis
+    enabled_apis=$(gcloud services list --project="$project_id" --enabled --format="value(config.name)" 2>/dev/null || echo "")
+
+    if echo "$enabled_apis" | grep -q "identitytoolkit.googleapis.com"; then
+        print_success "Firebase Auth (Identity Toolkit) is enabled on project '$project_id'"
+        return 0
     fi
+
+    print_fail "Firebase Auth (Identity Toolkit) is not enabled on project '$project_id'"
+    return 1
 }
 
 # --- Summary ---

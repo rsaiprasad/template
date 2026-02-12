@@ -21,6 +21,13 @@ Browser --> Cloudflare Pages (static frontend, CDN)
 
 **Total monthly cost: $0**
 
+## Deployment Flow Overview
+
+1. **Set up cloud services**: `./infrastructure/scripts/setup-cloud.sh` (Firebase Auth project + Cloudflare account)
+2. **Set up local infrastructure**: `./infrastructure/scripts/setup-local.sh` (PostgreSQL + `.env` files)
+3. **Deploy frontend**: `bun run deploy:frontend` (to Cloudflare Pages)
+4. **Configure Cloudflare Tunnel**: Expose backend to the internet (see section 4 below)
+
 ## Prerequisites
 
 - [Bun](https://bun.sh) (>=1.0)
@@ -85,10 +92,9 @@ DATABASE_URL=postgresql://admin_user:your_password@localhost:5432/admin_dashboar
 PORT=3000
 NODE_ENV=production
 
-# Firebase Auth (from Firebase Console > Project Settings > Service Accounts)
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# Firebase Admin SDK — path to service account key JSON file
+# See "Firebase Auth Setup" section below for how to obtain this file
+GOOGLE_APPLICATION_CREDENTIALS=./firebase-sa-key.json
 
 # Super Admin
 SUPER_ADMIN_EMAIL=admin@yourdomain.com
@@ -256,23 +262,64 @@ Firebase Auth is kept only for Google OAuth (free tier). No Firestore or Cloud F
 
 ### Get Firebase Credentials
 
-**For backend** (Admin SDK):
-1. Firebase Console > Project Settings > Service Accounts
-2. Generate New Private Key
-3. Copy the values into `packages/backend/.env`:
-   - `FIREBASE_PROJECT_ID`
-   - `FIREBASE_CLIENT_EMAIL`
-   - `FIREBASE_PRIVATE_KEY`
+**For backend** (Admin SDK — service account key):
+1. Firebase Console > **Project Settings** > **Service Accounts**
+2. Click **Generate New Private Key** — this downloads a JSON file
+3. Save the file as `packages/backend/firebase-sa-key.json` (this filename is gitignored)
+4. Set the path in `packages/backend/.env`:
+   ```
+   GOOGLE_APPLICATION_CREDENTIALS=./firebase-sa-key.json
+   ```
+
+> **Security:** The service account key is a sensitive credential. Never commit it to git. The `.gitignore` already excludes `firebase-sa-key.json`, `*-sa-key.json`, and `service-account.json`. Each deployment environment should have its own key file.
 
 **For frontend** (Client SDK):
-1. Firebase Console > Project Settings > General > Your apps > Web app
-2. Copy the Firebase config values into `packages/frontend/.env`
+1. Firebase Console > **Project Settings** > **General** > **Your apps** > **Web app**
+2. If no web app exists, click **Add app** and select Web
+3. Copy the Firebase config values into `packages/frontend/.env`:
+   ```
+   PUBLIC_FIREBASE_API_KEY=AIzaSy...
+   PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+   PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+   PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+   PUBLIC_FIREBASE_APP_ID=1:123:web:abc
+   ```
+4. These values are baked into the frontend build at build time (`bun run build:frontend`)
 
 ### Add Authorized Domains
 
-In Firebase Console > Authentication > Settings > Authorized domains, add:
-- `your-app.pages.dev` (Cloudflare Pages domain)
-- `admin.yourdomain.com` (custom domain, if using)
+**This step is required** — Firebase blocks sign-in from domains not in the authorized list.
+
+1. Firebase Console > **Authentication** > **Settings** > **Authorized domains**
+2. Add all domains where the frontend is hosted:
+   - `your-app.pages.dev` (Cloudflare Pages default domain)
+   - `admin.yourdomain.com` (custom domain, if using)
+   - `localhost` (for local development)
+
+You can also add authorized domains via the gcloud CLI:
+```bash
+# List current authorized domains
+gcloud auth print-access-token | xargs -I {} \
+  curl -s "https://identitytoolkit.googleapis.com/admin/v2/projects/YOUR_PROJECT_ID/config" \
+  -H "Authorization: Bearer {}" \
+  -H "x-goog-user-project: YOUR_PROJECT_ID" | jq '.authorizedDomains'
+
+# Update authorized domains (include all existing + new ones)
+gcloud auth print-access-token | xargs -I {} \
+  curl -s -X PATCH "https://identitytoolkit.googleapis.com/admin/v2/projects/YOUR_PROJECT_ID/config?updateMask=authorizedDomains" \
+  -H "Authorization: Bearer {}" \
+  -H "x-goog-user-project: YOUR_PROJECT_ID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "authorizedDomains": [
+      "localhost",
+      "YOUR_PROJECT_ID.firebaseapp.com",
+      "YOUR_PROJECT_ID.web.app",
+      "admin.yourdomain.com"
+    ]
+  }'
+```
 
 ---
 

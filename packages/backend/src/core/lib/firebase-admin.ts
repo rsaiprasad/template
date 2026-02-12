@@ -1,10 +1,8 @@
 import { type App, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { type Auth, getAuth } from 'firebase-admin/auth';
-import { type Firestore, Timestamp, getFirestore } from 'firebase-admin/firestore';
 
 let app: App;
 let auth: Auth;
-let db: Firestore;
 
 /**
  * Initialize the Firebase Admin SDK
@@ -54,65 +52,4 @@ export function getAuthAdmin(): Auth {
     auth = getAuth(getApp());
   }
   return auth;
-}
-
-/**
- * Get the Firestore instance
- */
-export function getDb(): Firestore {
-  if (!db) {
-    db = getFirestore(getApp());
-  }
-  return db;
-}
-
-/**
- * Firestore collection names
- */
-export const Collections = {
-  USERS: 'users',
-  GROUPS: 'groups',
-  AUDIT_LOGS: 'auditLogs',
-  SETTINGS: 'settings',
-} as const;
-
-/**
- * Firestore timestamp conversion utilities
- */
-export function toFirestoreTimestamp(date: Date): Timestamp {
-  return Timestamp.fromDate(date);
-}
-
-export function fromFirestoreTimestamp(timestamp: Timestamp | undefined | null): Date | undefined {
-  if (!timestamp) return undefined;
-  return timestamp.toDate();
-}
-
-/**
- * Convert Firestore document data to typed object with Date conversions
- */
-export function convertFirestoreDoc<T>(doc: FirebaseFirestore.DocumentSnapshot): T | null {
-  if (!doc.exists) return null;
-
-  const data = doc.data()!;
-  const result: Record<string, unknown> = { id: doc.id };
-
-  for (const [key, value] of Object.entries(data)) {
-    if (value && typeof value === 'object' && 'toDate' in value) {
-      result[key] = (value as Timestamp).toDate();
-    } else {
-      result[key] = value;
-    }
-  }
-
-  return result as T;
-}
-
-/**
- * Convert array of Firestore documents
- */
-export function convertFirestoreDocs<T>(snapshot: FirebaseFirestore.QuerySnapshot): T[] {
-  return snapshot.docs
-    .map((doc) => convertFirestoreDoc<T>(doc))
-    .filter((doc): doc is T => doc !== null);
 }

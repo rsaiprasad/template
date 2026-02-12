@@ -7,26 +7,18 @@ describe('normalizeUserGroupIds', () => {
     expect(normalizeUserGroupIds(data)).toEqual(['admin', 'users']);
   });
 
-  it('should fall back to groupId string when groupIds is absent', () => {
-    const data = { groupId: 'admin' };
-    expect(normalizeUserGroupIds(data)).toEqual(['admin']);
+  it('should return empty array when groupIds is absent', () => {
+    const data = {};
+    expect(normalizeUserGroupIds(data)).toEqual([]);
   });
 
-  it('should fall back to groupId when groupIds is empty array', () => {
-    const data = { groupIds: [], groupId: 'users' };
-    expect(normalizeUserGroupIds(data)).toEqual(['users']);
+  it('should return empty array when groupIds is empty array', () => {
+    const data = { groupIds: [] };
+    expect(normalizeUserGroupIds(data)).toEqual([]);
   });
 
-  it('should return empty array when neither field is set', () => {
-    expect(normalizeUserGroupIds({})).toEqual([]);
-  });
-
-  it('should return empty array when groupId is empty string', () => {
-    expect(normalizeUserGroupIds({ groupId: '' })).toEqual([]);
-  });
-
-  it('should prefer groupIds over groupId when both are valid', () => {
-    const data = { groupIds: ['admin'], groupId: 'users' };
-    expect(normalizeUserGroupIds(data)).toEqual(['admin']);
+  it('should return empty array when groupIds is not an array', () => {
+    const data = { groupIds: 'admin' };
+    expect(normalizeUserGroupIds(data as any)).toEqual([]);
   });
 });

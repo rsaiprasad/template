@@ -1,28 +1,50 @@
 import { beforeEach, describe, expect, it, vi } from 'bun:test';
-import { mockDocSnapshot, mockQuerySnapshot } from '../__tests__/setup';
-import { getDb } from '../core/lib/firebase-admin';
+import { createChainMock, resetDbMocks } from '../__tests__/setup';
+
+// Must declare vi.mock in the same file that imports the module (Bun requirement)
+vi.mock('../db', () => ({
+  db: {
+    select: vi.fn(),
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    transaction: vi.fn(),
+  },
+}));
+
+import { db } from '../db';
 import { AuditService } from './audit.service';
 
-const mockDb = getDb() as any;
+const mockDb = db as any;
 
 describe('AuditService', () => {
   let service: AuditService;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetDbMocks(mockDb);
     service = new AuditService();
   });
 
   describe('createAuditLog', () => {
     it('should create an audit log entry', async () => {
-      const mockDocRef = {
+      const now = new Date();
+      const insertedRow = {
         id: 'log-1',
-        set: vi.fn().mockResolvedValue(undefined),
+        timestamp: now,
+        actorId: 'user-1',
+        actorEmail: 'user@example.com',
+        actorName: 'Test User',
+        action: 'USER_CREATED',
+        resource: 'users',
+        resourceId: 'user-2',
+        description: 'Created user user-2',
+        changes: null,
+        ipAddress: null,
+        userAgent: null,
       };
 
-      mockDb.collection = vi.fn().mockReturnValue({
-        doc: vi.fn().mockReturnValue(mockDocRef),
-      });
+      mockDb.insert.mockReturnValue(createChainMock([insertedRow]));
 
       const log = await service.createAuditLog({
         actorId: 'user-1',
@@ -37,18 +59,27 @@ describe('AuditService', () => {
       expect(log.actorId).toBe('user-1');
       expect(log.action).toBe('USER_CREATED');
       expect(log.timestamp).toBeInstanceOf(Date);
-      expect(mockDocRef.set).toHaveBeenCalled();
+      expect(mockDb.insert).toHaveBeenCalled();
     });
 
     it('should include optional fields when provided', async () => {
-      const mockDocRef = {
+      const now = new Date();
+      const insertedRow = {
         id: 'log-2',
-        set: vi.fn().mockResolvedValue(undefined),
+        timestamp: now,
+        actorId: 'user-1',
+        actorEmail: 'user@example.com',
+        actorName: 'Test User',
+        action: 'USER_UPDATED',
+        resource: 'users',
+        resourceId: 'user-2',
+        description: 'Updated user',
+        changes: { before: { name: 'Old' }, after: { name: 'New' } },
+        ipAddress: '1.2.3.4',
+        userAgent: 'TestAgent/1.0',
       };
 
-      mockDb.collection = vi.fn().mockReturnValue({
-        doc: vi.fn().mockReturnValue(mockDocRef),
-      });
+      mockDb.insert.mockReturnValue(createChainMock([insertedRow]));
 
       const log = await service.createAuditLog({
         actorId: 'user-1',
@@ -71,7 +102,8 @@ describe('AuditService', () => {
 
   describe('getAuditLog', () => {
     it('should return log when found', async () => {
-      const logData = {
+      const logRow = {
+        id: 'log-1',
         timestamp: new Date(),
         actorId: 'user-1',
         actorEmail: 'user@example.com',
@@ -80,13 +112,12 @@ describe('AuditService', () => {
         resource: 'auth',
         resourceId: 'user-1',
         description: 'User logged in',
+        changes: null,
+        ipAddress: null,
+        userAgent: null,
       };
-      const docSnap = mockDocSnapshot('log-1', logData);
-      mockDb.collection = vi.fn().mockReturnValue({
-        doc: vi.fn().mockReturnValue({
-          get: vi.fn().mockResolvedValue(docSnap),
-        }),
-      });
+
+      mockDb.select.mockReturnValue(createChainMock([logRow]));
 
       const log = await service.getAuditLog('log-1');
       expect(log).toBeTruthy();
@@ -94,12 +125,7 @@ describe('AuditService', () => {
     });
 
     it('should return null when not found', async () => {
-      const docSnap = mockDocSnapshot('log-1', null, false);
-      mockDb.collection = vi.fn().mockReturnValue({
-        doc: vi.fn().mockReturnValue({
-          get: vi.fn().mockResolvedValue(docSnap),
-        }),
-      });
+      mockDb.select.mockReturnValue(createChainMock([]));
 
       const log = await service.getAuditLog('log-1');
       expect(log).toBeNull();
@@ -108,7 +134,8 @@ describe('AuditService', () => {
 
   describe('listAuditLogs', () => {
     it('should return logs with pagination', async () => {
-      const logData = {
+      const logRow = {
+        id: 'log-1',
         timestamp: new Date(),
         actorId: 'user-1',
         actorEmail: 'user@example.com',
@@ -117,42 +144,38 @@ describe('AuditService', () => {
         resource: 'auth',
         resourceId: 'user-1',
         description: 'Logged in',
+        changes: null,
+        ipAddress: null,
+        userAgent: null,
       };
-      const logSnap = mockDocSnapshot('log-1', logData);
-      const querySnap = mockQuerySnapshot([logSnap]);
 
-      const chain = {
-        where: vi.fn().mockReturnThis(),
-        orderBy: vi.fn().mockReturnThis(),
-        offset: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        count: vi.fn().mockReturnValue({
-          get: vi.fn().mockResolvedValue({ data: () => ({ count: 1 }) }),
-        }),
-        get: vi.fn().mockResolvedValue(querySnap),
-      };
-      mockDb.collection = vi.fn().mockReturnValue(chain);
+      // First call: count query returns [{count: 1}]
+      // Second call: data query returns [logRow]
+      let callCount = 0;
+      mockDb.select.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return createChainMock([{ count: 1 }]);
+        }
+        return createChainMock([logRow]);
+      });
 
       const result = await service.listAuditLogs({ page: 1, limit: 50 });
       expect(result.total).toBe(1);
       expect(result.logs.length).toBe(1);
     });
 
-    it('should apply filters', async () => {
-      const querySnap = mockQuerySnapshot([]);
-      const chain = {
-        where: vi.fn().mockReturnThis(),
-        orderBy: vi.fn().mockReturnThis(),
-        offset: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        count: vi.fn().mockReturnValue({
-          get: vi.fn().mockResolvedValue({ data: () => ({ count: 0 }) }),
-        }),
-        get: vi.fn().mockResolvedValue(querySnap),
-      };
-      mockDb.collection = vi.fn().mockReturnValue(chain);
+    it('should return empty when no logs match', async () => {
+      let callCount = 0;
+      mockDb.select.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return createChainMock([{ count: 0 }]);
+        }
+        return createChainMock([]);
+      });
 
-      await service.listAuditLogs({
+      const result = await service.listAuditLogs({
         action: 'LOGIN',
         resource: 'auth',
         actorId: 'user-1',
@@ -160,45 +183,23 @@ describe('AuditService', () => {
         endDate: '2024-12-31',
       });
 
-      // where should have been called for action, resource, actorId, startDate, endDate
-      expect(chain.where).toHaveBeenCalledTimes(5);
+      expect(result.total).toBe(0);
+      expect(result.logs.length).toBe(0);
     });
   });
 
   describe('cleanupOldLogs', () => {
-    it('should delete old logs in batch', async () => {
-      const mockRef1 = { id: 'log-1' };
-      const mockRef2 = { id: 'log-2' };
-      const docs = [{ ref: mockRef1 }, { ref: mockRef2 }];
-      const querySnap = { empty: false, docs, size: 2 };
-
-      const chain = {
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        get: vi.fn().mockResolvedValue(querySnap),
-      };
-      mockDb.collection = vi.fn().mockReturnValue(chain);
-
-      const mockBatch = {
-        delete: vi.fn(),
-        commit: vi.fn().mockResolvedValue(undefined),
-      };
-      mockDb.batch = vi.fn().mockReturnValue(mockBatch);
+    it('should delete old logs and return count', async () => {
+      const deletedRows = [{ id: 'log-1' }, { id: 'log-2' }];
+      mockDb.delete.mockReturnValue(createChainMock(deletedRows));
 
       const count = await service.cleanupOldLogs(90);
       expect(count).toBe(2);
-      expect(mockBatch.delete).toHaveBeenCalledTimes(2);
-      expect(mockBatch.commit).toHaveBeenCalled();
+      expect(mockDb.delete).toHaveBeenCalled();
     });
 
     it('should return 0 when no old logs', async () => {
-      const querySnap = { empty: true, docs: [], size: 0 };
-      const chain = {
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        get: vi.fn().mockResolvedValue(querySnap),
-      };
-      mockDb.collection = vi.fn().mockReturnValue(chain);
+      mockDb.delete.mockReturnValue(createChainMock([]));
 
       const count = await service.cleanupOldLogs(90);
       expect(count).toBe(0);
@@ -207,23 +208,22 @@ describe('AuditService', () => {
 
   describe('getAuditStats', () => {
     it('should return aggregated stats', async () => {
-      const logs = [
-        mockDocSnapshot('l1', { action: 'LOGIN', resource: 'auth', timestamp: new Date() }),
-        mockDocSnapshot('l2', { action: 'LOGIN', resource: 'auth', timestamp: new Date() }),
-        mockDocSnapshot('l3', { action: 'USER_CREATED', resource: 'users', timestamp: new Date() }),
+      const breakdownRows = [
+        { action: 'LOGIN', resource: 'auth' },
+        { action: 'LOGIN', resource: 'auth' },
+        { action: 'USER_CREATED', resource: 'users' },
       ];
-      const querySnap = mockQuerySnapshot(logs);
 
-      const chain = {
-        where: vi.fn().mockReturnThis(),
-        orderBy: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        count: vi.fn().mockReturnValue({
-          get: vi.fn().mockResolvedValue({ data: () => ({ count: 3 }) }),
-        }),
-        get: vi.fn().mockResolvedValue(querySnap),
-      };
-      mockDb.collection = vi.fn().mockReturnValue(chain);
+      // First call: count query
+      // Second call: breakdown query
+      let callCount = 0;
+      mockDb.select.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return createChainMock([{ count: 3 }]);
+        }
+        return createChainMock(breakdownRows);
+      });
 
       const stats = await service.getAuditStats();
       expect(stats.totalLogs).toBe(3);

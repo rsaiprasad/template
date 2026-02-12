@@ -18,9 +18,8 @@ BACKEND_PORT=${PORT:-3000}
 # Firebase Auth emulator port (for Google OAuth)
 AUTH_EMULATOR_PORT=9099
 
-# Get the Firebase project ID from .firebaserc
-cd "$PROJECT_ROOT"
-PROJECT_ID=$(node -e "console.log(JSON.parse(require('fs').readFileSync('./.firebaserc','utf8')).projects.default)" 2>/dev/null || echo "demo-project")
+# Firebase project ID for Auth emulator (demo-* prefix = offline-only mode)
+PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-admin-dashboard}"
 echo -e "${BLUE}Using Firebase project: ${PROJECT_ID}${NC}"
 
 # Check if backend port is in use

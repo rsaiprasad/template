@@ -9,11 +9,10 @@ export function normalizeUserGroupIds(data: Record<string, unknown>): string[] {
 }
 
 /**
- * Migrate all existing user documents from `groupId` (string) to `groupIds` (string[]).
+ * Migrate all existing user documents from single group to multi-group.
  * No-op: PostgreSQL uses a junction table from the start, so no migration is needed.
  */
 export async function migrateAllUsersToMultiGroup(): Promise<number> {
   // No-op: PostgreSQL uses a user_groups junction table from the start.
-  // The old Firestore groupId -> groupIds migration is not applicable.
   return 0;
 }

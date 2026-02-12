@@ -131,7 +131,7 @@ admin-dashboard-template/
 ├── infrastructure/
 │   ├── cloudflare/        # Cloudflare Tunnel config template
 │   ├── systemd/           # systemd service files for backend + tunnel
-│   └── scripts/           # setup-local.sh (PostgreSQL + env setup)
+│   └── scripts/           # setup-local.sh (PostgreSQL + env), setup-cloud.sh (Firebase + Cloudflare)
 ├── packages/
 │   ├── shared/src/
 │   │   ├── core/          # API types, permission types, utils (template infra)
@@ -192,6 +192,7 @@ bun run build:backend    # Backend only
 bun run deploy:frontend  # Deploy frontend to Cloudflare Pages
 bun run tunnel:start     # Start Cloudflare Tunnel
 bun run setup:local      # Set up PostgreSQL and generate .env
+./infrastructure/scripts/setup-cloud.sh  # Set up Firebase Auth + Cloudflare (production)
 ```
 
 ## Tech Stack

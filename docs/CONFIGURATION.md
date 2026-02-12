@@ -10,12 +10,10 @@
 | `PORT` | Server port | `3000` |
 | `NODE_ENV` | Environment (`development` / `production`) | `development` |
 | `SUPER_ADMIN_EMAIL` | Email that receives super admin privileges | `admin@company.com` |
-| `FIREBASE_PROJECT_ID` | Firebase project ID (for Auth token verification) | `my-dashboard-app` |
-| `FIREBASE_CLIENT_EMAIL` | Firebase Admin SDK service account email | `firebase-adminsdk-xxx@project.iam.gserviceaccount.com` |
-| `FIREBASE_PRIVATE_KEY` | Firebase Admin SDK private key | `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n` |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to Firebase service account key JSON file | `./firebase-sa-key.json` |
 | `CORS_ORIGINS` | Comma-separated allowed origins | `https://your-app.pages.dev,https://admin.yourdomain.com` |
 
-> **Note:** In development, `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` are not required when using the Firebase Auth emulator. The `DATABASE_URL` defaults to `postgresql://admin_user:admin_local_dev@localhost:5432/admin_dashboard` if not set.
+> **Note:** In development with the Firebase Auth emulator, `GOOGLE_APPLICATION_CREDENTIALS` is not required. The `DATABASE_URL` defaults to `postgresql://admin_user:admin_local_dev@localhost:5432/admin_dashboard` if not set.
 
 ### Frontend (`packages/frontend/.env`)
 
@@ -107,7 +105,7 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for full tunnel setup instructions.
 
 Firebase Auth is used solely for Google OAuth (free tier). No Firestore or Cloud Functions are used from Firebase.
 
-**Backend**: The Firebase Admin SDK verifies ID tokens. In production, set `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` from Firebase Console > Project Settings > Service Accounts.
+**Backend**: The Firebase Admin SDK verifies ID tokens. In production, set `GOOGLE_APPLICATION_CREDENTIALS` to the path of a Firebase service account key JSON file. Download it from Firebase Console > Project Settings > Service Accounts > Generate New Private Key. Save the file as `firebase-sa-key.json` in `packages/backend/` (it's gitignored).
 
 **Frontend**: The Firebase client SDK handles the Google OAuth flow. Get the config values from Firebase Console > Project Settings > General > Your apps > Web app.
 
