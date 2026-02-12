@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Mic, MicOff, Send } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
@@ -64,22 +65,20 @@ export function AiChatInput({
   if (mode === 'voice') {
     return (
       <div className="flex items-center justify-center border-t p-4">
-        <button
-          type="button"
+        <Button
+          size="icon"
+          variant={isRecording ? 'destructive' : 'default'}
           onClick={handleVoiceToggle}
           disabled={disabled}
           className={cn(
-            'flex h-16 w-16 items-center justify-center rounded-full transition-all duration-200',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            disabled && 'cursor-not-allowed opacity-50',
-            isRecording
-              ? 'bg-destructive text-destructive-foreground shadow-lg scale-110'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md'
+            'h-16 w-16 rounded-full transition-all duration-200',
+            isRecording && 'shadow-lg scale-110',
+            !isRecording && 'hover:shadow-md'
           )}
           aria-label={isRecording ? 'Stop recording' : 'Start recording'}
         >
           {isRecording ? <MicOff className="h-7 w-7" /> : <Mic className="h-7 w-7" />}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -102,21 +101,15 @@ export function AiChatInput({
           'max-h-[120px]'
         )}
       />
-      <button
-        type="button"
+      <Button
+        size="icon"
         onClick={handleSend}
         disabled={disabled || !text.trim()}
-        className={cn(
-          'flex h-9 w-9 shrink-0 items-center justify-center rounded-md',
-          'bg-primary text-primary-foreground transition-colors',
-          'hover:bg-primary/90',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          'disabled:pointer-events-none disabled:opacity-50'
-        )}
+        className="h-9 w-9 shrink-0"
         aria-label="Send message"
       >
         <Send className="h-4 w-4" />
-      </button>
+      </Button>
     </div>
   );
 }

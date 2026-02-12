@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { useAiChat } from '@/hooks/use-ai-chat';
 import { cn } from '@/lib/utils';
 import { useAiChatStore } from '@/stores/ai-chat-store';
@@ -71,14 +72,15 @@ export function AiChatPanel({ mode }: AiChatPanelProps) {
                   : 'Disconnected'
             }
           />
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setOpen(false)}
-            className="ml-1 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="ml-1 h-7 w-7"
             aria-label="Close AI Assistant"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -115,13 +117,14 @@ export function AiChatPanel({ mode }: AiChatPanelProps) {
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
               <span>Thinking...</span>
-              <button
-                type="button"
+              <Button
+                variant="link"
+                size="sm"
                 onClick={cancel}
-                className="ml-auto text-xs text-muted-foreground underline hover:text-foreground"
+                className="ml-auto h-auto p-0 text-xs text-muted-foreground"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           )}
         </div>
