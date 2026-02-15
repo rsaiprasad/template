@@ -554,7 +554,7 @@ The Hono app is configured in `packages/backend/src/app.ts`:
 3. Rate limiting middleware
 4. Route registration (all route groups mounted under `/api/v1`)
 5. Global error handler (catches AppError, HTTPException, ZodError, database errors)
-6. OpenAPI documentation endpoints (`/swagger`, `/doc`)
+6. OpenAPI documentation endpoints (`/explorer`, `/doc`)
 7. Health check endpoint (`/health`)
 
 ### API Routes
@@ -628,7 +628,7 @@ The Hono app is configured in `packages/backend/src/app.ts`:
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/health` | Returns `{ status: 'healthy', timestamp, version: '1.0.0' }` |
-| GET | `/swagger` | Swagger UI (OpenAPI documentation) |
+| GET | `/explorer` | API Explorer (Scalar + Firebase Auth, dev only) |
 | GET | `/doc` | OpenAPI JSON spec |
 
 ### Service Layer

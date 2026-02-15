@@ -80,7 +80,7 @@ This starts:
 Once running:
 - **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:3000/api/v1
-- **Swagger**: http://localhost:3000/api/v1/swagger
+- **API Explorer**: http://localhost:3000/api/v1/explorer
 - **Auth Emulator**: http://localhost:9099
 
 ### Option 2: Individual Services

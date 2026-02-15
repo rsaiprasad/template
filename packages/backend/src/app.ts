@@ -1,4 +1,3 @@
-import { swaggerUI } from '@hono/swagger-ui';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
@@ -101,9 +100,8 @@ apiV1.route('/audit', auditRoutes);
 const openApiApp = createOpenAPIApp();
 apiV1.route('/', openApiApp);
 
-// API documentation UIs — dev only
+// API Explorer (Scalar + Firebase Auth) — dev only
 if (process.env.NODE_ENV !== 'production') {
-  apiV1.get('/swagger', swaggerUI({ url: '/api/v1/doc' }));
   apiV1.get('/explorer', explorerRoute);
 }
 

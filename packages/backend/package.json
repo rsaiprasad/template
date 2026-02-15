@@ -19,7 +19,6 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@hono/swagger-ui": "^0.4.0",
     "@hono/zod-openapi": "^0.18.0",
     "drizzle-orm": "^0.45.1",
     "firebase-admin": "^12.7.0",

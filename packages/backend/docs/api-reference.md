@@ -6,7 +6,7 @@
 - **Format**: JSON
 - **Authentication**: Bearer token (Firebase ID token)
 - **OpenAPI Spec**: Available at `/api/v1/doc`
-- **Swagger UI**: Available at `/api/v1/swagger`
+- **API Explorer**: Available at `/api/v1/explorer` (dev only, built on [Scalar](https://github.com/scalar/scalar) with Google Sign-In)
 
 ---
 

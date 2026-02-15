@@ -120,19 +120,17 @@ bun run db:migrate   # Run pending migrations
 bun run db:studio    # Open Drizzle Studio (database GUI)
 ```
 
-### API Documentation
+### API Explorer (dev only)
 
-When running locally, three endpoints serve the API spec:
+The API Explorer at `http://localhost:3000/api/v1/explorer` is a custom page built on [Scalar](https://github.com/scalar/scalar) (open-source OpenAPI explorer) with integrated Firebase Auth for Google Sign-In. Sign in once and all "Try it" requests automatically include your Bearer token. Both Scalar and Firebase Auth load from CDN — no extra npm dependencies.
 
-| URL | Description |
-|-----|-------------|
-| `http://localhost:3000/api/v1/explorer` | **API Explorer** — Scalar UI with built-in Google Sign-In. Sign in once and all "Try it" requests include your Bearer token automatically. |
-| `http://localhost:3000/api/v1/swagger` | Swagger UI — quick spec viewer, no auth integration. |
-| `http://localhost:3000/api/v1/doc` | Raw OpenAPI 3.1 JSON spec. |
+The raw OpenAPI 3.1 JSON spec is also available at `http://localhost:3000/api/v1/doc`.
 
-#### API Explorer Setup
+The Explorer is only served in development (`NODE_ENV !== 'production'`).
 
-The Explorer loads Firebase Auth from CDN for Google Sign-In. It reads these env vars from the backend's `.env`:
+#### Setup
+
+The Explorer reads Firebase client SDK vars from the backend's `.env`:
 
 ```env
 # Copy these from packages/frontend/.env (same Firebase project)
@@ -143,7 +141,7 @@ PUBLIC_FIREBASE_PROJECT_ID=your-project-id
 
 In development with `bun run dev:full`, the Auth Emulator is started automatically and `FIREBASE_AUTH_EMULATOR_HOST` is set — the Explorer detects this and connects to the emulator for sign-in.
 
-**To test the Explorer:**
+#### Usage
 
 1. Start the full dev environment: `bun run dev:full` (from monorepo root)
 2. Open `http://localhost:3000/api/v1/explorer`
