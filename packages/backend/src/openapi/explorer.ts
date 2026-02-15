@@ -98,9 +98,8 @@ export const explorerRoute = (c: Context) => {
             '<span class="auth-status">Not authenticated \\u2014 API calls will return 401</span>' +
             '<button class="sign-in-btn" id="sign-in-btn">Sign in with Google</button>';
           document.getElementById('sign-in-btn').onclick = function() {
-            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(err) {
-              alert('Sign-in failed: ' + err.message);
-            });
+            var provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithRedirect(provider);
           };
         }
       }
