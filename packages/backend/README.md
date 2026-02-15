@@ -120,15 +120,37 @@ bun run db:migrate   # Run pending migrations
 bun run db:studio    # Open Drizzle Studio (database GUI)
 ```
 
-### Swagger UI
+### API Documentation
 
-When running locally, access Swagger UI at:
-- `http://localhost:3000/api/v1/swagger`
+When running locally, three endpoints serve the API spec:
 
-### OpenAPI JSON
+| URL | Description |
+|-----|-------------|
+| `http://localhost:3000/api/v1/explorer` | **API Explorer** — Scalar UI with built-in Google Sign-In. Sign in once and all "Try it" requests include your Bearer token automatically. |
+| `http://localhost:3000/api/v1/swagger` | Swagger UI — quick spec viewer, no auth integration. |
+| `http://localhost:3000/api/v1/doc` | Raw OpenAPI 3.1 JSON spec. |
 
-Raw spec available at:
-- `http://localhost:3000/api/v1/doc`
+#### API Explorer Setup
+
+The Explorer loads Firebase Auth from CDN for Google Sign-In. It reads these env vars from the backend's `.env`:
+
+```env
+# Copy these from packages/frontend/.env (same Firebase project)
+PUBLIC_FIREBASE_API_KEY=AIzaSy...
+PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+```
+
+In development with `bun run dev:full`, the Auth Emulator is started automatically and `FIREBASE_AUTH_EMULATOR_HOST` is set — the Explorer detects this and connects to the emulator for sign-in.
+
+**To test the Explorer:**
+
+1. Start the full dev environment: `bun run dev:full` (from monorepo root)
+2. Open `http://localhost:3000/api/v1/explorer`
+3. Click **Sign in with Google** — you'll be redirected to the Auth Emulator
+4. Pick an existing account or add a new one, then click **Sign in with Google.com**
+5. You're redirected back to the Explorer, now authenticated — the Bearer token is pre-filled in all request examples
+6. Use **Test Request** on any endpoint (e.g. `GET /auth/me`) to make authenticated API calls
 
 ## Architecture
 
