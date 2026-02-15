@@ -101,11 +101,9 @@ apiV1.route('/audit', auditRoutes);
 const openApiApp = createOpenAPIApp();
 apiV1.route('/', openApiApp);
 
-// Swagger UI at /swagger endpoint
-apiV1.get('/swagger', swaggerUI({ url: '/api/v1/doc' }));
-
-// Authenticated API Explorer (Scalar + Firebase Auth) — dev only
+// API documentation UIs — dev only
 if (process.env.NODE_ENV !== 'production') {
+  apiV1.get('/swagger', swaggerUI({ url: '/api/v1/doc' }));
   apiV1.get('/explorer', explorerRoute);
 }
 
