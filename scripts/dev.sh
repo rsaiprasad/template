@@ -18,6 +18,14 @@ BACKEND_PORT=${PORT:-3000}
 # Firebase Auth emulator port (for Google OAuth)
 AUTH_EMULATOR_PORT=9099
 
+# Parse flags
+RESET_DB=false
+for arg in "$@"; do
+    case "$arg" in
+        --reset) RESET_DB=true ;;
+    esac
+done
+
 # Firebase project ID for Auth emulator (demo-* prefix = offline-only mode)
 PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-admin-dashboard}"
 echo -e "${BLUE}Using Firebase project: ${PROJECT_ID}${NC}"
@@ -27,6 +35,13 @@ DEV_DB_NAME="admin_dashboard_dev"
 DEV_DB_USER="admin_user"
 DEV_DB_PASSWORD="admin_local_dev"
 DEV_DATABASE_URL="postgresql://$DEV_DB_USER:$DEV_DB_PASSWORD@localhost:5432/$DEV_DB_NAME"
+
+# Drop dev database if --reset flag is passed
+if [ "$RESET_DB" = true ]; then
+    echo -e "${YELLOW}Resetting dev database '$DEV_DB_NAME'...${NC}"
+    sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DEV_DB_NAME;" > /dev/null 2>&1
+    echo -e "${GREEN}Dropped dev database${NC}"
+fi
 
 # Create dev database if it doesn't exist
 if sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DEV_DB_NAME'" 2>/dev/null | grep -q 1; then
