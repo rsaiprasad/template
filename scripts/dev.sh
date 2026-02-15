@@ -123,6 +123,7 @@ echo ""
 echo "  Frontend:     http://localhost:5173"
 echo "  Backend API:  http://localhost:$BACKEND_PORT/api/v1"
 echo "  Swagger:      http://localhost:$BACKEND_PORT/api/v1/swagger"
+echo "  API Explorer: http://localhost:$BACKEND_PORT/api/v1/explorer"
 echo "  Auth Emulator: http://localhost:$AUTH_EMULATOR_PORT"
 if [ -n "$AI_PID" ]; then
 echo "  AI Service:   http://localhost:3001"

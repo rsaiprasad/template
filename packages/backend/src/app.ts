@@ -17,6 +17,7 @@ import {
   getUserAgent,
 } from './core/utils/response';
 import { createOpenAPIApp } from './openapi';
+import { explorerRoute } from './openapi/explorer';
 
 import { auditRoutes } from './routes/audit';
 // Import routes
@@ -102,6 +103,9 @@ apiV1.route('/', openApiApp);
 
 // Swagger UI at /swagger endpoint
 apiV1.get('/swagger', swaggerUI({ url: '/api/v1/doc' }));
+
+// Authenticated API Explorer (Scalar + Firebase Auth)
+apiV1.get('/explorer', explorerRoute);
 
 app.route('/api/v1', apiV1);
 
