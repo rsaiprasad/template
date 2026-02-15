@@ -22,6 +22,30 @@ AUTH_EMULATOR_PORT=9099
 PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-admin-dashboard}"
 echo -e "${BLUE}Using Firebase project: ${PROJECT_ID}${NC}"
 
+# --- Dev database setup (separate from production) ---
+DEV_DB_NAME="admin_dashboard_dev"
+DEV_DB_USER="admin_user"
+DEV_DB_PASSWORD="admin_local_dev"
+DEV_DATABASE_URL="postgresql://$DEV_DB_USER:$DEV_DB_PASSWORD@localhost:5432/$DEV_DB_NAME"
+
+# Create dev database if it doesn't exist
+if sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DEV_DB_NAME'" 2>/dev/null | grep -q 1; then
+    echo -e "${GREEN}Dev database '$DEV_DB_NAME' ready${NC}"
+else
+    echo -e "${BLUE}Creating dev database '$DEV_DB_NAME'...${NC}"
+    sudo -u postgres psql -c "CREATE DATABASE $DEV_DB_NAME OWNER $DEV_DB_USER;" > /dev/null 2>&1
+    echo -e "${GREEN}Created dev database '$DEV_DB_NAME'${NC}"
+fi
+
+# Push schema to dev database
+echo -e "${BLUE}Syncing schema to dev database...${NC}"
+cd "$PROJECT_ROOT/packages/backend"
+DATABASE_URL="$DEV_DATABASE_URL" bunx drizzle-kit push --force > /dev/null 2>&1
+echo -e "${GREEN}Dev database schema up to date${NC}"
+
+# Override DATABASE_URL for all child processes
+export DATABASE_URL="$DEV_DATABASE_URL"
+
 # Check if backend port is in use
 check_port() {
     local port=$1
@@ -125,6 +149,7 @@ echo "  Backend API:  http://localhost:$BACKEND_PORT/api/v1"
 echo "  Swagger:      http://localhost:$BACKEND_PORT/api/v1/swagger"
 echo "  API Explorer: http://localhost:$BACKEND_PORT/api/v1/explorer"
 echo "  Auth Emulator: http://localhost:$AUTH_EMULATOR_PORT"
+echo "  Database:      $DEV_DB_NAME (dev-only, isolated from production)"
 if [ -n "$AI_PID" ]; then
 echo "  AI Service:   http://localhost:3001"
 fi
