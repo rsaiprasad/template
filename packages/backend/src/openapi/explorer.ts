@@ -137,8 +137,15 @@ export const explorerRoute = (c: Context) => {
 
         if (user) {
           user.getIdToken().then(function(token) {
-            initScalar(token);
-            initialized = true;
+            // Register user in the database via /auth/login (idempotent)
+            return fetch('/api/v1/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({ idToken: token })
+            }).then(function() {
+              initScalar(token);
+              initialized = true;
+            });
           });
         } else if (!initialized) {
           initScalar(null);
