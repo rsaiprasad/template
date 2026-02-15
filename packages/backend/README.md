@@ -252,6 +252,17 @@ Schema is defined in `src/db/schema.ts`. Tables:
 | `settings` | App settings |
 | `audit_logs` | Audit trail |
 
+### Dev vs Production Database
+
+Development and production use **separate databases** to prevent test data from polluting production — important when both run on the same machine.
+
+| Environment | Database | How it's set |
+|-------------|----------|--------------|
+| Development (`bun run dev:full`) | `admin_dashboard_dev` | `scripts/dev.sh` auto-creates the database, syncs the schema, and overrides `DATABASE_URL` |
+| Production | `admin_dashboard` | `packages/backend/.env` → `DATABASE_URL` |
+
+You don't need to configure anything — `dev.sh` handles dev database creation and schema sync automatically on every startup. The `.env` file's `DATABASE_URL` is only used by the production service.
+
 ### Schema Management
 
 ```bash
