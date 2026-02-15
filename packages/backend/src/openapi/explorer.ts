@@ -99,7 +99,7 @@ export const explorerRoute = (c: Context) => {
             '<button class="sign-in-btn" id="sign-in-btn">Sign in with Google</button>';
           document.getElementById('sign-in-btn').onclick = function() {
             var provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithRedirect(provider);
+            auth.signInWithPopup(provider);
           };
         }
       }

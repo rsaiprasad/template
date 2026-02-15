@@ -66,6 +66,14 @@ app.use(
 // Rate limiting middleware - apply before routes
 app.use('*', rateLimitMiddleware());
 
+// Relax COOP on the explorer page so Firebase Auth popup can use window.opener
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/v1/explorer', async (c, next) => {
+    await next();
+    c.res.headers.set('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  });
+}
+
 // Security headers
 app.use('*', secureHeaders());
 

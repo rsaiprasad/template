@@ -26,8 +26,15 @@ for arg in "$@"; do
     esac
 done
 
-# Firebase project ID for Auth emulator (demo-* prefix = offline-only mode)
-PROJECT_ID="${FIREBASE_PROJECT_ID:-demo-admin-dashboard}"
+# Firebase project ID for Auth emulator
+# Use the real project ID from backend .env if available (must match service account),
+# otherwise fall back to demo-* prefix for offline-only mode (no real Firebase project)
+BACKEND_ENV="$PROJECT_ROOT/packages/backend/.env"
+ENV_PROJECT_ID=""
+if [ -f "$BACKEND_ENV" ]; then
+    ENV_PROJECT_ID=$(grep -m1 '^PUBLIC_FIREBASE_PROJECT_ID=' "$BACKEND_ENV" 2>/dev/null | cut -d= -f2)
+fi
+PROJECT_ID="${FIREBASE_PROJECT_ID:-${ENV_PROJECT_ID:-demo-admin-dashboard}}"
 echo -e "${BLUE}Using Firebase project: ${PROJECT_ID}${NC}"
 
 # --- Dev database setup (separate from production) ---
