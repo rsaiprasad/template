@@ -113,6 +113,7 @@ fi
 # Export emulator env vars so firebase-admin SDK connects to local emulator
 export FIREBASE_AUTH_EMULATOR_HOST="localhost:$AUTH_EMULATOR_PORT"
 export GCLOUD_PROJECT="$PROJECT_ID"
+export NODE_ENV=development
 
 # Start backend Bun server
 echo -e "${BLUE}Starting Backend (Bun server on port $BACKEND_PORT)...${NC}"
