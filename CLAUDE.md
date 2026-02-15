@@ -111,6 +111,10 @@ const user = response.data;
 ### Lesson 4: Git Commits Must Be Checked for Sensitive Data
 **Rule**: Before EVERY git commit, run `git diff --cached` and search for API keys, secrets, emails, project IDs. Report verification to user before committing.
 
+### Lesson 5: Investigate What Changed Before Assuming Code Is Wrong
+**Mistake**: Spent multiple iterations modifying `firebase-admin.ts` to fix an audience mismatch error. The real cause was a stale emulator process left over from before a recent `dev.sh` commit that changed the project ID logic.
+**Rule**: When something "suddenly stops working," first check recent commits (`git log --since="2 days ago"`) and running processes (`ps aux | grep ...`) to understand what changed. Identify the actual cause before writing any fix — the bug is often in the environment, not the code you're about to edit.
+
 ---
 
 ## Project Structure

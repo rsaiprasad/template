@@ -94,8 +94,20 @@ fi
 EMU_PID=""
 AUTH_PID_EXISTING=$(check_port "$AUTH_EMULATOR_PORT")
 if [ -n "$AUTH_PID_EXISTING" ]; then
-    echo -e "${GREEN}Auth emulator already running on port $AUTH_EMULATOR_PORT${NC}"
-else
+    # Check if the existing emulator is running with the correct project ID
+    EXISTING_PROJECT=$(ps -p "$AUTH_PID_EXISTING" -o args= 2>/dev/null | grep -oP '(?<=--project )\S+' || echo "")
+    if [ "$EXISTING_PROJECT" = "$PROJECT_ID" ]; then
+        echo -e "${GREEN}Auth emulator already running on port $AUTH_EMULATOR_PORT (project: $PROJECT_ID)${NC}"
+    else
+        echo -e "${YELLOW}Auth emulator running with wrong project '$EXISTING_PROJECT' (expected '$PROJECT_ID'), restarting...${NC}"
+        kill "$AUTH_PID_EXISTING" 2>/dev/null
+        sleep 2
+        # Fall through to start a fresh emulator below
+        AUTH_PID_EXISTING=""
+    fi
+fi
+
+if [ -z "$AUTH_PID_EXISTING" ] && ! curl -s "http://localhost:$AUTH_EMULATOR_PORT" >/dev/null 2>&1; then
     NODE_BIN="$(mise which node 2>/dev/null || echo node)"
     FIREBASE_BIN="$(realpath "$(which firebase)" 2>/dev/null || echo firebase)"
     echo -e "${BLUE}Starting Firebase Auth Emulator (node=$NODE_BIN)...${NC}"
