@@ -10,6 +10,11 @@ let auth: Auth;
  * or service account credentials for local development
  */
 export function initializeFirebaseAdmin(): App {
+  // Prevent accidental emulator use in production
+  if (process.env.NODE_ENV === 'production' && process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+    throw new Error('FATAL: Firebase Auth Emulator cannot be used in production.');
+  }
+
   if (getApps().length > 0) {
     app = getApps()[0]!;
     return app;

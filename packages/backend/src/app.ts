@@ -6,6 +6,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { config } from './config';
 import { AppError } from './core/errors';
 import { initializeFirebaseAdmin } from './core/lib/firebase-admin';
+import { authMiddleware } from './core/middleware/auth';
 import { rateLimitMiddleware } from './core/middleware/rate-limit';
 import type { AppEnv } from './core/types/context';
 import {
@@ -104,7 +105,10 @@ apiV1.route('/permissions', permissionRoutes);
 apiV1.route('/settings', settingsRoutes);
 apiV1.route('/audit', auditRoutes);
 
-// Mount OpenAPI documentation
+// Mount OpenAPI documentation — require auth in production
+if (process.env.NODE_ENV === 'production') {
+  apiV1.use('/doc', authMiddleware);
+}
 const openApiApp = createOpenAPIApp();
 apiV1.route('/', openApiApp);
 

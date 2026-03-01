@@ -31,7 +31,16 @@ function getFirebaseApp(): App {
 export async function verifyToken(idToken: string): Promise<DecodedIdToken> {
   const firebaseApp = getFirebaseApp();
   const auth = getAuth(firebaseApp);
-  return auth.verifyIdToken(idToken);
+  const decoded = await auth.verifyIdToken(idToken);
+
+  // Enforce Google sign-in provider — reject email/password or other providers
+  const provider = decoded.firebase?.sign_in_provider;
+  const isEmulator = !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
+  if (provider !== 'google.com' && !(isEmulator && provider === 'password')) {
+    throw new Error('Only Google sign-in is allowed');
+  }
+
+  return decoded;
 }
 
 interface UserProfile {

@@ -46,6 +46,25 @@ authRoutes.post('/login', loginAuditMiddleware, async (c) => {
 
     try {
       decodedToken = await auth.verifyIdToken(idToken, true);
+
+      // Enforce Google sign-in provider — reject email/password or other providers
+      // that could be created via the public Firebase API key
+      const provider = decodedToken.firebase?.sign_in_provider;
+      const isEmulator = !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
+      if (provider !== 'google.com' && !(isEmulator && provider === 'password')) {
+        await auditService.createAuditLog({
+          actorId: decodedToken.uid,
+          actorEmail: decodedToken.email || 'unknown',
+          actorName: decodedToken.name || 'Unknown',
+          action: 'LOGIN_FAILED',
+          resource: 'auth',
+          resourceId: decodedToken.uid,
+          description: `Login rejected: disallowed sign-in provider "${provider}"`,
+          ipAddress: c.get('clientIp'),
+          userAgent: c.get('userAgent'),
+        });
+        return unauthorized(c, 'Only Google sign-in is allowed');
+      }
     } catch (error) {
       const errorCode = (error as { code?: string }).code;
 

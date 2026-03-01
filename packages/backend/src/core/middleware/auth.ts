@@ -104,6 +104,13 @@ export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
     const auth = getAuthAdmin();
     const decodedToken = await auth.verifyIdToken(token, true);
 
+    // Enforce Google sign-in provider — reject tokens from email/password or other providers
+    const provider = decodedToken.firebase?.sign_in_provider;
+    const isEmulator = !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
+    if (provider !== 'google.com' && !(isEmulator && provider === 'password')) {
+      return unauthorized(c, 'Only Google sign-in is allowed');
+    }
+
     // Get user from database
     const [userRow] = await db
       .select()
